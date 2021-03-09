@@ -1,0 +1,188 @@
+---
+title: "Pakistan data summary"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F)
+```
+
+```{r echo = F}
+
+# data_wrangling.R
+
+# Description
+# Wrangle summary tables and figures for Pakistan data
+
+# Arguments to script:
+# metadata
+
+# Input:
+# metadata
+
+# Main steps:
+
+# Output:
+
+```
+
+```{r functions, echo = F}
+
+# Functions ----
+
+heaD <- function(x,...){
+  head(x, ...)
+}
+
+len_str <- function(string){
+  length(unlist(strsplit(string, split = "")))
+}
+
+hs <- function(x, ...){
+  print(head(x, ...))
+  print("---")
+  str(x, ...)
+}
+
+to_table <- function(x){
+  x <- x %>% adorn_totals(c("row", "col")) %>%
+    adorn_percentages(c("row")) %>%
+    adorn_pct_formatting(digits = 2)
+  formatted_ns <- attr(x, "core") %>% # extract the tabyl's underlying Ns
+    adorn_totals(c("row", "col")) %>% # to match the data.frame we're appending to
+    dplyr::mutate_if(is.numeric, format, big.mark = ",")
+  x %>% adorn_ns(position = "front", ns = formatted_ns)
+}
+
+```
+
+```{r variables, echo = F}
+
+# Variables ----
+id_col <- "wgs_id"
+rnd <- 2
+drugs <- c("rifampicin", "isoniazid", "ethambutol", "pyrazinamide", "streptomycin", 
+             "ofloxacin", "moxifloxacin", "levofloxacin", "amikacin", "kanamycin", "capreomycin", "ciprofloxacin", "prothionamide", 
+             "ethionamide", "para_aminosalicylic_acid", "cycloserine",
+             "clarithromycin", "clofazimine", "bedaquiline", "linezolid", "rifabutin", "delamanid")
+
+```
+
+```{r paths, echo = F}
+
+# Paths ----
+
+metadata_path <- "~/Documents/pakistan/metadata/"
+
+```
+
+```{r files, echo = F}
+
+# Files ----
+
+metadata_file <- paste0(metadata_path, "pakistan_metadata.csv")
+
+```
+
+```{r read_in_data, echo = F}
+
+# Read in data ----
+
+metadata <- read.csv(metadata_file)
+
+```
+
+```{r basic_numbers, echo = F}
+
+# Basic numbers ----
+
+n_samps_total <- length(metadata$wgs_id)
+
+```
+
+
+
+## Table 1
+
+*Mycobacterium tuberculosis* samples (N = `r n_samps_total`)
+
+```{r table_1}
+
+# Table 1 ----
+
+# https://www.nature.com/articles/s41598-019-45566-5/tables/1
+
+# Table 1 - Mycobacterium tuberculosis samples (N = 178)
+
+# Characteristic	N	%
+# 
+# Location*
+#   
+# Lineages
+# 
+# Drug resistance**
+# 
+# Rifampicin
+# Isoniazid...etc
+# 
+# Dr type
+# MDR-TB...etc
+
+
+# Lineages
+lin_tab <- reshape2::dcast(metadata, main_lineage ~ "N", value.var = id_col, fun.aggregate = length)
+names(lin_tab) <- c("Lineages", names(lin_tab)[length(names(lin_tab))])
+lin_tab$pc <- round((lin_tab$N/sum(lin_tab$N)) * 100, rnd)
+
+
+# DR
+# Specific drugs
+drugs_data <- apply(metadata[drugs], 2, as.numeric)
+dr_tab <- as.data.frame(t(t(apply(drugs_data[, drugs], 2, sum, na.rm = T))))
+dr_tab$drug_resistance <- row.names(dr_tab)
+names(dr_tab) <- c("N", "Drug resistance")
+dr_tab <- dr_tab[c("Drug resistance", "N")]
+row.names(dr_tab) <- NULL
+dr_tab$pc <- round((dr_tab$N/sum(dr_tab$N)) * 100, rnd)
+
+# DR status
+# Desired order of DR cols
+dr_vals <- c("Sensitive", "Pre-MDR", "MDR", "Pre-XDR", "XDR", "Other") 
+dr_status_tab <- reshape2::dcast(metadata, dr_status ~ "N", value.var = id_col, fun.aggregate = length)
+dr_status_tab <- dr_status_tab[match(dr_vals, dr_status_tab$dr_status), ]
+names(dr_status_tab) <- c("Drug resistance status", names(dr_status_tab)[length(names(dr_status_tab))])
+dr_status_tab$pc <- round((dr_status_tab$N/sum(dr_status_tab$N)) *100, rnd)
+row.names(dr_status_tab) <- NULL
+
+
+
+# Print out
+align <- c("l", "r", "r")
+knitr::kable(lin_tab, align = align)
+knitr::kable(dr_tab, align = align)
+knitr::kable(dr_status_tab, align = align)
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
