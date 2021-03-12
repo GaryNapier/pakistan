@@ -1,6 +1,11 @@
+#!/usr/bin/env Rscript
 
+# RUN:
+# Rscript r_scripts/clean_metadata.R <main_metadata_file>  <other_metadata_file>            <outfile>
 
 # Setup ----
+
+args <- commandArgs(trailingOnly=TRUE)
 
 library(plyr)
 library(dplyr)
@@ -16,14 +21,18 @@ options(stringsAsFactors = F)
 
 # Paths ----
 
-metadata_path <- "~/Documents/metadata/"
-output_path <- "~/Documents/pakistan/metadata/"
+# metadata_path <- "~/Documents/metadata/"
+# output_path <- "~/Documents/pakistan/metadata/"
 
 # Files ----
 
-metadata_file <- paste0(metadata_path, "tb_data_18_02_2021.csv")
-pakistan_data_file <- paste0(metadata_path, "pakistan_data_non_mixed.csv")
-pakistan_data_outfile <- paste0(output_path, "pakistan_metadata.csv")
+# metadata_file <- paste0(metadata_path, "tb_data_18_02_2021.csv")
+# pakistan_data_file <- paste0(metadata_path, "pakistan_data_non_mixed.csv")
+# pakistan_data_outfile <- paste0(output_path, "pakistan_metadata.csv")
+
+metadata_file <- args[1]
+pakistan_data_file <- args[2]
+pakistan_data_outfile <- args[3]
 
 # Read in data ----
 
