@@ -37,6 +37,7 @@ ref_dir=~/refgenome/
 dist_and_pca_dir=dist_and_pca/
 fasta_dir=fasta/
 newick_output_dir=newick/
+itol_dir=itol/
 tmp_dir=tmp/
 
 # Files
@@ -58,6 +59,10 @@ treefile=${newick_output_dir}${fasta_file_base}*treefile
 # Make directories
 if [ ! -d ${tmp_dir} ]; then
     mkdir ${tmp_dir}
+fi
+
+if [ ! -d ${itol_dir} ]; then
+    mkdir ${itol_dir}
 fi
 
 # ------------------------------------------------------------------------------
@@ -195,6 +200,8 @@ else
     printf "\n"
 fi
 
+# ------------------------------------------------------------------------------
+
 # IQ tree
 
 if [ ! -f ${iqtree_file} ] || [ ! -f ${treefile} ]; then
@@ -219,6 +226,18 @@ else
     printf "\n"
 fi
 
+# ------------------------------------------------------------------------------
+
+# Tree annotation - itol
+
+# Run
+# Rscript   itol_templates.R    <itol_templates_location>
+itol_templates.R    ${itol_dir}
+
+# Rscript itol_annotation.R <metadata_file>   <itol_location>
+itol_annotation.R   ${pakistan_metadata_file} ${itol_dir}
+
+# ------------------------------------------------------------------------------
 
 # Clean up
 rm -r ${tmp_dir}
