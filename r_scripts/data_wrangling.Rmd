@@ -1,28 +1,21 @@
 ---
 title: "Pakistan data summary"
-output: html_document
+output:
+  html_document: default
+bibliography:   all_refs.bib
+csl: biomed-central.csl
 ---
 
 ```{r setup, include=FALSE}
+
 knitr::opts_chunk$set(echo = F)
-```
-
-```{r echo = F}
-
-# data_wrangling.R
-
-# Description
-# Wrangle summary tables and figures for Pakistan data
-
-# Arguments to script:
-# metadata
-
-# Input:
-# metadata
-
-# Main steps:
-
-# Output:
+library(knitr)
+library(dplyr)
+fmt <- function(x, ...){format(x, big.mark=",",scientific=FALSE, ...)}
+knitr::opts_chunk$set(echo = F)
+# options(scipen=1, digits=2)
+options(scipen=999, digits = 2)
+table_font_sz <- 8
 
 ```
 
@@ -65,6 +58,7 @@ drugs <- c("rifampicin", "isoniazid", "ethambutol", "pyrazinamide", "streptomyci
              "ofloxacin", "moxifloxacin", "levofloxacin", "amikacin", "kanamycin", "capreomycin", "ciprofloxacin", "prothionamide", 
              "ethionamide", "para_aminosalicylic_acid", "cycloserine",
              "clarithromycin", "clofazimine", "bedaquiline", "linezolid", "rifabutin", "delamanid")
+align <- c("l", "r", "r")
 
 ```
 
@@ -72,7 +66,10 @@ drugs <- c("rifampicin", "isoniazid", "ethambutol", "pyrazinamide", "streptomyci
 
 # Paths ----
 
-metadata_path <- "~/Documents/pakistan/metadata/"
+metadata_path <- "../metadata/"
+plots_path <- "../plots/"
+db_path <- "../../pipeline/db/"
+
 
 ```
 
@@ -81,6 +78,8 @@ metadata_path <- "~/Documents/pakistan/metadata/"
 # Files ----
 
 metadata_file <- paste0(metadata_path, "pakistan_metadata.csv")
+tree_all_samps_file <- paste0(plots_path, "PAKISTAN_ALL.tree.png")
+lineage_conversion_file <- paste0(db_path, "lineage_conversions.txt")
 
 ```
 
@@ -89,6 +88,7 @@ metadata_file <- paste0(metadata_path, "pakistan_metadata.csv")
 # Read in data ----
 
 metadata <- read.csv(metadata_file)
+lineage_conversions <- read.delim(lineage_conversion_file)
 
 ```
 
@@ -97,14 +97,10 @@ metadata <- read.csv(metadata_file)
 # Basic numbers ----
 
 n_samps_total <- length(metadata$wgs_id)
+n_snps_total <- 37970
 
 ```
 
-
-
-## Table 1
-
-*Mycobacterium tuberculosis* samples (N = `r n_samps_total`)
 
 ```{r table_1}
 
@@ -134,6 +130,14 @@ lin_tab <- reshape2::dcast(metadata, main_lineage ~ "N", value.var = id_col, fun
 names(lin_tab) <- c("Lineages", names(lin_tab)[length(names(lin_tab))])
 lin_tab$pc <- round((lin_tab$N/sum(lin_tab$N)) * 100, rnd)
 
+# Lineages conversions
+lin_conv <- merge(metadata["sub_lineage"], lineage_conversions, 
+                  by.x = "sub_lineage", by.y = "mtbc_lineage", 
+                  all.x = T, sort = F)
+lin_conv_tab <- reshape2::dcast(lin_conv, sub_lineage + lsp_lineage + spoligotype_family + rd_number ~ "N",
+                                value.var = "sub_lineage", fun.aggregate = length)
+names(lin_conv_tab) <- c("Sub lineage", "LSP lineage", "Spoligotype family", "RD number", "N")
+
 
 # DR
 # Specific drugs
@@ -154,25 +158,74 @@ names(dr_status_tab) <- c("Drug resistance status", names(dr_status_tab)[length(
 dr_status_tab$pc <- round((dr_status_tab$N/sum(dr_status_tab$N)) *100, rnd)
 row.names(dr_status_tab) <- NULL
 
-
-
 # Print out
-align <- c("l", "r", "r")
-knitr::kable(lin_tab, align = align)
-knitr::kable(dr_tab, align = align)
-knitr::kable(dr_status_tab, align = align)
-
 
 ```
 
 
+## Introduction
+
+In 2019: 
+
+* Pakistan is a high-burden TB country.
+* One of eight countries accounting for two thirds of the global total TB instance (5.7%)
+
+**Estimates of TB burden, 2019**
+
+| | Number | (Rate per 100,000 population) |
+|-----------|-----------|-----------|
+| Total TB incidence | 570,000 (404,000-764,000)	| 263 (187-353) |
+| HIV-positive TB incidence |	5,100 (3,400-7,200)	| 2.4 (1.6-3.3) |
+| MDR/RR-TB incidence | 25,000 (16,000-36,000) | 12 (7.3-17) |
+| HIV-negative TB mortality |	42,000 (34,000-51,000) | 19 (16-24) | 
+| HIV-positive TB mortality	| 1,900 (1,300-2,800)	| 0.9 (0.58-1.3) |
+
+**Estimated proportion of TB cases with MDR/RR-TB, 2019**
+
+|  |  |
+|-----------|-----------|
+| New cases |	4.2% (3.2-5.3) |
+| Previously treated cases |	7.3% (6.8-7.8) |
 
 
+[@WHO_2020]
 
 
+## Tables
+
+*Mycobacterium tuberculosis* samples (N = `r n_samps_total`)
+
+### Lineages tables
+
+```{r lintables, echo=FALSE, out.width = "2000px"}
+
+knitr::kable(lin_tab, align = align)
+knitr::kable(lin_conv_tab)
+
+```
+
+### Drug resistance tables
+
+```{r drtable, echo=FALSE, out.width = "2000px"}
+
+knitr::kable(dr_tab, align = align)
+knitr::kable(dr_status_tab, align = align)
+
+```
 
 
+## Tree
 
+The `r n_samps_total` *M. tuberculosis* isolates: A phylogenetic tree constructed using `r fmt(n_snps_total)` SNPs
+
+```{r treeAllSamps, echo=FALSE, out.width = "2000px"}
+
+knitr::include_graphics(tree_all_samps_file)
+
+```
+
+
+### References
 
 
 
