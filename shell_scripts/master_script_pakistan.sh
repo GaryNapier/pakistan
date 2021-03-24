@@ -28,6 +28,8 @@ printf "\n"
 # Variables
 study_accession=PAKISTAN_ALL
 gvcf_file_suffix=.g.vcf.gz
+date_column=year
+id_column=wgs_id
 
 # Directories
 main_metadata_dir=~/metadata/
@@ -39,6 +41,8 @@ fasta_dir=fasta/
 newick_output_dir=newick/
 itol_dir=itol/
 tmp_dir=tmp/
+beast_results_dir=beast_results/
+beast_xml_dir=beast_xml/
 
 # Files
 main_metadata_file=${main_metadata_dir}tb_data_18_02_2021.csv
@@ -55,6 +59,8 @@ unfilt_fasta_file=${fasta_dir}${study_accession}.filt.val.gt.g.snps.fa
 fasta_file_base=$(basename -- ${unfilt_fasta_file})
 iqtree_file=${newick_output_dir}${fasta_file_base}.iqtree
 treefile=${newick_output_dir}${fasta_file_base}*treefile
+dated_fasta_file=${fasta_dir}${study_accession}.dated.fa
+xml_file=${beast_xml_dir}${study_accession}.xml # created manually
 
 # Make directories
 if [ ! -d ${tmp_dir} ]; then
@@ -230,14 +236,130 @@ fi
 
 # Tree annotation - itol
 
-# Run
+echo "------------------------------------------------------------------------------"
+
+echo "Running itol_templates.R"
+printf "\n"
 # Rscript   itol_templates.R    <itol_templates_location>
 itol_templates.R    ${itol_dir}
+echo "itol_templates.R done"
+printf "\n"
 
-# Rscript itol_annotation.R <metadata_file>   <itol_location>
-itol_annotation.R   ${pakistan_metadata_file} ${itol_dir}
+echo "Running itol_annotation.R"
+printf "\n"
+# itol_annotation.R <metadata_file>             <itol_location>
+itol_annotation.R   ${pakistan_metadata_file}   ${itol_dir}
+echo "itol_annotation.R done"
+printf "\n"
 
 # ------------------------------------------------------------------------------
+
+#  Annotate fasta file
+
+if [ ! -f ${dated_fasta_file} ]; then
+
+    echo "------------------------------------------------------------------------------"
+
+    echo "Dated fasta file"
+    printf "\n"
+
+    echo "Running fasta_add_annotations.py - outputs ${dated_fasta_file}"
+    printf "\n"
+
+    # Run fasta_add_annotations.py to concatenate the metadata collection date with the sample ID in the fasta file
+    # e.g. >ERR1234 -> >ERR1234_01_01_10
+    # - see https://github.com/pathogenseq/pathogenseq-scripts/tree/master/scripts
+    set -x
+    fasta_add_annotations.py --fasta ${unfilt_fasta_file} --csv ${pakistan_metadata_file} --out ${dated_fasta_file} --annotations ${date_column} --id-key ${id_column}
+    set +x
+    echo "------------------------------------------------------------------------------"
+    printf "\n"
+else
+    echo "------------------------------------------------------------------------------"
+    echo "File ${dated_fasta_file} exists, skipping fasta_add_annotations.py"
+    echo "------------------------------------------------------------------------------"
+    printf "\n"
+fi
+
+# ------------------------------------------------------------------------------
+
+# NEED TO SUBSET SAMPLES TO JUST THOSE WITH DATES
+
+
+
+# BEAST
+
+# Stop here if xml file does not exist
+
+if [ ! -f ${xml_file} ]; then
+    echo "Stopping script before Beast section - xml file ${xml_file} does not exist"
+    exit 1
+fi
+
+# Run Beast
+
+# Beast output files - n.b. saves the .log and .trees files to the current directory and ONLY takes the study_accession
+# So files are ./<study_accession>.log and ./<study_accession>.trees
+original_beast_log_file=${study_accession}.log
+original_beast_trees_file=${study_accession}.trees
+original_beast_state_file=${study_accession}.xml.state
+
+new_beast_log_file=${beast_results_dir}${study_accession}.log
+new_beast_trees_file=${beast_results_dir}${study_accession}.trees
+new_beast_state_file=${beast_results_dir}${study_accession}.xml.state
+
+if [ ! -f ${new_beast_log_file} ] || [ ! -f ${new_beast_trees_file} ] || [ ! -f ${new_beast_state_file} ];then
+
+    echo "------------------------------------------------------------------------------"
+
+    echo "Run Beast"
+    printf "\n"
+
+    echo "Running BEAST - outputs ${original_beast_log_file}, ${original_beast_trees_file} and ${original_beast_state_file}"
+    set -x
+    # Run Beast and clean up - put in right folder
+    beast -threads 20 ${xml_file}
+    mv ${original_beast_log_file} ${beast_results_dir}
+    mv ${original_beast_trees_file} ${beast_results_dir}
+    mv ${original_beast_state_file} ${beast_results_dir}
+    set +x
+    echo "------------------------------------------------------------------------------"
+    printf "\n"
+else
+    echo "------------------------------------------------------------------------------"
+    echo "Files ${new_beast_log_file}, ${new_beast_trees_file} and ${new_beast_state_file} exist, skipping beast"
+    echo "------------------------------------------------------------------------------"
+    printf "\n"
+
+fi
+
+# ------------------------------------------------------------------------------
+
+# Run TreeAnnotator to get MCC tree (input to TransPhylo)
+
+# Out
+${treeann_out}=${beast_results_dir}${study_accession}.mcc.tree
+
+if [ ! -f ${treeann_out} ]; then
+
+    echo "------------------------------------------------------------------------------"
+
+    echo "Running TreeAnnotator on ${new_beast_trees_file} - outputs ${treeann_out}"
+    set -x
+    treeannotator -heights ca -burnin 10 ${new_beast_trees_file} ${treeann_out}
+    set +x
+    echo "------------------------------------------------------------------------------"
+    printf "\n"
+else
+    echo "------------------------------------------------------------------------------"
+    echo "Files ${treeann_out} exists, skipping TreeAnnotator"
+    echo "------------------------------------------------------------------------------"
+    printf "\n"
+
+fi
+
+
+
 
 # Clean up
 rm -r ${tmp_dir}
