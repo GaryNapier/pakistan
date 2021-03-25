@@ -11,10 +11,11 @@ csl: biomed-central.csl
 knitr::opts_chunk$set(echo = F)
 library(knitr)
 library(dplyr)
+library(janitor)
 fmt <- function(x, ...){format(x, big.mark=",",scientific=FALSE, ...)}
 knitr::opts_chunk$set(echo = F)
 # options(scipen=1, digits=2)
-options(scipen=999, digits = 2)
+options(scipen=999, digits = 3)
 table_font_sz <- 8
 
 ```
@@ -37,9 +38,10 @@ hs <- function(x, ...){
   str(x, ...)
 }
 
-to_table <- function(x){
+to_table <- function(x, pc_dir = "row"){
+  # pc_dir = the direction to use for calculating percentages. One of "row", "col", or "all".
   x <- x %>% adorn_totals(c("row", "col")) %>%
-    adorn_percentages(c("row")) %>%
+    adorn_percentages(c(pc_dir)) %>%
     adorn_pct_formatting(digits = 2)
   formatted_ns <- attr(x, "core") %>% # extract the tabyl's underlying Ns
     adorn_totals(c("row", "col")) %>% # to match the data.frame we're appending to
@@ -76,8 +78,8 @@ db_path <- "../../pipeline/db/"
 ```{r files, echo = F}
 
 # Files ----
-
 metadata_file <- paste0(metadata_path, "pakistan_metadata.csv")
+historical_metadata_file <- paste0(metadata_path, "historical_metadata.csv") # http://www.pasteur-guadeloupe.fr/
 tree_all_samps_file <- paste0(plots_path, "PAKISTAN_ALL.tree.png")
 lineage_conversion_file <- paste0(db_path, "lineage_conversions.txt")
 
@@ -88,6 +90,7 @@ lineage_conversion_file <- paste0(db_path, "lineage_conversions.txt")
 # Read in data ----
 
 metadata <- read.csv(metadata_file)
+historical_metadata <- read.csv(historical_metadata_file)
 lineage_conversions <- read.delim(lineage_conversion_file)
 
 ```
@@ -158,17 +161,26 @@ names(dr_status_tab) <- c("Drug resistance status", names(dr_status_tab)[length(
 dr_status_tab$pc <- round((dr_status_tab$N/sum(dr_status_tab$N)) *100, rnd)
 row.names(dr_status_tab) <- NULL
 
-# Print out
+# DR status by lineage
+dr_lin_tab <- reshape2::dcast(metadata,  dr_status ~ main_lineage, value.var = id_col, fun.aggregate = length)
+dr_lin_tab$dr_status <- factor(dr_lin_tab$dr_status, levels = dr_vals)
+dr_lin_tab <- dr_lin_tab[order(dr_lin_tab$dr_status), ]
+names(dr_lin_tab) <- c("DR status", paste0("L", sort(unique(metadata$main_lineage))))
+dr_lin_tab <- to_table(dr_lin_tab, pc_dir = "all")
 
 ```
 
 
 ## Introduction
 
-In 2019: 
+In 2019 [@WHO_2020]: 
 
-* Pakistan is a high-burden TB country.
-* One of eight countries accounting for two thirds of the global total TB instance (5.7%)
+* Pakistan is a high-burden TB country (population 216.6 million).
+* One of eight countries accounting for two thirds of the global total TB instance (5.7%).
+* HIV prevalence is increasing. 190,000 people living with HIV (0.1 prevalence); 25,000 new infections. [@UNAIDS]
+* High burden for multidrug-resistance (MDR-TB, resistance to isoniazid and rifampicin treatments (see table below).
+* However overall treatment success rate is 93% and the mortality rate has been declining since at least 2000. 
+
 
 **Estimates of TB burden, 2019**
 
@@ -188,10 +200,18 @@ In 2019:
 | Previously treated cases |	7.3% (6.8-7.8) |
 
 
-[@WHO_2020]
+### Historical genomic data on MTBC in Pakistan [@SITVIT2]
 
+```{r historical, echo=FALSE, out.width = "2000px"}
 
-## Tables
+n_samps_historical <- length(historical_metadata$IsoNumber)
+
+title <- sprintf("Number of samples by spoligotype family \n in historical Mtb data from Pakistan, n = %s", n_samps_historical)
+barplot(table(historical_metadata$Clade), las=2, 
+        main = title)
+
+```
+
 
 *Mycobacterium tuberculosis* samples (N = `r n_samps_total`)
 
@@ -209,7 +229,7 @@ knitr::kable(lin_conv_tab)
 ```{r drtable, echo=FALSE, out.width = "2000px"}
 
 knitr::kable(dr_tab, align = align)
-knitr::kable(dr_status_tab, align = align)
+knitr::kable(dr_lin_tab)
 
 ```
 
@@ -223,6 +243,20 @@ The `r n_samps_total` *M. tuberculosis* isolates: A phylogenetic tree constructe
 knitr::include_graphics(tree_all_samps_file)
 
 ```
+
+
+## Dates
+
+```{r dates, echo=FALSE, out.width = "2000px"}
+
+year <- metadata$year[!is.na(metadata$year)]
+years <- sort(unique(year))
+breaks <- (min(year)-0.5):(max(year)+0.5)
+yr_hist <- hist(year, freq = T, xaxt="n", xlab= "year", breaks = breaks )
+axis(side = 1, at = yr_hist$mids, labels = years)
+
+```
+
 
 
 ### References
