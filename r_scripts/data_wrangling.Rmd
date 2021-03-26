@@ -12,6 +12,7 @@ knitr::opts_chunk$set(echo = F)
 library(knitr)
 library(dplyr)
 library(janitor)
+library(qgraph)
 fmt <- function(x, ...){format(x, big.mark=",",scientific=FALSE, ...)}
 knitr::opts_chunk$set(echo = F)
 # options(scipen=1, digits=2)
@@ -61,6 +62,8 @@ drugs <- c("rifampicin", "isoniazid", "ethambutol", "pyrazinamide", "streptomyci
              "ethionamide", "para_aminosalicylic_acid", "cycloserine",
              "clarithromycin", "clofazimine", "bedaquiline", "linezolid", "rifabutin", "delamanid")
 align <- c("l", "r", "r")
+col <- "cornflowerblue"
+threshold <- 50
 
 ```
 
@@ -71,7 +74,7 @@ align <- c("l", "r", "r")
 metadata_path <- "../metadata/"
 plots_path <- "../plots/"
 db_path <- "../../pipeline/db/"
-
+dist_path <- "../dist_and_pca/"
 
 ```
 
@@ -82,6 +85,8 @@ metadata_file <- paste0(metadata_path, "pakistan_metadata.csv")
 historical_metadata_file <- paste0(metadata_path, "historical_metadata.csv") # http://www.pasteur-guadeloupe.fr/
 tree_all_samps_file <- paste0(plots_path, "PAKISTAN_ALL.tree.png")
 lineage_conversion_file <- paste0(db_path, "lineage_conversions.txt")
+dist_file <- paste0(dist_path, "PAKISTAN_ALL.dist.dist")
+dist_id_file <- paste0(dist_path, "PAKISTAN_ALL.dist.dist.id")
 
 ```
 
@@ -92,15 +97,27 @@ lineage_conversion_file <- paste0(db_path, "lineage_conversions.txt")
 metadata <- read.csv(metadata_file)
 historical_metadata <- read.csv(historical_metadata_file)
 lineage_conversions <- read.delim(lineage_conversion_file)
+dist <- read.delim(dist_file, header = F)
+dist_id <- read.delim(dist_id_file, header = F)
 
 ```
 
 ```{r basic_numbers, echo = F}
 
-# Basic numbers ----
+# Basic numbers and basic wrangling ----
 
 n_samps_total <- length(metadata$wgs_id)
 n_snps_total <- 37970
+
+# Subset metadata to just those with a year
+metadata_dated <- subset(metadata, !(is.na(metadata$year)))
+dated_samps <- metadata_dated$wgs_id
+
+# Add row and col names to distance matrix
+colnames(dist) <- dist_id[, 1]
+row.names(dist) <- dist_id[, 1]
+# Divide dist matrix by 2 
+dist <- dist/2
 
 ```
 
@@ -177,7 +194,7 @@ In 2019 [@WHO_2020]:
 
 * Pakistan is a high-burden TB country (population 216.6 million).
 * One of eight countries accounting for two thirds of the global total TB instance (5.7%).
-* HIV prevalence is increasing. 190,000 people living with HIV (0.1 prevalence); 25,000 new infections. [@UNAIDS]
+* HIV prevalence is increasing. 190,000 people living with HIV (0.1 prevalence); 25,000 new infections. [@UNAIDS_2020]
 * High burden for multidrug-resistance (MDR-TB, resistance to isoniazid and rifampicin treatments (see table below).
 * However overall treatment success rate is 93% and the mortality rate has been declining since at least 2000. 
 
@@ -208,7 +225,7 @@ n_samps_historical <- length(historical_metadata$IsoNumber)
 
 title <- sprintf("Number of samples by spoligotype family \n in historical Mtb data from Pakistan, n = %s", n_samps_historical)
 barplot(table(historical_metadata$Clade), las=2, 
-        main = title)
+        main = title, col = col)
 
 ```
 
@@ -252,8 +269,67 @@ knitr::include_graphics(tree_all_samps_file)
 year <- metadata$year[!is.na(metadata$year)]
 years <- sort(unique(year))
 breaks <- (min(year)-0.5):(max(year)+0.5)
-yr_hist <- hist(year, freq = T, xaxt="n", xlab= "year", breaks = breaks )
+yr_hist <- hist(year, freq = T, xaxt="n", xlab= "year",
+                breaks = breaks, col = col, 
+                main = sprintf("Hist of year; n = %s", length(year)))
 axis(side = 1, at = yr_hist$mids, labels = years)
+
+```
+
+## Transmission
+
+### Distances 
+
+#### All samples
+
+```{r distanceall, echo=FALSE, out.width = "2000px"}
+
+# Summary of distances for all samples
+lower_dist <- dist[lower.tri(dist)]
+summary(lower_dist)
+boxplot(lower_dist, col = col, 
+        main = sprintf("SNP distances (excluding DR sites), all samples; \n n = %s", nrow(dist)))
+
+```
+
+#### Dated samples
+
+```{r distancedated, echo=FALSE, out.width = "2000px"}
+
+# Summary of dists for dated samples 
+dist_dated <- dist[dated_samps, dated_samps]
+lower_dist_dated <- dist_dated[lower.tri(dist_dated)]
+summary(lower_dist_dated)
+boxplot(lower_dist_dated, col = col, 
+        main = sprintf("SNP distances (excluding DR sites), dated samples; \n n = %s", nrow(dist_dated)))
+
+# dist_dated <- as.dist(dist_dated)
+
+# Convert to 'distance matrix' (take out lower triangle)
+dist_dated[upper.tri(dist_dated, diag = T)] <- 0
+
+# Cluster using 'single' method.
+# Clusters all samples within distance of threshold
+clust <- hclust(as.dist(dist_dated), method = "single")
+plot(clust, cex = 0.5,
+     main = sprintf("Clustering of SNP distances, dated samples; n = %s. \n Line at %s ", 
+                    nrow(dist_dated), threshold))
+abline(a = threshold, b = 0)
+# Cut tree at threshold to find samples within threshold
+clusters <- sort(cutree(clust, h = threshold))
+
+# Filter for clusters (take out the samples with their own number, i.e., those not in a group)
+# Gets samples below the threshold
+clusters <- clusters[clusters %in% names(which(table(clusters) > 1)) ]
+
+# Subset
+dist_dated_thresh <- as.dist(dist_dated[sort(names(clusters)), sort(names(clusters))])
+dist_dated_thresh <- dist_dated_thresh+1 # Add 1 because 1/x later.
+
+qgraph(1/dist_dated_thresh, layout='spring', vsize=5, 
+       title = sprintf("Connections among samples with <= %s SNP distance; n = %s",
+                       threshold, length(attributes(dist_dated_thresh)$Labels)))
+
 
 ```
 
