@@ -48,7 +48,9 @@ beast_xml_dir=beast_xml/
 main_metadata_file=${main_metadata_dir}tb_data_18_02_2021.csv
 pakistan_unpublished_metadata=${main_metadata_dir}pakistan_data_non_mixed.csv
 pakistan_metadata_file=${local_metadata_dir}pakistan_metadata.csv
+pakistan_metadata_file_dated=${local_metadata_dir}pakistan_metadata_dated.csv
 sample_list_file=${tmp_dir}${study_accession}.samps.csv
+dated_samples_file=${tmp_dir}dated_samples.txt
 ref_fasta_file=${ref_dir}MTB-h37rv_asm19595v2-eg18.fa
 ex_loci_file=${ref_dir}excluded_loci_rep_regions_dr_regions.bed
 val_multi_vcf_file=${vcf_dir}${study_accession}.val.gt.g.vcf.gz
@@ -59,6 +61,7 @@ unfilt_fasta_file=${fasta_dir}${study_accession}.filt.val.gt.g.snps.fa
 fasta_file_base=$(basename -- ${unfilt_fasta_file})
 iqtree_file=${newick_output_dir}${fasta_file_base}.iqtree
 treefile=${newick_output_dir}${fasta_file_base}*treefile
+fasta_dated_samples_file=${fasta_dir}${study_accession}.dated_samps.fa
 dated_fasta_file=${fasta_dir}${study_accession}.dated.fa
 xml_file=${beast_xml_dir}${study_accession}.xml # created manually
 
@@ -132,8 +135,8 @@ if [ ! -f ${filt_multi_vcf_file} ]; then
     printf "\n"
     set -x
     # shell_scripts/variant_filtering.sh    <multi-sample vcf file name>  <output file name>     <bed file name>  <ref fasta>
-    # shell_scripts/variant_filtering.sh      ${val_multi_vcf_file}         ${filt_multi_vcf_file} ${ex_loci_file}  ${ref_fasta_file}
-    variant_filtering.sh      ${val_multi_vcf_file}         ${filt_multi_vcf_file} ${ex_loci_file}  ${ref_fasta_file}
+    # shell_scripts/variant_filtering.sh    ${val_multi_vcf_file}         ${filt_multi_vcf_file} ${ex_loci_file}  ${ref_fasta_file}
+    variant_filtering.sh                    ${val_multi_vcf_file}         ${filt_multi_vcf_file} ${ex_loci_file}  ${ref_fasta_file}
     set +x
     echo "------------------------------------------------------------------------------"
     printf "\n"
@@ -163,8 +166,8 @@ if [ ! -f ${dist_file} ] || [ ! -f ${dist_id_file} ]; then
     printf "\n"
     set -x
     # shell_scripts/plink_dist_and_pca.sh   <study_accession>   <vcf_input_file>        <output_dir>
-    # shell_scripts/plink_dist_and_pca.sh     ${study_accession}  ${filt_multi_vcf_file}  ${dist_and_pca_dir}
-    plink_dist_and_pca.sh     ${study_accession}  ${filt_multi_vcf_file}  ${dist_and_pca_dir}
+    # shell_scripts/plink_dist_and_pca.sh   ${study_accession}  ${filt_multi_vcf_file}  ${dist_and_pca_dir}
+    plink_dist_and_pca.sh                   ${study_accession}  ${filt_multi_vcf_file}  ${dist_and_pca_dir}
     set +x
     echo "------------------------------------------------------------------------------"
     printf "\n"
@@ -193,9 +196,9 @@ if [ ! -f ${unfilt_fasta_file} ]; then
     echo "Running VCF to fasta command - outputs file ${unfilt_fasta_file}"
     set -x
     # Nb vcf2fasta.py (run by vcf2fasta.sh) needs datamash - conda install -c bioconda datamash
-    # shell_scripts/vcf2fasta.sh <study_accession>  <vcf_file>              <fasta_output_dir>   <ref_fasta>
-    # shell_scripts/vcf2fasta.sh   ${study_accession} ${filt_multi_vcf_file}  ${fasta_dir}         ${ref_fasta_file}
-    vcf2fasta.sh   ${study_accession} ${filt_multi_vcf_file}  ${fasta_dir}         ${ref_fasta_file}
+    # shell_scripts/vcf2fasta.sh    <study_accession>  <vcf_file>              <fasta_output_dir>   <ref_fasta>
+    # shell_scripts/vcf2fasta.sh    ${study_accession} ${filt_multi_vcf_file}  ${fasta_dir}         ${ref_fasta_file}
+    vcf2fasta.sh                    ${study_accession} ${filt_multi_vcf_file}  ${fasta_dir}         ${ref_fasta_file}
     set +x
     echo "------------------------------------------------------------------------------"
     printf "\n"
@@ -240,7 +243,7 @@ echo "--------------------------------------------------------------------------
 
 echo "Running itol_templates.R"
 printf "\n"
-# Rscript   itol_templates.R    <itol_templates_location>
+# itol_templates.R  <itol_templates_location>
 itol_templates.R    ${itol_dir}
 echo "itol_templates.R done"
 printf "\n"
@@ -254,7 +257,18 @@ printf "\n"
 
 # ------------------------------------------------------------------------------
 
-#  Annotate fasta file
+# NEED TO SUBSET SAMPLES TO JUST THOSE WITH DATES
+
+# Subset metadata to dated samples only
+cat ${pakistan_metadata_file} | csvtk grep -f ${date_column} -p "NA" -v > ${pakistan_metadata_file_dated}
+
+# Get those samples for subsetting
+cat ${pakistan_metadata_file_dated} | csvtk cut -f wgs_id | tail -n +2 > ${dated_samples_file}
+
+# Filter fasta file to just dated samples
+grep -f ${dated_samples_file} -A1 ${unfilt_fasta_file} > ${fasta_dated_samples_file}
+
+#  Annotate fasta file with dates
 
 if [ ! -f ${dated_fasta_file} ]; then
 
@@ -270,7 +284,7 @@ if [ ! -f ${dated_fasta_file} ]; then
     # e.g. >ERR1234 -> >ERR1234_01_01_10
     # - see https://github.com/pathogenseq/pathogenseq-scripts/tree/master/scripts
     set -x
-    fasta_add_annotations.py --fasta ${unfilt_fasta_file} --csv ${pakistan_metadata_file} --out ${dated_fasta_file} --annotations ${date_column} --id-key ${id_column}
+    fasta_add_annotations.py --fasta ${fasta_dated_samples_file} --csv ${pakistan_metadata_file_dated} --out ${dated_fasta_file} --annotations ${date_column} --id-key ${id_column}
     set +x
     echo "------------------------------------------------------------------------------"
     printf "\n"
@@ -282,10 +296,6 @@ else
 fi
 
 # ------------------------------------------------------------------------------
-
-# NEED TO SUBSET SAMPLES TO JUST THOSE WITH DATES
-
-
 
 # BEAST
 
@@ -338,28 +348,25 @@ fi
 # Run TreeAnnotator to get MCC tree (input to TransPhylo)
 
 # Out
-${treeann_out}=${beast_results_dir}${study_accession}.mcc.tree
+${mcc_tree}=${beast_results_dir}${study_accession}.mcc.tree
 
-if [ ! -f ${treeann_out} ]; then
+if [ ! -f ${mcc_tree} ]; then
 
     echo "------------------------------------------------------------------------------"
 
-    echo "Running TreeAnnotator on ${new_beast_trees_file} - outputs ${treeann_out}"
+    echo "Running TreeAnnotator on ${new_beast_trees_file} - outputs ${mcc_tree}"
     set -x
-    treeannotator -heights ca -burnin 10 ${new_beast_trees_file} ${treeann_out}
+    treeannotator -heights ca -burnin 10 ${new_beast_trees_file} ${mcc_tree}
     set +x
     echo "------------------------------------------------------------------------------"
     printf "\n"
 else
     echo "------------------------------------------------------------------------------"
-    echo "Files ${treeann_out} exists, skipping TreeAnnotator"
+    echo "Files ${mcc_tree} exists, skipping TreeAnnotator"
     echo "------------------------------------------------------------------------------"
     printf "\n"
 
 fi
-
-
-
 
 # Clean up
 rm -r ${tmp_dir}
