@@ -86,7 +86,7 @@ echo "Running r_scripts/clean_metadata.R - outputs ${pakistan_metadata_file}"
 printf "\n"
 set -x
 # Rscript r_scripts/clean_metadata.R <main_metadata_file>  <other_metadata_file>            <outfile>
-r_scripts/clean_metadata.R ${main_metadata_file} ${pakistan_unpublished_metadata} ${pakistan_metadata_file}
+clean_metadata.R ${main_metadata_file} ${pakistan_unpublished_metadata} ${pakistan_metadata_file}
 set +x
 echo "------------------------------------------------------------------------------"
 printf "\n"
