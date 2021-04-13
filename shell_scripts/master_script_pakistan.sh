@@ -80,16 +80,24 @@ fi
 
 echo "------------------------------------------------------------------------------"
 
-echo "Getting and cleaning Pakistan metadata"
-printf "\n"
-echo "Running r_scripts/clean_metadata.R - outputs ${pakistan_metadata_file}"
-printf "\n"
-set -x
-# Rscript r_scripts/clean_metadata.R <main_metadata_file>  <other_metadata_file>            <outfile>
-clean_metadata.R ${main_metadata_file} ${pakistan_unpublished_metadata} ${pakistan_metadata_file}
-set +x
-echo "------------------------------------------------------------------------------"
-printf "\n"
+if [ ! -f ${pakistan_metadata_file} ]; then
+
+    echo "Getting and cleaning Pakistan metadata"
+    printf "\n"
+    echo "Running r_scripts/clean_metadata.R - outputs ${pakistan_metadata_file}"
+    printf "\n"
+    set -x
+    # Rscript r_scripts/clean_metadata.R    <main_metadata_file>   <other_metadata_file>            <outfile>
+    clean_metadata.R                        ${main_metadata_file}  ${pakistan_unpublished_metadata} ${pakistan_metadata_file}
+    set +x
+    echo "------------------------------------------------------------------------------"
+    printf "\n"
+else
+    echo "------------------------------------------------------------------------------"
+    echo "File ${pakistan_metadata_file} already exists, skipping clean_metadata.R"
+    echo "------------------------------------------------------------------------------"
+    printf "\n"
+fi
 
 # ------------------------------------------------------------------------------
 
@@ -239,21 +247,37 @@ fi
 
 # Tree annotation - itol
 
-echo "------------------------------------------------------------------------------"
+if [ ! -f ${itol_dir}itol.dr.txt || ${itol_dir}itol.lineages.txt || ${itol_dir}itol.major_lineages.txt ]; then
 
-echo "Running itol_templates.R"
-printf "\n"
-# itol_templates.R  <itol_templates_location>
-itol_templates.R    ${itol_dir}
-echo "itol_templates.R done"
-printf "\n"
+    echo "Running itol_templates.R"
+    printf "\n"
+    # itol_templates.R  <itol_templates_location>
+    itol_templates.R    ${itol_dir}
+    echo "itol_templates.R done"
+    printf "\n"
+else
+    echo "------------------------------------------------------------------------------"
+    echo "${itol_dir} template files exist, skipping itol_templates.R"
+    echo "------------------------------------------------------------------------------"
+    printf "\n"
+fi
 
-echo "Running itol_annotation.R"
-printf "\n"
-# itol_annotation.R <metadata_file>             <itol_location>
-itol_annotation.R   ${pakistan_metadata_file}   ${itol_dir}
-echo "itol_annotation.R done"
-printf "\n"
+itol_out_files=${itol_dir}$(basename ${pakistan_metadata_file%.csv})*
+
+if compgen -G ! ${itol_out_files} > /dev/null; then
+    echo "Running itol_annotation.R"
+    printf "\n"
+    # itol_annotation.R <metadata_file>             <itol_location>
+    itol_annotation.R   ${pakistan_metadata_file}   ${itol_dir}
+    echo "itol_annotation.R done"
+    printf "\n"
+else
+    echo "------------------------------------------------------------------------------"
+    echo ${itol_out_files} "files exist, skipping itol_templates.R"
+    echo "------------------------------------------------------------------------------"
+    printf "\n"
+fi
+
 
 # ------------------------------------------------------------------------------
 
