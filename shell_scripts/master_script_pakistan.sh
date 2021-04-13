@@ -257,6 +257,8 @@ printf "\n"
 
 # ------------------------------------------------------------------------------
 
+# Annotate fasta file with dates
+
 # NEED TO SUBSET SAMPLES TO JUST THOSE WITH DATES
 
 # Subset metadata to dated samples only
@@ -348,7 +350,7 @@ fi
 # Run TreeAnnotator to get MCC tree (input to TransPhylo)
 
 # Out
-${mcc_tree}=${beast_results_dir}${study_accession}.mcc.tree
+mcc_tree=${beast_results_dir}${study_accession}.mcc.tree
 
 if [ ! -f ${mcc_tree} ]; then
 
