@@ -32,10 +32,14 @@ date_column=year
 id_column=wgs_id
 
 # Directories
+
+# Existing directories
 main_metadata_dir=~/metadata/
-local_metadata_dir=metadata/
 vcf_dir=~/vcf/
 ref_dir=~/refgenome/
+
+# Out directories
+local_metadata_dir=metadata/
 dist_and_pca_dir=dist_and_pca/
 fasta_dir=fasta/
 newick_output_dir=newick/
@@ -44,35 +48,71 @@ tmp_dir=tmp/
 beast_results_dir=beast_results/
 beast_xml_dir=beast_xml/
 
-# Files
-main_metadata_file=${main_metadata_dir}tb_data_18_02_2021.csv
-pakistan_unpublished_metadata=${main_metadata_dir}pakistan_data_non_mixed.csv
-pakistan_metadata_file=${local_metadata_dir}pakistan_metadata.csv
-pakistan_metadata_file_dated=${local_metadata_dir}pakistan_metadata_dated.csv
-sample_list_file=${tmp_dir}${study_accession}.samps.csv
-dated_samples_file=${tmp_dir}dated_samples.txt
-ref_fasta_file=${ref_dir}MTB-h37rv_asm19595v2-eg18.fa
-ex_loci_file=${ref_dir}excluded_loci_rep_regions_dr_regions.bed
-val_multi_vcf_file=${vcf_dir}${study_accession}.val.gt.g.vcf.gz
-filt_multi_vcf_file=${vcf_dir}${study_accession}.filt.val.gt.g.vcf.gz
-dist_file=${dist_and_pca_dir}${study_accession}.dist.dist
-dist_id_file=${dist_and_pca_dir}${study_accession}.dist.dist.id
-unfilt_fasta_file=${fasta_dir}${study_accession}.filt.val.gt.g.snps.fa
-fasta_file_base=$(basename -- ${unfilt_fasta_file})
-iqtree_file=${newick_output_dir}${fasta_file_base}.iqtree
-treefile=${newick_output_dir}${fasta_file_base}*treefile
-fasta_dated_samples_file=${fasta_dir}${study_accession}.dated_samps.fa
-dated_fasta_file=${fasta_dir}${study_accession}.dated.fa
-xml_file=${beast_xml_dir}${study_accession}.xml # created manually
+# Make directories if not exist
+if [ ! -d ${local_metadata_dir} ]; then
+    mkdir ${local_metadata_dir}
+fi
 
-# Make directories
-if [ ! -d ${tmp_dir} ]; then
-    mkdir ${tmp_dir}
+if [ ! -d ${dist_and_pca_dir} ]; then
+    mkdir ${dist_and_pca_dir}
+fi
+
+if [ ! -d ${fasta_dir} ]; then
+    mkdir ${fasta_dir}
+fi
+
+if [ ! -d ${newick_output_dir} ]; then
+    mkdir ${newick_output_dir}
 fi
 
 if [ ! -d ${itol_dir} ]; then
     mkdir ${itol_dir}
 fi
+
+if [ ! -d ${tmp_dir} ]; then
+    mkdir ${tmp_dir}
+fi
+
+if [ ! -d ${beast_results_dir} ]; then
+    mkdir ${beast_results_dir}
+fi
+
+if [ ! -d ${beast_xml_dir} ]; then
+    mkdir ${beast_xml_dir}
+fi
+
+
+# Files
+
+# Existing files
+main_metadata_file=${main_metadata_dir}tb_data_18_02_2021.csv
+pakistan_unpublished_metadata=${main_metadata_dir}pakistan_data_non_mixed.csv
+ref_fasta_file=${ref_dir}MTB-h37rv_asm19595v2-eg18.fa
+ex_loci_file=${ref_dir}excluded_loci_rep_regions_dr_regions.bed
+xml_file=${beast_xml_dir}${study_accession}.xml # created manually
+
+# Out files
+
+# metadata/samples
+pakistan_metadata_file=${local_metadata_dir}pakistan_metadata.csv
+pakistan_metadata_file_dated=${local_metadata_dir}pakistan_metadata_dated.csv
+sample_list_file=${tmp_dir}${study_accession}.samps.csv
+dated_samples_file=${tmp_dir}dated_samples.txt
+# vcf
+val_multi_vcf_file=${vcf_dir}${study_accession}.val.gt.g.vcf.gz
+filt_multi_vcf_file=${vcf_dir}${study_accession}.filt.val.gt.g.vcf.gz
+# dist
+dist_file=${dist_and_pca_dir}${study_accession}.dist.dist
+dist_id_file=${dist_and_pca_dir}${study_accession}.dist.dist.id
+# fasta
+unfilt_fasta_file=${fasta_dir}${study_accession}.filt.val.gt.g.snps.fa
+fasta_file_base=$(basename -- ${unfilt_fasta_file})
+fasta_dated_samples_file=${fasta_dir}${study_accession}.dated_samps.fa
+dated_fasta_file=${fasta_dir}${study_accession}.dated.fa
+# newick
+iqtree_file=${newick_output_dir}${fasta_file_base}.iqtree
+treefile=${newick_output_dir}${fasta_file_base}*treefile
+
 
 # ------------------------------------------------------------------------------
 
