@@ -5,6 +5,8 @@
 
 # Setup ----
 
+rm(list=ls())
+
 args <- commandArgs(trailingOnly=TRUE)
 
 library(plyr)
@@ -168,6 +170,10 @@ metadata$major_lineage <- ifelse(metadata$sub_lineage %in% animal, metadata$sub_
 
 # Dates ----
 
+# Merge "date_of_collection" col with "collection_date"
+metadata$collection_date <- ifelse((is.na(metadata$collection_date) | metadata$collection_date == ""),  
+                                   metadata$date_of_collection, metadata$collection_date)
+
 # Add year column
 metadata$year <- stringr::str_extract(metadata$collection_date, pattern = "\\d{4}")
 
@@ -179,7 +185,6 @@ metadata <- data.frame(lapply(metadata, function(x) {gsub(",", ";", x)}))
 # Write data ----
 
 write.csv(metadata, file = pakistan_data_outfile, quote = F, row.names = F)
-
 
 
 
