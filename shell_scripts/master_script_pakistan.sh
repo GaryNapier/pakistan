@@ -26,6 +26,7 @@ chmod +x ~/pipeline/install.sh
 printf "\n"
 
 # Variables
+date_change=false
 study_accession=PAKISTAN_ALL
 gvcf_file_suffix=.g.vcf.gz
 date_column=year
@@ -112,7 +113,32 @@ dated_fasta_file=${fasta_dir}${study_accession}.dated.fa
 # newick
 iqtree_file=${newick_output_dir}${fasta_file_base}.iqtree
 treefile=${newick_output_dir}${fasta_file_base}*treefile
+# Beast output files - n.b. saves the .log and .trees files to the current directory and ONLY takes the study_accession
+# So files are ./<study_accession>.log and ./<study_accession>.trees
+original_beast_log_file=${study_accession}.log
+original_beast_trees_file=${study_accession}.trees
+original_beast_state_file=${study_accession}.xml.state
 
+new_beast_log_file=${beast_results_dir}${study_accession}.log
+new_beast_trees_file=${beast_results_dir}${study_accession}.trees
+new_beast_state_file=${beast_results_dir}${study_accession}.xml.state
+# mcc
+mcc_tree=${beast_results_dir}${study_accession}.mcc.tree
+
+# ------------------------------------------------------------------------------
+
+# Remove files that change if the dates change
+
+#  set date_change=true in variables section
+
+if [ ${date_change} = true ] ; then
+    echo "-------------------------------------------------"
+    echo "Removing files that change when the dates change"
+    echo "-------------------------------------------------"
+    echo "Removing ${pakistan_metadata_file} ${dated_fasta_file} ${xml_file} ${new_beast_log_file} ${new_beast_trees_file} ${new_beast_state_file} ${mcc_tree}"
+    rm -f ${pakistan_metadata_file} ${dated_fasta_file} ${xml_file} ${new_beast_log_file} ${new_beast_trees_file} ${new_beast_state_file} ${mcc_tree}
+    printf "\n"
+fi
 
 # ------------------------------------------------------------------------------
 
@@ -287,7 +313,7 @@ fi
 
 # Tree annotation - itol
 
-if [ ! -f ${itol_dir}itol.dr.txt || ${itol_dir}itol.lineages.txt || ${itol_dir}itol.major_lineages.txt ]; then
+if [ ! -f ${itol_dir}itol.dr.txt ] || [ ! -f ${itol_dir}itol.lineages.txt ] || [ ! -f ${itol_dir}itol.major_lineages.txt ]; then
 
     echo "Running itol_templates.R"
     printf "\n"
@@ -332,7 +358,11 @@ cat ${pakistan_metadata_file} | csvtk grep -f ${date_column} -p "NA" -v > ${paki
 cat ${pakistan_metadata_file_dated} | csvtk cut -f wgs_id | tail -n +2 > ${dated_samples_file}
 
 # Filter fasta file to just dated samples
-grep -f ${dated_samples_file} -A1 ${unfilt_fasta_file} > ${fasta_dated_samples_file}
+# grep -f ${dated_samples_file} -A1 ${unfilt_fasta_file} > ${fasta_dated_samples_file}
+seqtk subseq ${unfilt_fasta_file} ${dated_samples_file} > ${fasta_dated_samples_file}
+
+# Filter out redundant SNPs from dated samples fasta (filtering on those samples only produces many monomorphic sites)
+snp-sites -m -o ${fasta_dated_samples_file}.tmp ${fasta_dated_samples_file} && mv ${fasta_dated_samples_file}.tmp ${fasta_dated_samples_file}
 
 #  Annotate fasta file with dates
 
@@ -374,16 +404,6 @@ fi
 
 # Run Beast
 
-# Beast output files - n.b. saves the .log and .trees files to the current directory and ONLY takes the study_accession
-# So files are ./<study_accession>.log and ./<study_accession>.trees
-original_beast_log_file=${study_accession}.log
-original_beast_trees_file=${study_accession}.trees
-original_beast_state_file=${study_accession}.xml.state
-
-new_beast_log_file=${beast_results_dir}${study_accession}.log
-new_beast_trees_file=${beast_results_dir}${study_accession}.trees
-new_beast_state_file=${beast_results_dir}${study_accession}.xml.state
-
 if [ ! -f ${new_beast_log_file} ] || [ ! -f ${new_beast_trees_file} ] || [ ! -f ${new_beast_state_file} ];then
 
     echo "------------------------------------------------------------------------------"
@@ -412,9 +432,6 @@ fi
 # ------------------------------------------------------------------------------
 
 # Run TreeAnnotator to get MCC tree (input to TransPhylo)
-
-# Out
-mcc_tree=${beast_results_dir}${study_accession}.mcc.tree
 
 if [ ! -f ${mcc_tree} ]; then
 
