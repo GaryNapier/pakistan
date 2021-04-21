@@ -385,7 +385,9 @@ if [ ! -f ${fasta_dated_samples_file} ]; then
     printf "\n"
     set -x
     # vcf2fasta.sh       <study_accession>  <vcf_file>         <fasta_output_dir>  <ref_fasta>
-    vcf2fasta.sh       ${study_accession} ${dated_samps_vcf} ${fasta_dir}        ${ref_fasta_file}
+    # vcf2fasta.sh       ${study_accession} ${dated_samps_vcf} ${fasta_dir}        ${ref_fasta_file}
+    vcf2fasta.py --vcf ${dated_samps_vcf} --ref ${ref_fasta_file} --threads 20 --snps --snps-no-filt
+    mv ${fasta_dated_samples_file} ${fasta_dir}
     set +x
     echo "------------------------------------------------------------------------------"
     printf "\n"
@@ -447,7 +449,7 @@ fi
 
 # Make xml file
 
- 
+
 
 
 # Run Beast
