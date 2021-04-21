@@ -18,15 +18,15 @@ set -o pipefail
 
 # Setup - GLOBAL
 
-cd ~/pakistan
-
-chmod +x ~/pipeline/install.sh
-
-~/pipeline/install.sh && echo "installed pipeline scripts to ~/bin/"
+cd ~/pipeline
+chmod +x install.sh
+./install.sh && echo "installed pipeline scripts to ~/bin/"
 printf "\n"
 
+cd ~/pakistan
+
 # Variables
-date_change=false
+date_change=true
 study_accession=PAKISTAN_ALL
 gvcf_file_suffix=.g.vcf.gz
 date_column=year
@@ -102,14 +102,15 @@ dated_samples_file=${tmp_dir}dated_samples.txt
 # vcf
 val_multi_vcf_file=${vcf_dir}${study_accession}.val.gt.g.vcf.gz
 filt_multi_vcf_file=${vcf_dir}${study_accession}.filt.val.gt.g.vcf.gz
+dated_samps_vcf=${vcf_dir}${study_accession}.dated_samps.vcf.gz
 # dist
 dist_file=${dist_and_pca_dir}${study_accession}.dist.dist
 dist_id_file=${dist_and_pca_dir}${study_accession}.dist.dist.id
 # fasta
 unfilt_fasta_file=${fasta_dir}${study_accession}.filt.val.gt.g.snps.fa
 fasta_file_base=$(basename -- ${unfilt_fasta_file})
-fasta_dated_samples_file=${fasta_dir}${study_accession}.dated_samps.fa
-dated_fasta_file=${fasta_dir}${study_accession}.dated.fa
+fasta_dated_samples_file=${fasta_dir}${study_accession}.dated_samps.snps.fa
+fasta_file_annotated_with_dates=${fasta_dir}${study_accession}.dated.fa
 # newick
 iqtree_file=${newick_output_dir}${fasta_file_base}.iqtree
 treefile=${newick_output_dir}${fasta_file_base}*treefile
@@ -135,8 +136,9 @@ if [ ${date_change} = true ] ; then
     echo "-------------------------------------------------"
     echo "Removing files that change when the dates change"
     echo "-------------------------------------------------"
-    echo "Removing ${pakistan_metadata_file} ${dated_fasta_file} ${xml_file} ${new_beast_log_file} ${new_beast_trees_file} ${new_beast_state_file} ${mcc_tree}"
-    rm -f ${pakistan_metadata_file} ${dated_fasta_file} ${xml_file} ${new_beast_log_file} ${new_beast_trees_file} ${new_beast_state_file} ${mcc_tree}
+    set -x
+    rm -f ${pakistan_metadata_file} ${dated_samps_vcf} ${fasta_dated_samples_file} ${fasta_file_annotated_with_dates} ${xml_file} ${new_beast_log_file} ${new_beast_trees_file} ${new_beast_state_file} ${mcc_tree}
+    set +x
     printf "\n"
 fi
 
@@ -154,7 +156,7 @@ if [ ! -f ${pakistan_metadata_file} ]; then
     printf "\n"
     set -x
     # Rscript r_scripts/clean_metadata.R    <main_metadata_file>   <other_metadata_file>            <outfile>
-    clean_metadata.R                        ${main_metadata_file}  ${pakistan_unpublished_metadata} ${pakistan_metadata_file}
+    Rscript r_scripts/clean_metadata.R      ${main_metadata_file}  ${pakistan_unpublished_metadata} ${pakistan_metadata_file}
     set +x
     echo "------------------------------------------------------------------------------"
     printf "\n"
@@ -164,6 +166,16 @@ else
     echo "------------------------------------------------------------------------------"
     printf "\n"
 fi
+
+# ------------------------------------------------------------------------------
+
+# NEED TO SUBSET SAMPLES TO JUST THOSE WITH DATES
+
+# Subset metadata to dated samples only
+cat ${pakistan_metadata_file} | csvtk grep -f ${date_column} -p "NA" -v > ${pakistan_metadata_file_dated}
+
+# Get those samples for subsetting
+cat ${pakistan_metadata_file_dated} | csvtk cut -f wgs_id | tail -n +2 > ${dated_samples_file}
 
 # ------------------------------------------------------------------------------
 
@@ -222,6 +234,24 @@ else
     printf "\n"
 fi
 
+# ------------------------------------------------------------------------------
+
+# Create VCF of just dated samples for Beast and everything else dated
+
+if [ ! -f ${dated_samps_vcf} ]; then
+    echo "------------------------------------------------------------------------------"
+    echo "Creating VCF for dated samples only - outputs ${dated_samps_vcf}"
+    set -x
+    bcftools view -S ${dated_samples_file} ${filt_multi_vcf_file} | bcftools filter -e 'AC==0 || AC==AN' - -o ${dated_samps_vcf} -Oz
+    set +x
+    echo "------------------------------------------------------------------------------"
+    printf "\n"
+else
+    echo "------------------------------------------------------------------------------"
+    echo "File ${dated_samps_vcf} already exists, skipping creation of VCF for dated samples only"
+    echo "------------------------------------------------------------------------------"
+
+fi
 
 # ------------------------------------------------------------------------------
 
@@ -259,7 +289,6 @@ fi
 
 # Define output file for test - files used by shell_scripts/iqtree.sh
 
-
 if [ ! -f ${unfilt_fasta_file} ]; then
 
     echo "------------------------------------------------------------------------------"
@@ -270,9 +299,8 @@ if [ ! -f ${unfilt_fasta_file} ]; then
     echo "Running VCF to fasta command - outputs file ${unfilt_fasta_file}"
     set -x
     # Nb vcf2fasta.py (run by vcf2fasta.sh) needs datamash - conda install -c bioconda datamash
-    # shell_scripts/vcf2fasta.sh    <study_accession>  <vcf_file>              <fasta_output_dir>   <ref_fasta>
-    # shell_scripts/vcf2fasta.sh    ${study_accession} ${filt_multi_vcf_file}  ${fasta_dir}         ${ref_fasta_file}
-    vcf2fasta.sh                    ${study_accession} ${filt_multi_vcf_file}  ${fasta_dir}         ${ref_fasta_file}
+    # vcf2fasta.sh   <study_accession>  <vcf_file>              <fasta_output_dir>   <ref_fasta>
+    vcf2fasta.sh     ${study_accession} ${filt_multi_vcf_file}  ${fasta_dir}         ${ref_fasta_file}
     set +x
     echo "------------------------------------------------------------------------------"
     printf "\n"
@@ -347,46 +375,59 @@ fi
 
 # ------------------------------------------------------------------------------
 
-# Annotate fasta file with dates
+# Create fasta file from VCF file - dated samples
 
-# NEED TO SUBSET SAMPLES TO JUST THOSE WITH DATES
+if [ ! -f ${fasta_dated_samples_file} ]; then
 
-# Subset metadata to dated samples only
-cat ${pakistan_metadata_file} | csvtk grep -f ${date_column} -p "NA" -v > ${pakistan_metadata_file_dated}
+    echo "------------------------------------------------------------------------------"
 
-# Get those samples for subsetting
-cat ${pakistan_metadata_file_dated} | csvtk cut -f wgs_id | tail -n +2 > ${dated_samples_file}
+    echo "Running vcf2fasta.sh - outputs ${fasta_dated_samples_file}"
+    printf "\n"
+    set -x
+    # vcf2fasta.sh       <study_accession>  <vcf_file>         <fasta_output_dir>  <ref_fasta>
+    vcf2fasta.sh       ${study_accession} ${dated_samps_vcf} ${fasta_dir}        ${ref_fasta_file}
+    set +x
+    echo "------------------------------------------------------------------------------"
+    printf "\n"
+else
+    echo "------------------------------------------------------------------------------"
+    echo "${fasta_dated_samples_file} file exists, skipping vcf2fasta.sh"
+    echo "------------------------------------------------------------------------------"
+    printf "\n"
+fi
 
 # Filter fasta file to just dated samples
 # grep -f ${dated_samples_file} -A1 ${unfilt_fasta_file} > ${fasta_dated_samples_file}
-seqtk subseq ${unfilt_fasta_file} ${dated_samples_file} > ${fasta_dated_samples_file}
+# seqtk subseq ${unfilt_fasta_file} ${dated_samples_file} > ${fasta_dated_samples_file}
 
 # Filter out redundant SNPs from dated samples fasta (filtering on those samples only produces many monomorphic sites)
-snp-sites -m -o ${fasta_dated_samples_file}.tmp ${fasta_dated_samples_file} && mv ${fasta_dated_samples_file}.tmp ${fasta_dated_samples_file}
+# snp-sites -m -o ${fasta_dated_samples_file}.tmp ${fasta_dated_samples_file} && mv ${fasta_dated_samples_file}.tmp ${fasta_dated_samples_file}
 
-#  Annotate fasta file with dates
+# ------------------------------------------------------------------------------
 
-if [ ! -f ${dated_fasta_file} ]; then
+#  Annotate fasta file of dated samples with dates
+
+if [ ! -f ${fasta_file_annotated_with_dates} ]; then
 
     echo "------------------------------------------------------------------------------"
 
     echo "Dated fasta file"
     printf "\n"
 
-    echo "Running fasta_add_annotations.py - outputs ${dated_fasta_file}"
+    echo "Running fasta_add_annotations.py - outputs ${fasta_file_annotated_with_dates}"
     printf "\n"
 
     # Run fasta_add_annotations.py to concatenate the metadata collection date with the sample ID in the fasta file
     # e.g. >ERR1234 -> >ERR1234_01_01_10
     # - see https://github.com/pathogenseq/pathogenseq-scripts/tree/master/scripts
     set -x
-    fasta_add_annotations.py --fasta ${fasta_dated_samples_file} --csv ${pakistan_metadata_file_dated} --out ${dated_fasta_file} --annotations ${date_column} --id-key ${id_column}
+    fasta_add_annotations.py --fasta ${fasta_dated_samples_file} --csv ${pakistan_metadata_file_dated} --out ${fasta_file_annotated_with_dates} --annotations ${date_column} --id-key ${id_column}
     set +x
     echo "------------------------------------------------------------------------------"
     printf "\n"
 else
     echo "------------------------------------------------------------------------------"
-    echo "File ${dated_fasta_file} exists, skipping fasta_add_annotations.py"
+    echo "File ${fasta_file_annotated_with_dates} exists, skipping fasta_add_annotations.py"
     echo "------------------------------------------------------------------------------"
     printf "\n"
 fi
@@ -401,6 +442,13 @@ if [ ! -f ${xml_file} ]; then
     echo "Stopping script before Beast section - xml file ${xml_file} does not exist"
     exit 1
 fi
+
+# ------------------------------------------------------------------------------
+
+# Make xml file
+
+ 
+
 
 # Run Beast
 
