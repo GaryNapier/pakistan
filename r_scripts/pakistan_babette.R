@@ -1,7 +1,8 @@
 #!/usr/bin/env Rscript
 
 # RUN:
-# Rscript r_scripts/.R -s <study_acc>  -t <template_file_name>      -f <dated_fasta_file_name> -o <output_file_name>
+# Rscript r_scripts/pakistan_babette.R -s <study_acc> -f <dated_fasta_file_name> -i <id_date_file_loc> -o <output_file_name>
+# Rscript r_scripts/pakistan_babette.R -s PAKISTAN_ALL -f fasta/PAKISTAN_ALL.dated.fa -i metadata/ -o beast_xml/PAKISTAN_ALL.xml
 
 
 # Checklist for Babette
@@ -63,8 +64,6 @@
 # Setup ----
 
 rm(list=ls())
-
-remotes::install_github("ropensci/beautier")
 
 library(babette)
 library(seqinr)
@@ -171,8 +170,8 @@ clock_model <- create_strict_clock_model(clock_rate_param = create_clock_rate_pa
 
 # MCMC
 # every <- 10000
-every <- opt$every
-chain_length <- opt$chain_length
+every <- as.numeric(opt$every)
+chain_length <- as.numeric(opt$chain_length)
 mcmc <- create_mcmc(
   chain_length = chain_length,
   tracelog = beautier::create_tracelog(log_every = every),
@@ -191,7 +190,7 @@ tree_prior <- create_ccp_tree_prior(
   ))
 
 # MRCA PRIOR
-mrca_prior_mu <- opt$mrca_prior_mu
+mrca_prior_mu <- as.numeric(opt$mrca_prior_mu)
 mrca_prior <- create_mrca_prior(
   is_monophyletic = TRUE, 
   mrca_distr = create_laplace_distr(mu = mrca_prior_mu), 
