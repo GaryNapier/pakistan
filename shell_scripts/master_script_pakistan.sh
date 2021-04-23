@@ -143,6 +143,7 @@ if [ ${date_change} = true ] ; then
     set -x
     rm -f ${pakistan_metadata_file} \
      ${dated_samps_vcf} \
+     ${dated_samps_vcf_unzip} \
      ${fasta_dated_samples_file} \
      ${fasta_file_annotated_with_dates} \
      ${xml_file} \
@@ -469,6 +470,24 @@ else
 
 fi
 
+# echo "-------------------"
+#
+# echo "STOP!!!"
+#
+# if [ -f ${dated_samps_vcf} ]; then
+#     echo "${dated_samps_vcf} EXISTS!!!"
+# else
+#     echo "${dated_samps_vcf} NOT EXIST!!!"
+# fi
+#
+# if [ -f ${dated_samps_vcf_unzip} ]; then
+#     echo "${dated_samps_vcf_unzip} EXISTS!!!"
+# else
+#     echo "${dated_samps_vcf_unzip} NOT EXIST!!!"
+# fi
+#
+# exit 1
+
 # Add "constant site weights" - https://github.com/andersgs/beast2_constsites
 
 if [ ! -f ${xml_file_plus_const} ]; then
@@ -506,7 +525,7 @@ if [ ! -f ${new_beast_log_file} ] || [ ! -f ${new_beast_trees_file} ] || [ ! -f 
     echo "Running BEAST - outputs ${original_beast_log_file}, ${original_beast_trees_file} and ${original_beast_state_file}"
     set -x
     # Run Beast and clean up - put in right folder
-    beast -threads 20 ${xml_file}
+    beast -threads 20 ${xml_file_plus_const}
     mv ${original_beast_log_file} ${beast_results_dir}
     mv ${original_beast_trees_file} ${beast_results_dir}
     mv ${original_beast_state_file} ${beast_results_dir}
