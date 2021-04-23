@@ -90,7 +90,7 @@ main_metadata_file=${main_metadata_dir}tb_data_18_02_2021.csv
 pakistan_unpublished_metadata=${main_metadata_dir}pakistan_data_non_mixed.csv
 ref_fasta_file=${ref_dir}MTB-h37rv_asm19595v2-eg18.fa
 ex_loci_file=${ref_dir}excluded_loci_rep_regions_dr_regions.bed
-xml_file=${beast_xml_dir}${study_accession}.xml # created manually
+
 
 # Out files
 
@@ -103,6 +103,7 @@ dated_samples_file=${tmp_dir}dated_samples.txt
 val_multi_vcf_file=${vcf_dir}${study_accession}.val.gt.g.vcf.gz
 filt_multi_vcf_file=${vcf_dir}${study_accession}.filt.val.gt.g.vcf.gz
 dated_samps_vcf=${vcf_dir}${study_accession}.dated_samps.vcf.gz
+dated_samps_vcf_unzip=${vcf_dir}${study_accession}.dated_samps.vcf
 # dist
 dist_file=${dist_and_pca_dir}${study_accession}.dist.dist
 dist_id_file=${dist_and_pca_dir}${study_accession}.dist.dist.id
@@ -114,6 +115,9 @@ fasta_file_annotated_with_dates=${fasta_dir}${study_accession}.dated.fa
 # newick
 iqtree_file=${newick_output_dir}${fasta_file_base}.iqtree
 treefile=${newick_output_dir}${fasta_file_base}*treefile
+# xml files for BEAST
+xml_file=${beast_xml_dir}${study_accession}.xml
+xml_file_plus_const=${beast_xml_dir}${study_accession}_plus_const.xml
 # Beast output files - n.b. saves the .log and .trees files to the current directory and ONLY takes the study_accession
 # So files are ./<study_accession>.log and ./<study_accession>.trees
 original_beast_log_file=${study_accession}.log
@@ -137,7 +141,16 @@ if [ ${date_change} = true ] ; then
     echo "Removing files that change when the dates change"
     echo "-------------------------------------------------"
     set -x
-    rm -f ${pakistan_metadata_file} ${dated_samps_vcf} ${fasta_dated_samples_file} ${fasta_file_annotated_with_dates} ${xml_file} ${new_beast_log_file} ${new_beast_trees_file} ${new_beast_state_file} ${mcc_tree}
+    rm -f ${pakistan_metadata_file} \
+     ${dated_samps_vcf} \
+     ${fasta_dated_samples_file} \
+     ${fasta_file_annotated_with_dates} \
+     ${xml_file} \
+     ${xml_file_plus_const} \
+     ${new_beast_log_file} \
+     ${new_beast_trees_file} \
+     ${new_beast_state_file} \
+     ${mcc_tree}
     set +x
     printf "\n"
 fi
@@ -367,7 +380,7 @@ if compgen -G ! ${itol_out_files} > /dev/null; then
     printf "\n"
 else
     echo "------------------------------------------------------------------------------"
-    echo ${itol_out_files} "files exist, skipping itol_templates.R"
+    echo ${itol_out_files} "files exist, skipping itol_annotation.R"
     echo "------------------------------------------------------------------------------"
     printf "\n"
 fi
@@ -381,13 +394,11 @@ if [ ! -f ${fasta_dated_samples_file} ]; then
 
     echo "------------------------------------------------------------------------------"
 
-    echo "Running vcf2fasta.sh - outputs ${fasta_dated_samples_file}"
+    echo "Running vcf2fasta.py - outputs ${fasta_dated_samples_file}"
     printf "\n"
     set -x
-    # vcf2fasta.sh       <study_accession>  <vcf_file>         <fasta_output_dir>  <ref_fasta>
-    # vcf2fasta.sh       ${study_accession} ${dated_samps_vcf} ${fasta_dir}        ${ref_fasta_file}
     vcf2fasta.py --vcf ${dated_samps_vcf} --ref ${ref_fasta_file} --threads 20 --snps --snps-no-filt
-    mv ${fasta_dated_samples_file} ${fasta_dir}
+    mv ${vcf_dir}$(basename -- ${fasta_dated_samples_file} ) ${fasta_dir}
     set +x
     echo "------------------------------------------------------------------------------"
     printf "\n"
@@ -438,18 +449,49 @@ fi
 
 # BEAST
 
-# Stop here if xml file does not exist
-
-if [ ! -f ${xml_file} ]; then
-    echo "Stopping script before Beast section - xml file ${xml_file} does not exist"
-    exit 1
-fi
-
 # ------------------------------------------------------------------------------
 
 # Make xml file
 
+if [ ! -f ${xml_file} ]; then
+    echo "------------------------------------------------------------------------------"
+    echo "Creating XML file r_scripts/pakistan_babette.R - outputs ${xml_file}"
+    set -x
+    Rscript r_scripts/pakistan_babette.R -s ${study_accession} -f ${fasta_file_annotated_with_dates} -i ${local_metadata_dir} -o ${xml_file}
+    set +x
+    echo "------------------------------------------------------------------------------"
+    printf "\n"
+else
+    echo "------------------------------------------------------------------------------"
+    echo "File ${xml_file} exists, skipping r_scripts/pakistan_babette.R"
+    echo "------------------------------------------------------------------------------"
+    printf "\n"
 
+fi
+
+# Add "constant site weights" - https://github.com/andersgs/beast2_constsites
+
+if [ ! -f ${xml_file_plus_const} ]; then
+    echo "------------------------------------------------------------------------------"
+    echo "Adding constant site weights to XML file with run_b2cs - outputs ${xml_file_plus_const}"
+    # Uncompress because run_b2cs needs ordinary vcf
+    gunzip ${dated_samps_vcf}
+    run_b2cs -x ${xml_file} beast2 ${ref_fasta_file} ${dated_samps_vcf_unzip}
+else
+    echo "------------------------------------------------------------------------------"
+    echo "File ${xml_file_plus_const} exists, skipping run_b2cs"
+    echo "------------------------------------------------------------------------------"
+    printf "\n"
+fi
+
+# Stop here if xml file does not exist
+
+if [ ! -f ${xml_file_plus_const} ]; then
+    echo "Stopping script before Beast section - xml file ${xml_file_plus_const} does not exist"
+    exit 1
+fi
+
+# ------------------------------------------------------------------------------
 
 
 # Run Beast
