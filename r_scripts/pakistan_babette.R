@@ -65,6 +65,11 @@
 
 rm(list=ls())
 
+# Babette installation:
+# Run this:
+# remotes::install_github("ropensci/babette", dependencies = TRUE)
+# Then this:
+# install.packages("babette")
 library(babette)
 library(seqinr)
 library(optparse)
