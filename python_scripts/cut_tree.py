@@ -8,8 +8,8 @@ import os
 def main(args):
 
     infile = args.infile
-    outfile = arg.outfile
-    year = args.cut
+    outfile = args.outfile
+    year = int(args.cut)
 
     tree_file = args.infile
     tree_file_newick = tree_file + ".nwk"
@@ -53,7 +53,7 @@ def main(args):
         # Convert to year - have to add this correction (dist from root - max dist of all distances in tree) + max date
         # See ptreeFromPhylo function in TransPhylo package - https://github.com/xavierdidelot/TransPhylo/blob/master/R/ptreeFromPhylo.R
         year_dist = (rt.get_distance(node.name) - max_dist) + max_date
-        if year_dist >= max_date - 10 and len(node) > 1:
+        if year_dist >= max_date - year and len(node) > 1:
             leaves = node.get_leaf_names()
             node_list.append(leaves)
 
@@ -70,17 +70,12 @@ def main(args):
     for i, node in enumerate(final_node_list):
         clust_dict[str(i+1)] = node
 
-    # Write out the dict as table with this incredibly verbose ridiculous Pythonese:
-    if os.path.isfile(outfile):
-        with open(outfile,"a") as O:
-            for key in clust_dict:
-                for val in clust_dict[key]:
-                    O.write(",".join([key,val]) + "\n")
-    else:
-        with open(outfile,"w") as O:
-            for key in clust_dict:
-                for val in clust_dict[key]:
-                    O.write(",".join([key,val]) + "\n")
+    # Write out the dict as table
+    with open(outfile,"w") as O:
+        for key in clust_dict:
+            for val in clust_dict[key]:
+                O.write(",".join([key,val]) + "\n")
+    O.close()
 
 
 parser = argparse.ArgumentParser(description='TBProfiler pipeline',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
