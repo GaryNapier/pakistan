@@ -26,11 +26,12 @@ printf "\n"
 cd ~/pakistan
 
 # Variables
-date_change=true
+date_change=false
 study_accession=PAKISTAN_ALL
 gvcf_file_suffix=.g.vcf.gz
 date_column=year
 id_column=wgs_id
+cut_year=10
 
 # Directories
 
@@ -99,6 +100,7 @@ pakistan_metadata_file=${local_metadata_dir}pakistan_metadata.csv
 pakistan_metadata_file_dated=${local_metadata_dir}pakistan_metadata_dated.csv
 sample_list_file=${tmp_dir}${study_accession}.samps.csv
 dated_samples_file=${tmp_dir}dated_samples.txt
+beast_clusters_file=${local_metadata_dir}${study_accession}.clusters.csv
 # vcf
 val_multi_vcf_file=${vcf_dir}${study_accession}.val.gt.g.vcf.gz
 filt_multi_vcf_file=${vcf_dir}${study_accession}.filt.val.gt.g.vcf.gz
@@ -332,10 +334,8 @@ fi
 if [ ! -f ${iqtree_file} ] || [ ! -f ${treefile} ]; then
 
     echo "------------------------------------------------------------------------------"
-
     echo "IQ tree"
     printf "\n"
-
     echo "Running shell_scripts/iqtree.sh - outputs files ${iqtree_file}, ${treefile}"
     set -x
     # shell_scripts/iqtree.sh <study_accession>   <fasta_dir>           <newick_output_dir>
@@ -356,7 +356,7 @@ fi
 # Tree annotation - itol
 
 if [ ! -f ${itol_dir}itol.dr.txt ] || [ ! -f ${itol_dir}itol.lineages.txt ] || [ ! -f ${itol_dir}itol.major_lineages.txt ]; then
-
+    echo "------------------------------------------------------------------------------"
     echo "Running itol_templates.R"
     printf "\n"
     # itol_templates.R  <itol_templates_location>
@@ -373,6 +373,7 @@ fi
 itol_out_files=${itol_dir}$(basename ${pakistan_metadata_file%.csv})*
 
 if compgen -G ! ${itol_out_files} > /dev/null; then
+    echo "------------------------------------------------------------------------------"
     echo "Running itol_annotation.R"
     printf "\n"
     # itol_annotation.R <metadata_file>             <itol_location>
@@ -394,7 +395,6 @@ fi
 if [ ! -f ${fasta_dated_samples_file} ]; then
 
     echo "------------------------------------------------------------------------------"
-
     echo "Running vcf2fasta.py - outputs ${fasta_dated_samples_file}"
     printf "\n"
     set -x
@@ -424,7 +424,6 @@ fi
 if [ ! -f ${fasta_file_annotated_with_dates} ]; then
 
     echo "------------------------------------------------------------------------------"
-
     echo "Dated fasta file"
     printf "\n"
 
@@ -470,24 +469,6 @@ else
 
 fi
 
-# echo "-------------------"
-#
-# echo "STOP!!!"
-#
-# if [ -f ${dated_samps_vcf} ]; then
-#     echo "${dated_samps_vcf} EXISTS!!!"
-# else
-#     echo "${dated_samps_vcf} NOT EXIST!!!"
-# fi
-#
-# if [ -f ${dated_samps_vcf_unzip} ]; then
-#     echo "${dated_samps_vcf_unzip} EXISTS!!!"
-# else
-#     echo "${dated_samps_vcf_unzip} NOT EXIST!!!"
-# fi
-#
-# exit 1
-
 # Add "constant site weights" - https://github.com/andersgs/beast2_constsites
 
 if [ ! -f ${xml_file_plus_const} ]; then
@@ -518,7 +499,6 @@ fi
 if [ ! -f ${new_beast_log_file} ] || [ ! -f ${new_beast_trees_file} ] || [ ! -f ${new_beast_state_file} ];then
 
     echo "------------------------------------------------------------------------------"
-
     echo "Run Beast"
     printf "\n"
 
@@ -547,7 +527,6 @@ fi
 if [ ! -f ${mcc_tree} ]; then
 
     echo "------------------------------------------------------------------------------"
-
     echo "Running TreeAnnotator on ${new_beast_trees_file} - outputs ${mcc_tree}"
     set -x
     treeannotator -heights ca -burnin 10 ${new_beast_trees_file} ${mcc_tree}
@@ -561,6 +540,26 @@ else
     printf "\n"
 
 fi
+
+# ------------------------------------------------------------------------------
+
+# Get clusters from MCC tree - cut at year and find clusters (discards single samples)
+
+if [ ! -f ${beast_clusters_file} ]; then
+    echo "------------------------------------------------------------------------------"
+    echo "Running TreeAnnotator on ${new_beast_trees_file} - outputs ${mcc_tree}"
+    set -x
+    python python_scripts/cut_tree.py --infile ${mcc_tree} --outfile ${beast_clusters_file} --cut ${cut_year}
+    set +x
+    echo "------------------------------------------------------------------------------"
+    printf "\n"
+else
+    echo "------------------------------------------------------------------------------"
+    echo "Files ${beast_clusters_file} exists, skipping cut_tree.py"
+    echo "------------------------------------------------------------------------------"
+    printf "\n"
+fi
+
 
 # Clean up
 rm -r ${tmp_dir}
