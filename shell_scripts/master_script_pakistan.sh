@@ -31,7 +31,7 @@ study_accession=PAKISTAN_ALL
 gvcf_file_suffix=.g.vcf.gz
 date_column=year
 id_column=wgs_id
-cut_year=10
+cut_year=50
 
 # Directories
 
@@ -49,6 +49,7 @@ itol_dir=itol/
 tmp_dir=tmp/
 beast_results_dir=beast_results/
 beast_xml_dir=beast_xml/
+transphylo_results_dir=transphylo_results/
 
 # Make directories if not exist
 if [ ! -d ${local_metadata_dir} ]; then
@@ -81,6 +82,10 @@ fi
 
 if [ ! -d ${beast_xml_dir} ]; then
     mkdir ${beast_xml_dir}
+fi
+
+if [ ! -d ${transphylo_results_dir} ]; then
+    mkdir ${transphylo_results_dir}
 fi
 
 
@@ -120,17 +125,19 @@ treefile=${newick_output_dir}${fasta_file_base}*treefile
 # xml files for BEAST
 xml_file=${beast_xml_dir}${study_accession}.xml
 xml_file_plus_const=${beast_xml_dir}${study_accession}_plus_const.xml
-# Beast output files - n.b. saves the .log and .trees files to the current directory and ONLY takes the study_accession
+# Beast output files - n.b. saves the .log and .trees files to the current directory and takes the study_accession
 # So files are ./<study_accession>.log and ./<study_accession>.trees
-original_beast_log_file=${study_accession}.log
-original_beast_trees_file=${study_accession}.trees
-original_beast_state_file=${study_accession}.xml.state
+original_beast_log_file=*.log
+original_beast_trees_file=*.trees
+original_beast_state_file=*.xml.state
 
-new_beast_log_file=${beast_results_dir}${study_accession}.log
-new_beast_trees_file=${beast_results_dir}${study_accession}.trees
-new_beast_state_file=${beast_results_dir}${study_accession}.xml.state
+new_beast_log_file=${beast_results_dir}${study_accession}*.log
+new_beast_trees_file=${beast_results_dir}${study_accession}*.trees
+new_beast_state_file=${beast_results_dir}${study_accession}*.xml.state
 # mcc
 mcc_tree=${beast_results_dir}${study_accession}.mcc.tree
+# TransPhylo
+transphylo_es_table_file=${transphylo_results_dir}${study_accession}.es_table.csv
 
 # ------------------------------------------------------------------------------
 
@@ -153,7 +160,8 @@ if [ ${date_change} = true ] ; then
      ${new_beast_log_file} \
      ${new_beast_trees_file} \
      ${new_beast_state_file} \
-     ${mcc_tree}
+     ${mcc_tree} \
+     ${transphylo_results_dir}*
     set +x
     printf "\n"
 fi
@@ -547,7 +555,7 @@ fi
 
 if [ ! -f ${beast_clusters_file} ]; then
     echo "------------------------------------------------------------------------------"
-    echo "Running TreeAnnotator on ${new_beast_trees_file} - outputs ${mcc_tree}"
+    echo "Running python_scripts/cut_tree.py on ${mcc_tree} - outputs ${beast_clusters_file}"
     set -x
     python python_scripts/cut_tree.py --infile ${mcc_tree} --outfile ${beast_clusters_file} --cut ${cut_year}
     set +x
@@ -560,6 +568,24 @@ else
     printf "\n"
 fi
 
+# ------------------------------------------------------------------------------
+
+# Transphylo
+
+# if [ ! -f ${transphylo_es_table_file} ]; then
+#     echo "------------------------------------------------------------------------------"
+#     echo "Running TransPhylo on clusters output from cut_tree.py - outputs ${transphylo_es_table_file} and pdfs in ${transphylo_results_dir}"
+#     set -x
+#     transphylo.R -s ${study_accession} -t ${mcc_tree} -o ${transphylo_results_dir} -c ${beast_clusters_file} -m 1000000
+#     set +x
+#     echo "------------------------------------------------------------------------------"
+#     printf "\n"
+# else
+#     echo "------------------------------------------------------------------------------"
+#     echo "Files ${transphylo_es_table_file} exists, skipping transphylo.R"
+#     echo "------------------------------------------------------------------------------"
+#     printf "\n"
+# fi
 
 # Clean up
 rm -r ${tmp_dir}
