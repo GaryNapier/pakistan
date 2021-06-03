@@ -3,8 +3,6 @@
 # RUN:
 # Rscript r_scripts/clean_metadata.R <main_metadata_file>  <other_metadata_file>   <tb_profiler_file>         <outfile>
 
-
-
 # Setup ----
 
 rm(list=ls())
