@@ -33,10 +33,10 @@ pakistan_data_file <- paste0(metadata_path, "pakistan_data_non_mixed.csv")
 pakistan_data_outfile <- paste0(output_path, "pakistan_metadata.csv")
 tb_profiler_file <- "metadata/tbprofiler_results.pakistan.txt"
 
-# metadata_file <- args[1]
-# pakistan_data_file <- args[2]
-# tb_profiler_file <- args[3]
-# pakistan_data_outfile <- args[4]
+metadata_file <- args[1]
+pakistan_data_file <- args[2]
+tb_profiler_file <- args[3]
+pakistan_data_outfile <- args[4]
 
 # Read in data ----
 
