@@ -103,6 +103,7 @@ ex_loci_file=${ref_dir}excluded_loci_rep_regions_dr_regions.bed
 # metadata/samples
 pakistan_metadata_file=${local_metadata_dir}pakistan_metadata.csv
 pakistan_metadata_file_dated=${local_metadata_dir}pakistan_metadata_dated.csv
+tbprofiler_file=${local_metadata_dir}tbprofiler_results.pakistan.txt
 sample_list_file=${tmp_dir}${study_accession}.samps.csv
 dated_samples_file=${tmp_dir}dated_samples.txt
 beast_clusters_file=${local_metadata_dir}${study_accession}.clusters.csv
@@ -179,8 +180,8 @@ if [ ! -f ${pakistan_metadata_file} ]; then
     echo "Running r_scripts/clean_metadata.R - outputs ${pakistan_metadata_file}"
     printf "\n"
     set -x
-    # Rscript r_scripts/clean_metadata.R    <main_metadata_file>   <other_metadata_file>            <outfile>
-    Rscript r_scripts/clean_metadata.R      ${main_metadata_file}  ${pakistan_unpublished_metadata} ${pakistan_metadata_file}
+    # Rscript r_scripts/clean_metadata.R    <main_metadata_file>   <other_metadata_file>            <tbprofiler_results.pakistan.txt> <outfile>
+    Rscript r_scripts/clean_metadata.R      ${main_metadata_file}  ${pakistan_unpublished_metadata} ${tbprofiler_file}                ${pakistan_metadata_file}
     set +x
     echo "------------------------------------------------------------------------------"
     printf "\n"
