@@ -48,7 +48,7 @@ tb_profiler_data <- read.delim(tb_profiler_file)
 
 metadata <- subset(metadata, country_code == "pk")
 
-# Merge in Pakistan unpublished data ----
+# Merge in Pakistan unpublished data ---- 
 
 # Rename cols
 pakistan_data <- dplyr::rename(pakistan_data, genotypic_drtype = drtype)
