@@ -23,33 +23,37 @@ options(stringsAsFactors = F)
 
 # Paths ----
 
-# metadata_path <- "~/Documents/metadata/"
-# output_path <- "~/Documents/pakistan/metadata/"
+metadata_path <- "~/Documents/metadata/"
+output_path <- "~/Documents/pakistan/metadata/"
 
 # Files ----
 
-# metadata_file <- paste0(metadata_path, "tb_data_18_02_2021.csv")
-# pakistan_data_file <- paste0(metadata_path, "pakistan_data_non_mixed.csv")
-# pakistan_data_outfile <- paste0(output_path, "pakistan_metadata.csv")
+metadata_file <- paste0(metadata_path, "tb_data_18_02_2021.csv")
+pakistan_data_file <- paste0(metadata_path, "pakistan_data_non_mixed.csv")
+pakistan_data_outfile <- paste0(output_path, "pakistan_metadata.csv")
+tb_profiler_file <- "metadata/tbprofiler_results.pakistan.txt"
 
-metadata_file <- args[1]
-pakistan_data_file <- args[2]
-pakistan_data_outfile <- args[3]
+# metadata_file <- args[1]
+# pakistan_data_file <- args[2]
+# tb_profiler_file <- args[3]
+# pakistan_data_outfile <- args[4]
 
 # Read in data ----
 
 metadata <- read.csv(metadata_file)
 pakistan_data <- read.csv(pakistan_data_file)
+tb_profiler_data <- read.delim(tb_profiler_file)
 
 # Subset ----
 
 metadata <- subset(metadata, country_code == "pk")
 
-
 # Merge in Pakistan unpublished data ----
 
 # Rename cols
 pakistan_data <- dplyr::rename(pakistan_data, genotypic_drtype = drtype)
+metadata <- dplyr::rename(metadata, para_aminosalicylic_acid = para.aminosalicylic_acid)
+tb_profiler_data <- dplyr::rename(tb_profiler_data, para_aminosalicylic_acid = para.aminosalicylic_acid)
 
 # Add in country code and country columns:
 pakistan_data$country_code <- rep("pk", nrow(pakistan_data))
@@ -58,16 +62,12 @@ pakistan_data$country <- rep("Pakistan", nrow(pakistan_data))
 # rbind together both datasets - n.b. plyr::rbind.fill function
 metadata <- plyr::rbind.fill(metadata, pakistan_data)
 
-
 # Study accession codes ----
 
 metadata$study_accession_word <- rep("PAKISTAN_ALL", nrow(metadata))
 
 
 # Drug resistance ----
-
-# Rename para.aminosalicylic_acid
-metadata <- dplyr::rename(metadata, para_aminosalicylic_acid = para.aminosalicylic_acid)
 
 # Classifications
 
@@ -117,11 +117,15 @@ xdr_test <- function(x){
 # Other: Not any of the above
 
 # Put all tests together in if/else
+drugs <- c("rifampicin", "isoniazid", "ethambutol", "pyrazinamide", "streptomycin", 
+           "ofloxacin", "moxifloxacin", "levofloxacin", "amikacin", "kanamycin", "capreomycin", "ciprofloxacin", "prothionamide", 
+           "ethionamide", "para_aminosalicylic_acid", "cycloserine",
+           "clarithromycin", "clofazimine", "bedaquiline", "linezolid", "rifabutin", "delamanid")
 resistance_tests <- function(x){
-  drugs <- c("rifampicin", "isoniazid", "ethambutol", "pyrazinamide", "streptomycin", 
-             "ofloxacin", "moxifloxacin", "levofloxacin", "amikacin", "kanamycin", "capreomycin", "ciprofloxacin", "prothionamide", 
-             "ethionamide", "para_aminosalicylic_acid", "cycloserine",
-             "clarithromycin", "clofazimine", "bedaquiline", "linezolid", "rifabutin", "delamanid")
+  # drugs <- c("rifampicin", "isoniazid", "ethambutol", "pyrazinamide", "streptomycin", 
+  #            "ofloxacin", "moxifloxacin", "levofloxacin", "amikacin", "kanamycin", "capreomycin", "ciprofloxacin", "prothionamide", 
+  #            "ethionamide", "para_aminosalicylic_acid", "cycloserine",
+  #            "clarithromycin", "clofazimine", "bedaquiline", "linezolid", "rifabutin", "delamanid")
   ifelse(all(is.na(x[drugs])), NA, 
          ifelse(xdr_test(x), "XDR",  
                 ifelse(pre_xdr_test(x), "Pre-XDR", 
@@ -141,6 +145,73 @@ metadata$dr_status <- dr_status
 
 # Clean DR status - bring across genotypic if na in the clinical data
 metadata$dr_status <- ifelse(is.na(metadata$dr_status), metadata$genotypic_drtype, metadata$dr_status)
+
+
+# Individual drugs ----
+
+# Get discrepancies between phenotypic tests (from original metadata) and genotypic (tbprofiler)
+
+# Get drugs in common between tbprofiler results and metadata and subset data
+drugs_intersect <- intersect(intersect(names(tb_profiler_data), names(metadata)), drugs)
+x <- metadata[, c("wgs_id", drugs_intersect)] 
+y <- tb_profiler_data[, c("sample", drugs_intersect)]
+# Merge on id
+drug_df <- merge(x, y, by.x = "wgs_id", by.y = "sample", 
+                 all.x = T, sort = F)
+drug_names_df <- names(drug_df)[names(drug_df) != "wgs_id"]
+
+# Loop through drugs in common (cols), find pairs and do tests of agreement between phenotyic and genotypic drug resistance
+prgs <- function(x){x[1] == 1 & x[2] == "-"}
+psgr <- function(x){x[1] == 0 & x[2] != "-"}
+pngs <- function(x){is.na(x[1]) & x[2] == "-"}
+pngr <- function(x){is.na(x[1]) & x[2] != "-"}
+msmr <- function(x){x[1] == 0 & x[2] == "-"}
+
+# i <- 1
+# x <- drug_df[ , grep(paste0("^", drugs_intersect[i]), names(drug_df)) ]
+# x <- head(x)
+# x
+
+tests <- function(x){
+  ifelse(pngs(x), "pheno_NA, geno_sens", 
+         ifelse(pngr(x), "pheno_NA, geno_res", 
+                ifelse(prgs(x), "pheno_res, geno_sens", 
+                       ifelse(psgr(x), "pheno_sens, geno_res", 
+                              ifelse(msmr(x), "match_sens", "match_res")))))
+}
+
+drug_discrepancy_list <- list()
+for(i in seq(drugs_intersect)){
+  
+  # Find the pairs of cols
+  x <- drug_df[ , grep(paste0("^", drugs_intersect[i]), names(drug_df)) ]
+  
+  test_res <- data.frame(tests(x))
+  
+  # Rename cols
+  names(test_res) <- paste0(str_split(names(test_res), "\\.x")[[1]][1], "_test")
+
+  drug_discrepancy_list[[i]] <- test_res
+  
+}
+
+# Put back together
+drug_tests_df <- cbind(drug_df["wgs_id"], do.call(cbind, drug_discrepancy_list))
+
+# Merge in tbprofiler results
+tbp_drugs <- names(tb_profiler_data)[which(names(tb_profiler_data) == "rifampicin") : ncol(tb_profiler_data)]
+names(tb_profiler_data)[names(tb_profiler_data) %in% tbp_drugs] <- paste0(tbp_drugs, "_tbp")
+
+metadata <- merge(metadata, tb_profiler_data[, !(names(tb_profiler_data) %in% c("main_lineage", "sub_lineage", "DR_type") ) ],
+                  by.x = "wgs_id",
+                  by.y = "sample",
+                  all.x = T,
+                  sort = F)
+
+metadata <- merge(metadata, drug_tests_df,
+                  by = "wgs_id",
+                  all.x = T,
+                  sort = F)
 
 
 # Lineages ---- 
@@ -177,14 +248,17 @@ metadata$collection_date <- ifelse((is.na(metadata$collection_date) | metadata$c
 # Add year column
 metadata$year <- stringr::str_extract(metadata$collection_date, pattern = "\\d{4}")
 
+
 # Misc. clean ----
 
 # Replace all commas with semi-colon
 metadata <- data.frame(lapply(metadata, function(x) {gsub(",", ";", x)}))
 
+
 # Write data ----
 
 write.csv(metadata, file = pakistan_data_outfile, quote = F, row.names = F)
+
 
 
 
