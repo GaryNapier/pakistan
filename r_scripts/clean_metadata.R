@@ -28,10 +28,10 @@ output_path <- "~/Documents/pakistan/metadata/"
 
 # Files ----
 
-metadata_file <- paste0(metadata_path, "tb_data_18_02_2021.csv")
-pakistan_data_file <- paste0(metadata_path, "pakistan_data_non_mixed.csv")
-pakistan_data_outfile <- paste0(output_path, "pakistan_metadata.csv")
-tb_profiler_file <- "metadata/tbprofiler_results.pakistan.txt"
+# metadata_file <- paste0(metadata_path, "tb_data_18_02_2021.csv")
+# pakistan_data_file <- paste0(metadata_path, "pakistan_data_non_mixed.csv")
+# pakistan_data_outfile <- paste0(output_path, "pakistan_metadata.csv")
+# tb_profiler_file <- "metadata/tbprofiler_results.pakistan.txt"
 
 metadata_file <- args[1]
 pakistan_data_file <- args[2]
@@ -247,6 +247,9 @@ metadata$collection_date <- ifelse((is.na(metadata$collection_date) | metadata$c
 
 # Add year column
 metadata$year <- stringr::str_extract(metadata$collection_date, pattern = "\\d{4}")
+
+# Add id/year col
+metadata$id_year <- paste0(metadata$wgs_id, "_", metadata$year)
 
 
 # Misc. clean ----
