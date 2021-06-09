@@ -1,7 +1,9 @@
 ---
 title: "Pakistan data summary"
-output:
-  html_document: default
+output: 
+  bookdown::html_document2: 
+    fig_caption: yes
+    number_sections: no
 bibliography:   all_refs.bib
 csl: biomed-central.csl
 ---
@@ -149,7 +151,7 @@ n_snps_total <- 37970
 metadata_dated <- subset(metadata, !(is.na(metadata$year)))
 dated_samps <- metadata_dated$wgs_id
 
-n_samps <- length(dated_samps)
+n_dated_samps <- length(dated_samps)
 
 first_year <- min(metadata_dated$year)
 last_year <- max(metadata_dated$year)
@@ -192,13 +194,14 @@ lin_tab <- reshape2::dcast(metadata, main_lineage ~ "N", value.var = id_col, fun
 names(lin_tab) <- c("Lineages", names(lin_tab)[length(names(lin_tab))])
 lin_tab$pc <- round((lin_tab$N/sum(lin_tab$N)) * 100, rnd)
 
+
 # Lineages conversions
-lin_conv <- merge(metadata["sub_lineage"], lineage_conversions, 
+lin_conv <- merge(metadata[c("main_lineage", "sub_lineage")], lineage_conversions, 
                   by.x = "sub_lineage", by.y = "mtbc_lineage", 
                   all.x = T, sort = F)
-lin_conv_tab <- reshape2::dcast(lin_conv, sub_lineage + lsp_lineage + spoligotype_family + rd_number ~ "N",
+lin_conv_tab <- reshape2::dcast(lin_conv, main_lineage + sub_lineage + lsp_lineage + spoligotype_family + rd_number ~ "N",
                                 value.var = "sub_lineage", fun.aggregate = length)
-names(lin_conv_tab) <- c("Sub lineage", "LSP lineage", "Spoligotype family", "RD number", "N")
+names(lin_conv_tab) <- c("Main lineage", "Sub lineage", "LSP lineage", "Spoligotype family", "RD number", "N")
 
 
 # DR
@@ -227,6 +230,7 @@ dr_lin_tab <- dr_lin_tab[order(dr_lin_tab$dr_status), ]
 names(dr_lin_tab) <- c("DR status", paste0("L", sort(unique(metadata$main_lineage))))
 dr_lin_tab <- to_table(dr_lin_tab, pc_dir = "all")
 
+
 ```
 
 
@@ -243,11 +247,12 @@ In 2019 [@WHO_2020]:
 -->
 
 
-Pakistan is a high-burden TB country, being one of eight countries accounting for two-thirds of the global total TB instance (5.7%) [@WHO2020]. Furthermore, HIV prevalence in the country is increasing (0.1 prevalence 2019), which compounds the problem of TB infections and treatment [@UNAIDS_2020] (5,100 cases and 1,900 HIV-positive mortality cases in 2019). There is also a high burden for multidrug-resistance (MDR-TB, resistance to isoniazid and rifampicin treatments), with 25,000 cases in the latest WHO estimates. 
+Pakistan is a high-burden TB country, being one of eight countries accounting for two-thirds of the global total TB instance (5.7%) [@WHO_2020]. Furthermore, HIV prevalence in the country is increasing (0.1 prevalence 2019), which compounds the problem of TB infections and treatment [@UNAIDS_2020] (5,100 cases and 1,900 HIV-positive mortality cases in 2019). There is also a high burden for multidrug-resistance (MDR-TB, resistance to isoniazid and rifampicin treatments), with 25,000 cases in the latest WHO estimates. 
 
-Within such a context, it is crucial to monitor transmission patterns and ensure that patients are being treated with optimal drug regimens. Here, we analyse `r n_samps` whole genome sequences (WGS) of Pakistan *Mycobacterium tuberculosis* (*Mtb*) samples dating from `r first_year` to `r last_year`, using `r n_snps_total` SNPs to infer a timed phylogenetic tree and to predict resistance to `r n_drugs` drugs.
+Within such a context, it is crucial to monitor transmission patterns and ensure that patients are being treated with optimal drug regimens. Here, we analyse `r n_samps_total` whole genome sequences (WGS) of Pakistan *Mycobacterium tuberculosis* (*Mtb*) samples dating from `r first_year` to `r last_year`, using `r n_snps_total` SNPs to infer a timed phylogenetic tree and to predict resistance to `r n_drugs` drugs.
 
-Historically, *Mtb* samples from Pakistan belong predominantly to the CAS1-Delhi spoligotype family [@Demay2012] (see **figure \@ref(fig:historical)), which belongs to Lineage 3 [@Napier2020]. 
+Historically, *Mtb* samples from Pakistan belong predominantly to the CAS1-Delhi spoligotype family [@Demay2012] (see **Figure \@ref(fig:historical)**), which belongs to Lineage 3 [@Napier2020]. In our samples, Lineage 3 comprise `r lin_tab[lin_tab["Lineages"] == 3, "pc"]`% of the total samples (see **Table \@(tab:lintables)** for a breakdown of samples by lineage and sublineage).
+
 
 
 **Estimates of TB burden, 2019**
@@ -267,10 +272,7 @@ Historically, *Mtb* samples from Pakistan belong predominantly to the CAS1-Delhi
 | New cases |	4.2% (3.2-5.3) |
 | Previously treated cases |	7.3% (6.8-7.8) |
 
-
-### Historical genomic data on MTBC in Pakistan [@Demay2012]
-
-```{r historical, echo=FALSE, out.width = "2000px"}
+```{r historical, fig.cap = "Historical genomic data on MTBC in Pakistan [@Demay2012]", echo=FALSE, out.width = "2000px"} 
 
 n_samps_historical <- length(historical_metadata$IsoNumber)
 
@@ -280,15 +282,13 @@ barplot(table(historical_metadata$Clade), las=2,
 
 ```
 
-
-
 *Mycobacterium tuberculosis* samples (N = `r n_samps_total`)
 
 ### Lineages tables
 
 ```{r lintables, echo=FALSE, out.width = "2000px"}
 
-knitr::kable(lin_tab, align = align)
+# knitr::kable(lin_tab, align = align)
 knitr::kable(lin_conv_tab)
 
 ```
@@ -448,370 +448,372 @@ par(mfrow=c(1,1))
 
 #### Beast trees - all dated samples and zoomed into clusters where MRC is 50 years before last sampling date
 
-```{r beastresults, echo=FALSE, out.width = "1500px", warning = F, message = F}
-
-# Get last date from tree
-first_date <- mcc_tree_ape$root.edge
-last_date <- as.numeric(max(unlist(lapply(strsplit(mcc_tree_ape$tip.label, "_"), function(x){x[length(x)]}))))
-last_date_chr <- paste0(as.character(last_date), "-12-31")
-n_samps <- length(mcc_tree_ape$tip.label)
-
-# Prep data for heatmaps (strips)
-
-# Add id/year hybrid col
-metadata$id_year <- paste0(metadata$wgs_id, "_", metadata$year)
-rownames(metadata) <- metadata$id_year
-# heatmap_data <- metadata[metadata$id_year %in% mcc_tree_ape$tip.label, 
-#                          c("main_lineage", "dr_status"), drop = F]
-# Subset metadata
-lin_data <- metadata[, "main_lineage", drop = F]
-dr_status_data <- metadata[, "dr_status", drop = F]
-dr_data <- dplyr::select(metadata, rifampicin:delamanid)
-dr_tbp_data <- dplyr::select(metadata, rifampicin_tbp:delamanid_tbp)
-drug_discrepancy_data <- dplyr::select(metadata, rifampicin_test:delamanid_test)
-
-# Clean dr_tbp_data
-dr_tbp_data[dr_tbp_data != "-"] <- 1
-dr_tbp_data[dr_tbp_data == "-"] <- 0
-
-# Convert lin and DR data to factors
-dr_data <- data.frame(apply(dr_data, 2, as.factor)) 
-dr_tbp_data <- data.frame(apply(dr_tbp_data, 2, as.factor)) 
-lin_data <- data.frame(apply(lin_data, 2, as.factor))
-# drug_discrepancy_data <- data.frame(apply(drug_discrepancy_data, 2, as.factor))
-
-# Change col names 
-colnames(dr_status_data) <- "DR status"
-colnames(lin_data) <- "Lineage"
-
-# Define cols for each dataset
-alpha <- 0.9
-lin_colours <- rainbow(length(unique(metadata$main_lineage)), alpha = alpha)
-dr_status_colours <- scales::alpha(gplots::col2hex(c("green1", "yellow2", "orange1", "red1", "black", "grey")), alpha = alpha)
-drug_discrepancy_vals <- sort(unique(as.vector(as.matrix(drug_discrepancy_data))))
-drug_discrepancy_cols <- brewer.pal(length(drug_discrepancy_vals), "Paired")
-
-# Add names (unique vals for each dataset) to dataframes. Don't need to do this for the binary data (DR individual status)
-names(lin_colours) <- c(sort(unique(metadata$main_lineage)))
-names(dr_status_colours) <- c("Sensitive", "Pre-MDR", "MDR", "Pre-XDR", "XDR", "Other")
-names(drug_discrepancy_cols) <- drug_discrepancy_vals
-
-# Tree setup
-x_lim <- c(first_date-10, last_date+(last_date*0.8))
-y_lim <- c(-5, n_samps + (n_samps * 0.1))
-v_line_col <- "red"
-x_labs_full <- seq(first_date, last_date, by = 100)
-x_labs_zoom <- seq(last_date-50, last_date, by = 1)
-offset <- 50
-width <- 0.05
-angle <- 45
-line_sz <- 0.2
-legend_spec <- theme(legend.title = element_text(size = 7),
-                     legend.text = element_text(size = 5),
-                     legend.key.size = unit(0.3, "cm"))
-
-# Draw basic tree
-gg_mcmc_tree <- ggtree(mcc_tree, mrsd = last_date_chr, size = line_sz) %<+% metadata +
-  theme_tree2() +
-  # geom_tiplab(align=TRUE, linetype='dashed', linesize=.3, size = 2) + 
-  geom_range("length_0.95_HPD", color='red', size=2, alpha=.5) +
-  geom_text2(aes(label=round(as.numeric(posterior), 2),
-                 subset=as.numeric(posterior)> 0.9,
-                 x=branch), vjust=0) +
-  coord_cartesian(ylim = y_lim) +
-  scale_x_continuous(breaks = x_labs_full, labels = x_labs_full, limits = x_lim)+
-  theme(axis.text.x = element_text(face = "bold", size = 8, angle = 45, hjust = 1))
-
-# Add lin data 
-lin_hm <- gheatmap(gg_mcmc_tree, lin_data,
-         width = width,
-         offset = offset, color = NULL,
-         colnames_position = "top",
-         colnames_angle = angle, colnames_offset_y = 1,
-         hjust = 0,
-         font.size = 2) +
-  scale_fill_manual(values = lin_colours, breaks = names(lin_colours) )+
-  labs(fill = "Lineage")+
-  legend_spec
-
-# Do this to add new gheatmap for some reason
-# See "7.3.1 Visualize tree with multiple associated matrix" https://yulab-smu.top/treedata-book/chapter7.html
-lin_hm <- lin_hm + ggnewscale::new_scale_fill() 
-
-# Add DR status
-dr_status_hm <- gheatmap(lin_hm, dr_status_data,
-                   width = width,
-                   offset = offset+100, color = NULL,
-                   colnames_position = "top",
-                   colnames_angle = angle, colnames_offset_y = 1,
-                   hjust = 0,
-                   font.size = 2) +
-  scale_fill_manual(values = dr_status_colours, breaks = names(dr_status_colours) )+
-  labs(fill = "DR status")+
-  legend_spec
-
-# Add DR individual status
-dr_status_hm <- dr_status_hm + ggnewscale::new_scale_fill() 
-
-width_plus <- 0.6
-font_sz <- 2
-
-pdf(file = dr_trees_pdf_file)
-gheatmap(dr_status_hm, dr_data,
-         offset = offset+200,
-         width = width + width_plus,
-         # color = NULL,
-         low="white", high="black", color="black",
-         colnames_position = "top",
-         colnames_angle = angle, colnames_offset_y = 1,
-         hjust = 0,
-         font.size = font_sz) +
-  scale_fill_manual(values=c("white", "black"), labels = c("Sensitive", "Resistant", "NA"), na.value = "grey")+
-  labs(fill = "Drug\nresistance")+
-  legend_spec
 
 
-# Drug resistance from TB profiler (genotypic drug resistance predictions)
+```{r beastresults, echo=FALSE, out.width = "1500px", warning = F, message = F, cache=F}
 
+# # Get last date from tree
+# first_date <- mcc_tree_ape$root.edge
+# last_date <- as.numeric(max(unlist(lapply(strsplit(mcc_tree_ape$tip.label, "_"), function(x){x[length(x)]}))))
+# last_date_chr <- paste0(as.character(last_date), "-12-31")
+# n_samps <- length(mcc_tree_ape$tip.label)
+# 
+# # Prep data for heatmaps (strips)
+# 
+# # Add id/year hybrid col
+# metadata$id_year <- paste0(metadata$wgs_id, "_", metadata$year)
+# rownames(metadata) <- metadata$id_year
+# # heatmap_data <- metadata[metadata$id_year %in% mcc_tree_ape$tip.label, 
+# #                          c("main_lineage", "dr_status"), drop = F]
+# # Subset metadata
+# lin_data <- metadata[, "main_lineage", drop = F]
+# dr_status_data <- metadata[, "dr_status", drop = F]
+# dr_data <- dplyr::select(metadata, rifampicin:delamanid)
+# dr_tbp_data <- dplyr::select(metadata, rifampicin_tbp:delamanid_tbp)
+# drug_discrepancy_data <- dplyr::select(metadata, rifampicin_test:delamanid_test)
+# 
+# # Clean dr_tbp_data
+# dr_tbp_data[dr_tbp_data != "-"] <- 1
+# dr_tbp_data[dr_tbp_data == "-"] <- 0
+# 
+# # Convert lin and DR data to factors
+# dr_data <- data.frame(apply(dr_data, 2, as.factor)) 
+# dr_tbp_data <- data.frame(apply(dr_tbp_data, 2, as.factor)) 
+# lin_data <- data.frame(apply(lin_data, 2, as.factor))
+# # drug_discrepancy_data <- data.frame(apply(drug_discrepancy_data, 2, as.factor))
+# 
+# # Change col names 
+# colnames(dr_status_data) <- "DR status"
+# colnames(lin_data) <- "Lineage"
+# 
+# # Define cols for each dataset
+# alpha <- 0.9
+# lin_colours <- rainbow(length(unique(metadata$main_lineage)), alpha = alpha)
+# dr_status_colours <- scales::alpha(gplots::col2hex(c("green1", "yellow2", "orange1", "red1", "black", "grey")), alpha = alpha)
+# drug_discrepancy_vals <- sort(unique(as.vector(as.matrix(drug_discrepancy_data))))
+# drug_discrepancy_cols <- brewer.pal(length(drug_discrepancy_vals), "Paired")
+# 
+# # Add names (unique vals for each dataset) to dataframes. Don't need to do this for the binary data (DR individual status)
+# names(lin_colours) <- c(sort(unique(metadata$main_lineage)))
+# names(dr_status_colours) <- c("Sensitive", "Pre-MDR", "MDR", "Pre-XDR", "XDR", "Other")
+# names(drug_discrepancy_cols) <- drug_discrepancy_vals
+# 
+# # Tree setup
+# x_lim <- c(first_date-10, last_date+(last_date*0.8))
+# y_lim <- c(-5, n_samps + (n_samps * 0.1))
+# v_line_col <- "red"
+# x_labs_full <- seq(first_date, last_date, by = 100)
+# x_labs_zoom <- seq(last_date-50, last_date, by = 1)
+# offset <- 50
+# width <- 0.05
+# angle <- 45
+# line_sz <- 0.2
+# legend_spec <- theme(legend.title = element_text(size = 7),
+#                      legend.text = element_text(size = 5),
+#                      legend.key.size = unit(0.3, "cm"))
+# 
+# # Draw basic tree
+# gg_mcmc_tree <- ggtree(mcc_tree, mrsd = last_date_chr, size = line_sz) %<+% metadata +
+#   theme_tree2() +
+#   # geom_tiplab(align=TRUE, linetype='dashed', linesize=.3, size = 2) + 
+#   geom_range("length_0.95_HPD", color='red', size=2, alpha=.5) +
+#   geom_text2(aes(label=round(as.numeric(posterior), 2),
+#                  subset=as.numeric(posterior)> 0.9,
+#                  x=branch), vjust=0) +
+#   coord_cartesian(ylim = y_lim) +
+#   scale_x_continuous(breaks = x_labs_full, labels = x_labs_full, limits = x_lim)+
+#   theme(axis.text.x = element_text(face = "bold", size = 8, angle = 45, hjust = 1))
+# 
+# # Add lin data 
+# lin_hm <- gheatmap(gg_mcmc_tree, lin_data,
+#          width = width,
+#          offset = offset, color = NULL,
+#          colnames_position = "top",
+#          colnames_angle = angle, colnames_offset_y = 1,
+#          hjust = 0,
+#          font.size = 2) +
+#   scale_fill_manual(values = lin_colours, breaks = names(lin_colours) )+
+#   labs(fill = "Lineage")+
+#   legend_spec
+# 
+# # Do this to add new gheatmap for some reason
+# # See "7.3.1 Visualize tree with multiple associated matrix" https://yulab-smu.top/treedata-book/chapter7.html
+# lin_hm <- lin_hm + ggnewscale::new_scale_fill() 
+# 
+# # Add DR status
+# dr_status_hm <- gheatmap(lin_hm, dr_status_data,
+#                    width = width,
+#                    offset = offset+100, color = NULL,
+#                    colnames_position = "top",
+#                    colnames_angle = angle, colnames_offset_y = 1,
+#                    hjust = 0,
+#                    font.size = 2) +
+#   scale_fill_manual(values = dr_status_colours, breaks = names(dr_status_colours) )+
+#   labs(fill = "DR status")+
+#   legend_spec
+# 
+# # Add DR individual status
+# dr_status_hm <- dr_status_hm + ggnewscale::new_scale_fill() 
+# 
+# width_plus <- 0.6
+# font_sz <- 2
+# 
 # pdf(file = dr_trees_pdf_file)
-gheatmap(dr_status_hm, dr_tbp_data,
-         offset = offset+200,
-         width = width + width_plus,
-         # color = NULL,
-         low="white", high="black", color="black",
-         colnames_position = "top",
-         colnames_angle = angle, colnames_offset_y = 1,
-         hjust = 0,
-         font.size = font_sz, 
-         legend_title = "llw") +
-  scale_fill_manual(values=c("white", "black"), labels = c("Sensitive", "Resistant", "NA"), na.value = "grey")+
-  labs(fill = "Drug\nresistance\n(TB profiler)")+
-  legend_spec
-
-# Drug resistance genotype/phenotype discrepancies taking off from dr_status_hm tree
-
-gheatmap(dr_status_hm, drug_discrepancy_data, 
-         offset = offset+200, 
-         width = width + width_plus, 
-         color = NULL, 
-         colnames_position = "top", 
-         colnames_angle = angle, 
-         colnames_offset_y = 1, 
-         hjust = 0, 
-         font.size = font_sz) + 
-  scale_fill_manual(values = drug_discrepancy_cols, breaks = names(drug_discrepancy_cols))+ 
-  labs(fill = "Phen./Gen diff")+
-  legend_spec
-
-
-
-# Zoom in to clusters
-
-# Zoom tree setup
-zoom_range <- c((last_date+1) - 50, (last_date + 1) + 65)
-zoom_range_seq <- seq(zoom_range[1], (last_date+1), 2)
-
-offset_zoom <- 0
-width_zoom <- 0.0015
-
-gg_mcmc_tree_zoom <- ggtree(mcc_tree, mrsd = last_date_chr, size = line_sz) %<+% metadata +
-  # geom_tiplab(align=TRUE, linetype='dashed', linesize=.3, size = 2) +
-  geom_tiplab(align=T, size = 1.5, linetype=NA, hjust = -3.9)+
-  theme_tree2() +
-  coord_cartesian(ylim = y_lim) +
-  scale_x_continuous(breaks = zoom_range_seq,
-                    labels = zoom_range_seq,
-                    limits = zoom_range) +
-  # scale_x_continuous(breaks = x_labs_full, labels = x_labs_full, limits = x_lim)+
-  geom_vline(aes(xintercept = 2020), col = "red")+
-  # geom_tiplab(align = TRUE, linetype='dashed', linesize=.3, size = 2) +
-  theme(axis.text.x = element_text(face = "bold", size = 6, angle = 45, hjust = 1))
-
-# Add lin data 
-lin_hm <- gheatmap(gg_mcmc_tree_zoom, lin_data,
-                   width = width_zoom,
-                   offset = offset_zoom, 
-                   color = NULL,
-                   colnames_position = "top",
-                   colnames_angle = angle, colnames_offset_y = 1,
-                   hjust = 0,
-                   font.size = 2) +
-  scale_fill_manual(values = lin_colours, breaks = names(lin_colours) )+
-  labs(fill = "Lineage")+
-  legend_spec
-
-# Do this to add new gheatmap for some reason
-# See "7.3.1 Visualize tree with multiple associated matrix" https://yulab-smu.top/treedata-book/chapter7.html
-lin_hm <- lin_hm + ggnewscale::new_scale_fill() 
-
-# Add DR status
-dr_status_hm <- gheatmap(lin_hm, dr_status_data,
-                         width = width_zoom,
-                         offset = offset_zoom + 2.5, 
-                         color = NULL,
-                         colnames_position = "top",
-                         colnames_angle = angle, colnames_offset_y = 1,
-                         hjust = 0,
-                         font.size = 2) +
-  scale_fill_manual(values = dr_status_colours, breaks = names(dr_status_colours) )+
-  labs(fill = "DR\nstatus")+
-  legend_spec
-
-# Add DR individual status
-dr_status_hm <- dr_status_hm + ggnewscale::new_scale_fill() 
-offset_zoom_plus <- 6
-
-gheatmap(dr_status_hm, dr_data,
-         offset = offset_zoom + offset_zoom_plus,
-         width = width_zoom + 0.02,
-         # color = NULL,
-         low="white", high="black", color="black",
-         colnames_position = "top",
-         colnames_angle = angle, 
-         colnames_offset_y = 1,
-         hjust = 0,
-         font.size = font_sz, 
-         legend_title = "llw") +
-  scale_fill_manual(values=c("white", "black"), labels = c("Sensitive", "Resistant", "NA"), na.value = "grey")+
-  labs(fill = "Drug\nresistance")+
-  legend_spec
-
-gheatmap(dr_status_hm, dr_tbp_data,
-         offset = offset_zoom + offset_zoom_plus,
-         width = width_zoom + 0.02,
-         # color = NULL,
-         low="white", high="black", color="black",
-         colnames_position = "top",
-         colnames_angle = angle, colnames_offset_y = 1,
-         hjust = 0,
-         font.size = font_sz, 
-         legend_title = "llw") +
-  scale_fill_manual(values=c("white", "black"), labels = c("Sensitive", "Resistant", "NA"), na.value = "grey")+
-  labs(fill = "Drug\nresistance\n(TB profiler)")+
-  legend_spec
-
-# Drug resistance genotype/phenotype discrepancies taking off from dr_status_hm tree
-
-gheatmap(dr_status_hm, drug_discrepancy_data, 
-         offset = offset_zoom + offset_zoom_plus, 
-         width = width_zoom + 0.02, 
-         color = NULL, 
-         colnames_position = "top", 
-         colnames_angle = angle, 
-         colnames_offset_y = 1, 
-         hjust = 0, 
-         font.size = font_sz) + 
-  scale_fill_manual(values = drug_discrepancy_cols, breaks = names(drug_discrepancy_cols))+ 
-  labs(fill = "Phen./Gen diff")+
-  legend_spec
-
-dev.off()
-
-
-# Loop through clusters
-
-clusters_split <- split(beast_clusters, beast_clusters$cluster)
-mcc_tree_tips <- mcc_tree@phylo$tip.label
-
-# pdf(file = beast_clusters_pdf_file)
-for(i in seq(clusters_split)){
-
-  names_to_keep <- clusters_split[[i]]$id
-  names_to_drop <- mcc_tree_tips[!(mcc_tree_tips %in% names_to_keep)]
-  clust_tree <- treeio::drop.tip(mcc_tree, names_to_drop)
-
-  # Do tree first to get first and last date
-  last_date_clust <- as.numeric(max(unlist(lapply(strsplit(clust_tree@phylo$tip.label, "_"), function(x){x[length(x)]}))))
-  last_date_clust_chr <- paste0(as.character(last_date), "-12-31")
-  gg_clust_tree <- ggtree(clust_tree, mrsd = last_date_clust_chr) %<+% metadata +
-    theme_tree2()
-  last_date_clust <- ceiling(max(gg_clust_tree$data$x))
-  first_date_clust <- floor(min(gg_clust_tree$data$x))
-
-  n_samps <- length(clust_tree@phylo$tip.label)
-  last_date_clust_chr <- paste0(last_date_clust-1, "-12-31")
-  date_range_clust <- c(first_date_clust, last_date_clust)
-  year_span_clust <- diff(date_range_clust)
-  oom <- log10_ceiling(year_span_clust)
-  if(oom == 1){
-    by <- 1
-  }else if(oom == 10){
-    by <- 2
-  }else if(oom == 100){
-    by <- 10
-  }else{
-    by <- 100
-  }
-  zoom_range_seq_clust <- seq(first_date_clust,
-                              last_date_clust,
-                              by = by)
-
-  post_tree_multiply <- 5
-  post_tree_span <- (year_span_clust * post_tree_multiply)
-  x_lim_clust <- c(first_date_clust - (year_span_clust*0.2), last_date_clust + post_tree_span)
-  y_lim_clust <- c(0 - floor(n_samps*0.1),  n_samps + ceiling(n_samps*0.2) )
-  # width <- width * (p$data$x %>% range(na.rm = TRUE) %>% diff)/ncol(data)
-  width_clust <- 0.035 * post_tree_multiply  # % of tree time span
-  # offset_clust <- (width_clust * year_span_clust) + ((width_clust * year_span_clust)*0.1)
-  offset_clust <- (width_clust * year_span_clust)
-
-  gg_clust_tree <- ggtree(clust_tree, mrsd = last_date_clust_chr) %<+% metadata +
-    theme_tree2() +
-    coord_cartesian(ylim = y_lim_clust) +
-    scale_x_continuous(breaks = zoom_range_seq_clust,
-                       labels = zoom_range_seq_clust,
-                       limits = x_lim_clust) +
-    geom_vline(aes(xintercept = last_date_clust), col = "red")+
-    theme(axis.text.x = element_text(face = "bold", size = 8, angle = 45, hjust = 1))
-
-# Add lin data
-lin_hm_clust <- gheatmap(gg_clust_tree, lin_data,
-                   width = width_clust,
-                   offset = 0,
-                   color = NULL,
-                   colnames_position = "top",
-                   colnames_angle = angle,
-                   # colnames_offset_y = 1,
-                   hjust = 0,
-                   font.size = 3) +
-  scale_fill_manual(values = lin_colours, breaks = names(lin_colours) )+
-  labs(fill = "Lineage")
-
-lin_hm_clust <- lin_hm_clust + ggnewscale::new_scale_fill()
-
-# Add DR status clusters
-dr_status_hm_clust <- gheatmap(lin_hm_clust, dr_status_data,
-                         width = width_clust,
-                         offset = offset_clust,
-                         color = NULL,
-                         colnames_position = "top",
-                         colnames_angle = angle,
-                         # colnames_offset_y = 1,
-                         hjust = 0,
-                         font.size = 3) +
-  scale_fill_manual(values = dr_status_colours, breaks = names(dr_status_colours) )+
-  labs(fill = "DR\nstatus")
-
-dr_status_hm_clust <- dr_status_hm_clust + ggnewscale::new_scale_fill()
-
-final_plot <- gheatmap(dr_status_hm_clust, dr_data,
-         width = width_clust * ncol(dr_data),
-         # offset = ceiling(offset_clust * 3),
-         offset = (offset_clust * 2) + (offset_clust * 0.2),
-         # color = NULL,
-         low="white", high="black", color="black",
-         colnames_position = "top",
-         colnames_angle = angle,
-         colnames_offset_y = 0,
-         hjust = 0,
-         font.size = 2.5,
-         legend_title = "llw") +
-  scale_fill_manual(values=c("white", "black"), labels = c("Sensitive", "Resistant", "NA"), na.value = "grey")+
-  labs(fill = "Drug\nresistance")
-
-print(final_plot)
-}
+# gheatmap(dr_status_hm, dr_data,
+#          offset = offset+200,
+#          width = width + width_plus,
+#          # color = NULL,
+#          low="white", high="black", color="black",
+#          colnames_position = "top",
+#          colnames_angle = angle, colnames_offset_y = 1,
+#          hjust = 0,
+#          font.size = font_sz) +
+#   scale_fill_manual(values=c("white", "black"), labels = c("Sensitive", "Resistant", "NA"), na.value = "grey")+
+#   labs(fill = "Drug\nresistance")+
+#   legend_spec
+# 
+# 
+# # Drug resistance from TB profiler (genotypic drug resistance predictions)
+# 
+# # pdf(file = dr_trees_pdf_file)
+# gheatmap(dr_status_hm, dr_tbp_data,
+#          offset = offset+200,
+#          width = width + width_plus,
+#          # color = NULL,
+#          low="white", high="black", color="black",
+#          colnames_position = "top",
+#          colnames_angle = angle, colnames_offset_y = 1,
+#          hjust = 0,
+#          font.size = font_sz, 
+#          legend_title = "llw") +
+#   scale_fill_manual(values=c("white", "black"), labels = c("Sensitive", "Resistant", "NA"), na.value = "grey")+
+#   labs(fill = "Drug\nresistance\n(TB profiler)")+
+#   legend_spec
+# 
+# # Drug resistance genotype/phenotype discrepancies taking off from dr_status_hm tree
+# 
+# gheatmap(dr_status_hm, drug_discrepancy_data, 
+#          offset = offset+200, 
+#          width = width + width_plus, 
+#          color = NULL, 
+#          colnames_position = "top", 
+#          colnames_angle = angle, 
+#          colnames_offset_y = 1, 
+#          hjust = 0, 
+#          font.size = font_sz) + 
+#   scale_fill_manual(values = drug_discrepancy_cols, breaks = names(drug_discrepancy_cols))+ 
+#   labs(fill = "Phen./Gen diff")+
+#   legend_spec
+# 
+# 
+# 
+# # Zoom in to clusters
+# 
+# # Zoom tree setup
+# zoom_range <- c((last_date+1) - 50, (last_date + 1) + 65)
+# zoom_range_seq <- seq(zoom_range[1], (last_date+1), 2)
+# 
+# offset_zoom <- 0
+# width_zoom <- 0.0015
+# 
+# gg_mcmc_tree_zoom <- ggtree(mcc_tree, mrsd = last_date_chr, size = line_sz) %<+% metadata +
+#   # geom_tiplab(align=TRUE, linetype='dashed', linesize=.3, size = 2) +
+#   geom_tiplab(align=T, size = 1.5, linetype=NA, hjust = -3.9)+
+#   theme_tree2() +
+#   coord_cartesian(ylim = y_lim) +
+#   scale_x_continuous(breaks = zoom_range_seq,
+#                     labels = zoom_range_seq,
+#                     limits = zoom_range) +
+#   # scale_x_continuous(breaks = x_labs_full, labels = x_labs_full, limits = x_lim)+
+#   geom_vline(aes(xintercept = 2020), col = "red")+
+#   # geom_tiplab(align = TRUE, linetype='dashed', linesize=.3, size = 2) +
+#   theme(axis.text.x = element_text(face = "bold", size = 6, angle = 45, hjust = 1))
+# 
+# # Add lin data 
+# lin_hm <- gheatmap(gg_mcmc_tree_zoom, lin_data,
+#                    width = width_zoom,
+#                    offset = offset_zoom, 
+#                    color = NULL,
+#                    colnames_position = "top",
+#                    colnames_angle = angle, colnames_offset_y = 1,
+#                    hjust = 0,
+#                    font.size = 2) +
+#   scale_fill_manual(values = lin_colours, breaks = names(lin_colours) )+
+#   labs(fill = "Lineage")+
+#   legend_spec
+# 
+# # Do this to add new gheatmap for some reason
+# # See "7.3.1 Visualize tree with multiple associated matrix" https://yulab-smu.top/treedata-book/chapter7.html
+# lin_hm <- lin_hm + ggnewscale::new_scale_fill() 
+# 
+# # Add DR status
+# dr_status_hm <- gheatmap(lin_hm, dr_status_data,
+#                          width = width_zoom,
+#                          offset = offset_zoom + 2.5, 
+#                          color = NULL,
+#                          colnames_position = "top",
+#                          colnames_angle = angle, colnames_offset_y = 1,
+#                          hjust = 0,
+#                          font.size = 2) +
+#   scale_fill_manual(values = dr_status_colours, breaks = names(dr_status_colours) )+
+#   labs(fill = "DR\nstatus")+
+#   legend_spec
+# 
+# # Add DR individual status
+# dr_status_hm <- dr_status_hm + ggnewscale::new_scale_fill() 
+# offset_zoom_plus <- 6
+# 
+# gheatmap(dr_status_hm, dr_data,
+#          offset = offset_zoom + offset_zoom_plus,
+#          width = width_zoom + 0.02,
+#          # color = NULL,
+#          low="white", high="black", color="black",
+#          colnames_position = "top",
+#          colnames_angle = angle, 
+#          colnames_offset_y = 1,
+#          hjust = 0,
+#          font.size = font_sz, 
+#          legend_title = "llw") +
+#   scale_fill_manual(values=c("white", "black"), labels = c("Sensitive", "Resistant", "NA"), na.value = "grey")+
+#   labs(fill = "Drug\nresistance")+
+#   legend_spec
+# 
+# gheatmap(dr_status_hm, dr_tbp_data,
+#          offset = offset_zoom + offset_zoom_plus,
+#          width = width_zoom + 0.02,
+#          # color = NULL,
+#          low="white", high="black", color="black",
+#          colnames_position = "top",
+#          colnames_angle = angle, colnames_offset_y = 1,
+#          hjust = 0,
+#          font.size = font_sz, 
+#          legend_title = "llw") +
+#   scale_fill_manual(values=c("white", "black"), labels = c("Sensitive", "Resistant", "NA"), na.value = "grey")+
+#   labs(fill = "Drug\nresistance\n(TB profiler)")+
+#   legend_spec
+# 
+# # Drug resistance genotype/phenotype discrepancies taking off from dr_status_hm tree
+# 
+# gheatmap(dr_status_hm, drug_discrepancy_data, 
+#          offset = offset_zoom + offset_zoom_plus, 
+#          width = width_zoom + 0.02, 
+#          color = NULL, 
+#          colnames_position = "top", 
+#          colnames_angle = angle, 
+#          colnames_offset_y = 1, 
+#          hjust = 0, 
+#          font.size = font_sz) + 
+#   scale_fill_manual(values = drug_discrepancy_cols, breaks = names(drug_discrepancy_cols))+ 
+#   labs(fill = "Phen./Gen diff")+
+#   legend_spec
+# 
 # dev.off()
+# 
+# 
+# # Loop through clusters
+# 
+# clusters_split <- split(beast_clusters, beast_clusters$cluster)
+# mcc_tree_tips <- mcc_tree@phylo$tip.label
+# 
+# # pdf(file = beast_clusters_pdf_file)
+# for(i in seq(clusters_split)){
+# 
+#   names_to_keep <- clusters_split[[i]]$id
+#   names_to_drop <- mcc_tree_tips[!(mcc_tree_tips %in% names_to_keep)]
+#   clust_tree <- treeio::drop.tip(mcc_tree, names_to_drop)
+# 
+#   # Do tree first to get first and last date
+#   last_date_clust <- as.numeric(max(unlist(lapply(strsplit(clust_tree@phylo$tip.label, "_"), function(x){x[length(x)]}))))
+#   last_date_clust_chr <- paste0(as.character(last_date), "-12-31")
+#   gg_clust_tree <- ggtree(clust_tree, mrsd = last_date_clust_chr) %<+% metadata +
+#     theme_tree2()
+#   last_date_clust <- ceiling(max(gg_clust_tree$data$x))
+#   first_date_clust <- floor(min(gg_clust_tree$data$x))
+# 
+#   n_samps <- length(clust_tree@phylo$tip.label)
+#   last_date_clust_chr <- paste0(last_date_clust-1, "-12-31")
+#   date_range_clust <- c(first_date_clust, last_date_clust)
+#   year_span_clust <- diff(date_range_clust)
+#   oom <- log10_ceiling(year_span_clust)
+#   if(oom == 1){
+#     by <- 1
+#   }else if(oom == 10){
+#     by <- 2
+#   }else if(oom == 100){
+#     by <- 10
+#   }else{
+#     by <- 100
+#   }
+#   zoom_range_seq_clust <- seq(first_date_clust,
+#                               last_date_clust,
+#                               by = by)
+# 
+#   post_tree_multiply <- 5
+#   post_tree_span <- (year_span_clust * post_tree_multiply)
+#   x_lim_clust <- c(first_date_clust - (year_span_clust*0.2), last_date_clust + post_tree_span)
+#   y_lim_clust <- c(0 - floor(n_samps*0.1),  n_samps + ceiling(n_samps*0.2) )
+#   # width <- width * (p$data$x %>% range(na.rm = TRUE) %>% diff)/ncol(data)
+#   width_clust <- 0.035 * post_tree_multiply  # % of tree time span
+#   # offset_clust <- (width_clust * year_span_clust) + ((width_clust * year_span_clust)*0.1)
+#   offset_clust <- (width_clust * year_span_clust)
+# 
+#   gg_clust_tree <- ggtree(clust_tree, mrsd = last_date_clust_chr) %<+% metadata +
+#     theme_tree2() +
+#     coord_cartesian(ylim = y_lim_clust) +
+#     scale_x_continuous(breaks = zoom_range_seq_clust,
+#                        labels = zoom_range_seq_clust,
+#                        limits = x_lim_clust) +
+#     geom_vline(aes(xintercept = last_date_clust), col = "red")+
+#     theme(axis.text.x = element_text(face = "bold", size = 8, angle = 45, hjust = 1))
+# 
+# # Add lin data
+# lin_hm_clust <- gheatmap(gg_clust_tree, lin_data,
+#                    width = width_clust,
+#                    offset = 0,
+#                    color = NULL,
+#                    colnames_position = "top",
+#                    colnames_angle = angle,
+#                    # colnames_offset_y = 1,
+#                    hjust = 0,
+#                    font.size = 3) +
+#   scale_fill_manual(values = lin_colours, breaks = names(lin_colours) )+
+#   labs(fill = "Lineage")
+# 
+# lin_hm_clust <- lin_hm_clust + ggnewscale::new_scale_fill()
+# 
+# # Add DR status clusters
+# dr_status_hm_clust <- gheatmap(lin_hm_clust, dr_status_data,
+#                          width = width_clust,
+#                          offset = offset_clust,
+#                          color = NULL,
+#                          colnames_position = "top",
+#                          colnames_angle = angle,
+#                          # colnames_offset_y = 1,
+#                          hjust = 0,
+#                          font.size = 3) +
+#   scale_fill_manual(values = dr_status_colours, breaks = names(dr_status_colours) )+
+#   labs(fill = "DR\nstatus")
+# 
+# dr_status_hm_clust <- dr_status_hm_clust + ggnewscale::new_scale_fill()
+# 
+# final_plot <- gheatmap(dr_status_hm_clust, dr_data,
+#          width = width_clust * ncol(dr_data),
+#          # offset = ceiling(offset_clust * 3),
+#          offset = (offset_clust * 2) + (offset_clust * 0.2),
+#          # color = NULL,
+#          low="white", high="black", color="black",
+#          colnames_position = "top",
+#          colnames_angle = angle,
+#          colnames_offset_y = 0,
+#          hjust = 0,
+#          font.size = 2.5,
+#          legend_title = "llw") +
+#   scale_fill_manual(values=c("white", "black"), labels = c("Sensitive", "Resistant", "NA"), na.value = "grey")+
+#   labs(fill = "Drug\nresistance")
+# 
+# print(final_plot)
+# }
+# # dev.off()
 
 
 ```
