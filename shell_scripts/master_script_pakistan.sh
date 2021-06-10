@@ -39,6 +39,7 @@ cut_year=50
 main_metadata_dir=~/metadata/
 vcf_dir=~/vcf/
 ref_dir=~/refgenome/
+tbprofiler_results_dir=/tbprofiler_pakistan_results
 
 # Out directories
 local_metadata_dir=metadata/
@@ -97,7 +98,6 @@ pakistan_unpublished_metadata=${main_metadata_dir}pakistan_data_non_mixed.csv
 ref_fasta_file=${ref_dir}MTB-h37rv_asm19595v2-eg18.fa
 ex_loci_file=${ref_dir}excluded_loci_rep_regions_dr_regions.bed
 
-
 # Out files
 
 # metadata/samples
@@ -139,6 +139,11 @@ new_beast_state_file=${beast_results_dir}${study_accession}*.xml.state
 mcc_tree=${beast_results_dir}${study_accession}.mcc.tree
 # TransPhylo
 transphylo_es_table_file=${transphylo_results_dir}${study_accession}.es_table.csv
+# tbprofiler / variant results
+tbprofiler_variants_file=${local_metadata_dir}${study_accession}.other_variants.txt
+
+
+
 
 # ------------------------------------------------------------------------------
 
@@ -568,6 +573,27 @@ else
     echo "------------------------------------------------------------------------------"
     printf "\n"
 fi
+
+# ------------------------------------------------------------------------------
+
+# TBprofiler
+
+if [ ! -f ${tbprofiler_variants_file} ]; then
+    echo "------------------------------------------------------------------------------"
+    echo "Running tbprofiler_filter.py - outputs ${tbprofiler_variants_file}"
+    set -x
+    # tbprofiler_filter.py --metadata <metadata file> --clusters-file <clusters file> --tbp-results <tbprofiler results directory> --outfile <outfile>
+    python python_scripts/tbprofiler_filter.py --metadata ${pakistan_metadata_file} --clusters-file ${beast_clusters_file} --tbp-results ${tbprofiler_results_dir} --outfile ${tbprofiler_variants_file}
+    set +x
+    echo "------------------------------------------------------------------------------"
+    printf "\n"
+else
+    echo "------------------------------------------------------------------------------"
+    echo "Files ${tbprofiler_variants_file} exists, skipping tbprofiler_filter.py"
+    echo "------------------------------------------------------------------------------"
+    printf "\n"
+fi
+
 
 # ------------------------------------------------------------------------------
 
