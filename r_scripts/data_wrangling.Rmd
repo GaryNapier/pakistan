@@ -3,6 +3,7 @@ title: "Pakistan data summary"
 output: 
   bookdown::html_document2: 
     fig_caption: yes
+    table_caption: yes
     number_sections: no
 bibliography:   all_refs.bib
 csl: biomed-central.csl
@@ -156,7 +157,14 @@ n_dated_samps <- length(dated_samps)
 first_year <- min(metadata_dated$year)
 last_year <- max(metadata_dated$year)
 
-n_drugs <-ncol(dplyr::select(metadata, rifampicin_test:delamanid_test))
+# Drugs
+n_drugs_total <-ncol(dplyr::select(metadata, rifampicin_test:delamanid_test))
+
+# How many drugs phenotypically tested?
+pheno_tests <- dplyr::select(metadata, rifampicin:delamanid)
+pheno_test_names <- names(pheno_tests[,apply(pheno_tests, 2, function(x) {!(all(is.na(x)))} )])
+n_pheno_tests <- length(pheno_test_names)
+pheno_test_names <- gsub('.$', '', paste0(pheno_test_names, ",", collapse = " "))
 
 # Add row and col names to distance matrix
 colnames(dist) <- dist_id[, 1]
@@ -166,7 +174,7 @@ dist <- dist/2
 
 ```
 
-```{r table_1}
+```{r tables}
 
 # Table 1 ----
 
@@ -205,23 +213,47 @@ names(lin_conv_tab) <- c("Main lineage", "Sub lineage", "LSP lineage", "Spoligot
 
 
 # DR
-# Specific drugs
+# Specific drugs - phenotypic tests (DST)
 drugs_data <- apply(metadata[drugs], 2, as.numeric)
 dr_tab <- as.data.frame(t(t(apply(drugs_data[, drugs], 2, sum, na.rm = T))))
 dr_tab$drug_resistance <- row.names(dr_tab)
-names(dr_tab) <- c("N", "Drug resistance")
-dr_tab <- dr_tab[c("Drug resistance", "N")]
+names(dr_tab) <- c("N", "drug")
+dr_tab <- dr_tab[c("drug", "N")]
 row.names(dr_tab) <- NULL
 dr_tab$pc <- round((dr_tab$N/sum(dr_tab$N)) * 100, rnd)
+
+# Genotypic DR - TBprofiler
+tbp_drug_tests <- grep("_tbp", names(metadata), value = T)
+n_tbp_drug_tests <- length(tbp_drug_tests)
+tbp_data <- ifelse(metadata[tbp_drug_tests] == "-", 0, 1)
+tbp_data <- as.data.frame(t(t(apply(tbp_data, 2, sum, na.rm = T))))
+tbp_data$drug <- row.names(tbp_data)
+row.names(tbp_data) <- NULL
+tbp_data <- tbp_data[, c(2, 1)]
+names(tbp_data)[2] <- "N"
+tbp_data$pc <- round((tbp_data$N/sum(tbp_data$N)) * 100, rnd)
+tbp_data$drug <- gsub("_tbp", "", tbp_data$drug)
+
+# Put DST and TBprofiler results together
+dr_tab <- merge(dr_tab, tbp_data, by = "drug", all = T, sort = F)
+names(dr_tab) <- c("Drug", "N DST resistant", "%", "N genotypic resistant", "%")
+
 
 # DR status
 # Desired order of DR cols
 dr_vals <- c("Sensitive", "Pre-MDR", "MDR", "Pre-XDR", "XDR", "Other") 
 dr_status_tab <- reshape2::dcast(metadata, dr_status ~ "N", value.var = id_col, fun.aggregate = length)
 dr_status_tab <- dr_status_tab[match(dr_vals, dr_status_tab$dr_status), ]
-names(dr_status_tab) <- c("Drug resistance status", names(dr_status_tab)[length(names(dr_status_tab))])
+names(dr_status_tab) <- c("Status", names(dr_status_tab)[length(names(dr_status_tab))])
 dr_status_tab$pc <- round((dr_status_tab$N/sum(dr_status_tab$N)) *100, rnd)
 row.names(dr_status_tab) <- NULL
+
+n_sens <- dr_status_tab[dr_status_tab["Status"] == "Sensitive", "N"]
+pc_sens <- dr_status_tab[dr_status_tab["Status"] == "Sensitive", "pc"]
+n_mdr <- dr_status_tab[dr_status_tab["Status"] == "MDR", "N"]
+pc_mdr <- dr_status_tab[dr_status_tab["Status"] == "MDR", "pc"]
+n_xdr <- dr_status_tab[dr_status_tab["Status"] == "XDR", "N"]
+pc_xdr <- dr_status_tab[dr_status_tab["Status"] == "XDR", "N"]
 
 # DR status by lineage
 dr_lin_tab <- reshape2::dcast(metadata,  dr_status ~ main_lineage, value.var = id_col, fun.aggregate = length)
@@ -247,15 +279,29 @@ In 2019 [@WHO_2020]:
 -->
 
 
-Pakistan is a high-burden TB country, being one of eight countries accounting for two-thirds of the global total TB instance (5.7%) [@WHO_2020]. Furthermore, HIV prevalence in the country is increasing (0.1 prevalence 2019), which compounds the problem of TB infections and treatment [@UNAIDS_2020] (5,100 cases and 1,900 HIV-positive mortality cases in 2019). There is also a high burden for multidrug-resistance (MDR-TB, resistance to isoniazid and rifampicin treatments), with 25,000 cases in the latest WHO estimates. 
+Pakistan is a high-burden TB country, being one of eight countries accounting for two-thirds of the global total TB instance (5.7%). In 2019 it had a  total TB incidence of 570,000 and 43,900 deaths [@WHO_2020]. Furthermore, HIV prevalence in the country is increasing (0.1 prevalence 2019), which compounds the problem of TB infections and treatment [@UNAIDS_2020] (5,100 cases and 1,900 HIV-positive mortality cases in 2019). There is also a high burden for multidrug-resistance (MDR-TB, resistance to isoniazid and rifampicin treatments), with 25,000 cases in the latest WHO estimates. 
 
-Within such a context, it is crucial to monitor transmission patterns and ensure that patients are being treated with optimal drug regimens. Here, we analyse `r n_samps_total` whole genome sequences (WGS) of Pakistan *Mycobacterium tuberculosis* (*Mtb*) samples dating from `r first_year` to `r last_year`, using `r n_snps_total` SNPs to infer a timed phylogenetic tree and to predict resistance to `r n_drugs` drugs.
-
-Historically, *Mtb* samples from Pakistan belong predominantly to the CAS1-Delhi spoligotype family [@Demay2012] (see **Figure \@ref(fig:historical)**), which belongs to Lineage 3 [@Napier2020]. In our samples, Lineage 3 comprise `r lin_tab[lin_tab["Lineages"] == 3, "pc"]`% of the total samples (see **Table \@(tab:lintables)** for a breakdown of samples by lineage and sublineage).
-
+Within such a context, it is crucial to monitor transmission patterns and ensure that patients are being treated with optimal drug regimens.
+Here, we analyse `r n_samps_total` whole genome sequences (WGS) of Pakistan *Mycobacterium tuberculosis* (*Mtb*) samples dating from `r first_year` to `r last_year`, using `r n_snps_total` SNPs to infer a timed phylogenetic tree and to predict resistance to `r n_drugs_total` drugs. While our data included phenotypic tests of resistance for `r n_pheno_tests` drugs (`r pheno_test_names`), we also applied genotypic tests of drug resistance using TBprofiler [@Coll2015] to predict drug resistance from a database of ~17,000 WGS samples. 
 
 
-**Estimates of TB burden, 2019**
+## Results and Discussion
+
+### Clinical isolates and phylogeny
+
+A total of `r n_samps_total` *M. tuberculosis* WGS isolates from Pakistan were downloaded from the European Nucleotide Archive (ENA). Samples were collected between the years `r first_year` and `r last_year`, hence represent probable closely-related, if not potiential transmission cases. 
+
+The samples were cultured, whole-genome sequenced, and drug susceptibility testing (DST) was applied for `r n_pheno_tests` drugs. Combining the results of the DST and the genotypic prediction tests (see Methods), `r n_sens` (`r pc_sens`) samples were pan-sensitive, `r n_mdr` (`r pc_mdr`) classed as MDR (resistant to both rifampicin and isoniazid), and `r n_xdr` (`r pc_xdr`) were XDR (resistant to isoniazid and rifampicin, plus any fluoroquinolone and at least one of three injectable second-line drugs). See **Table \@ref(tab:drTableLin)** for Pre-MDR, Pre-XDR figures and drug resistance categories by lineage. 
+
+
+
+[[The DST results revealed 97 (54.5%) isolates as pan-susceptible, 34 (19.1%) MDR-TB (resistance to both rifampicin and isoniazid) and 47 (26.4%) non-MDR-TB drug-resistant (resistance to at least one drug but not to both rifampicin and isoniazid).]]
+
+Historically, *Mtb* samples from Pakistan belong predominantly to the CAS1-Delhi spoligotype family [@Demay2012] (see **Figure \@ref(fig:historical)**), which belongs to Lineage 3 [@Napier2020]. In our samples, Lineage 3 comprise `r lin_tab[lin_tab["Lineages"] == 3, "pc"]`% of the total samples (see **Table \@ref(tab:lintable)** for a breakdown of samples by lineage and sublineage).
+
+
+
+**Estimates of TB burden, 2019** 
 
 | | Number | (Rate per 100,000 population) |
 |-----------|-----------|-----------|
@@ -282,14 +328,12 @@ barplot(table(historical_metadata$Clade), las=2,
 
 ```
 
-*Mycobacterium tuberculosis* samples (N = `r n_samps_total`)
-
 ### Lineages tables
 
-```{r lintables, echo=FALSE, out.width = "2000px"}
+```{r lintable, echo=FALSE, out.width = "2000px"}
 
 # knitr::kable(lin_tab, align = align)
-knitr::kable(lin_conv_tab)
+knitr::kable(lin_conv_tab, caption = "Table of main sublineages as proposed by Comas et al (2010) [@Comas2010] and Stucki et al (2016) [@Stucki2016] and predicted by Napier (2020) [@Napier2020], and their equivalents in 'Large Sequence Polymorphism' lineages[@GagneuxDeRiemer2006] and spoligotype families[@Demay2012].")
 
 ```
 
@@ -297,8 +341,13 @@ knitr::kable(lin_conv_tab)
 
 ```{r drtable, echo=FALSE, out.width = "2000px"}
 
-knitr::kable(dr_tab, align = align)
-knitr::kable(dr_lin_tab)
+knitr::kable(dr_tab, align = align, caption = "Numbers and percentages of drug-resistant samples accourding to DST and genotypic predictions (TBprofiler)")
+
+```
+
+```{r drTableLin, echo=FALSE, out.width = "2000px"}
+
+knitr::kable(dr_lin_tab, caption = "Drug resistance categories by lineage. See *Methods* section for criteria of categories.")
 
 ```
 
