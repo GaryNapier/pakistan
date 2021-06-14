@@ -39,7 +39,7 @@ cut_year=50
 main_metadata_dir=~/metadata/
 vcf_dir=~/vcf/
 ref_dir=~/refgenome/
-tbprofiler_results_dir=/tbprofiler_pakistan_results
+tbprofiler_results_dir=tbprofiler_pakistan_results/
 
 # Out directories
 local_metadata_dir=metadata/
