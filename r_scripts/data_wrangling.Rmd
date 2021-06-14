@@ -25,7 +25,6 @@ library(treeio)
 library(scales)
 library(gplots)
 library(RColorBrewer)
-fmt <- function(x, ...){format(x, big.mark=",",scientific=FALSE, ...)}
 knitr::opts_chunk$set(echo = F)
 # options(scipen=1, digits=2)
 options(scipen=999, digits = 3)
@@ -40,6 +39,8 @@ table_font_sz <- 8
 heaD <- function(x,...){
   head(x, ...)
 }
+
+fmt <- function(x, ...){format(x, big.mark=",",scientific=FALSE, ...)}
 
 len_str <- function(string){
   length(unlist(strsplit(string, split = "")))
@@ -203,6 +204,16 @@ names(lin_tab) <- c("Lineages", names(lin_tab)[length(names(lin_tab))])
 lin_tab$pc <- round((lin_tab$N/sum(lin_tab$N)) * 100, rnd)
 
 
+n_lin_1 <- lin_tab[lin_tab["Lineages"] == 1, "N"]
+pc_lin_1 <- lin_tab[lin_tab["Lineages"] == 1, "pc"]
+n_lin_2 <- lin_tab[lin_tab["Lineages"] == 2, "N"]
+pc_lin_2 <- lin_tab[lin_tab["Lineages"] == 2, "pc"]
+n_lin_3 <- lin_tab[lin_tab["Lineages"] == 3, "N"]
+pc_lin_3 <- lin_tab[lin_tab["Lineages"] == 3, "pc"]
+n_lin_4 <- lin_tab[lin_tab["Lineages"] == 4, "N"]
+pc_lin_4 <- lin_tab[lin_tab["Lineages"] == 4, "pc"]
+
+
 # Lineages conversions
 lin_conv <- merge(metadata[c("main_lineage", "sub_lineage")], lineage_conversions, 
                   by.x = "sub_lineage", by.y = "mtbc_lineage", 
@@ -253,7 +264,7 @@ pc_sens <- dr_status_tab[dr_status_tab["Status"] == "Sensitive", "pc"]
 n_mdr <- dr_status_tab[dr_status_tab["Status"] == "MDR", "N"]
 pc_mdr <- dr_status_tab[dr_status_tab["Status"] == "MDR", "pc"]
 n_xdr <- dr_status_tab[dr_status_tab["Status"] == "XDR", "N"]
-pc_xdr <- dr_status_tab[dr_status_tab["Status"] == "XDR", "N"]
+pc_xdr <- dr_status_tab[dr_status_tab["Status"] == "XDR", "pc"]
 
 # DR status by lineage
 dr_lin_tab <- reshape2::dcast(metadata,  dr_status ~ main_lineage, value.var = id_col, fun.aggregate = length)
@@ -282,22 +293,21 @@ In 2019 [@WHO_2020]:
 Pakistan is a high-burden TB country, being one of eight countries accounting for two-thirds of the global total TB instance (5.7%). In 2019 it had a  total TB incidence of 570,000 and 43,900 deaths [@WHO_2020]. Furthermore, HIV prevalence in the country is increasing (0.1 prevalence 2019), which compounds the problem of TB infections and treatment [@UNAIDS_2020] (5,100 cases and 1,900 HIV-positive mortality cases in 2019). There is also a high burden for multidrug-resistance (MDR-TB, resistance to isoniazid and rifampicin treatments), with 25,000 cases in the latest WHO estimates. 
 
 Within such a context, it is crucial to monitor transmission patterns and ensure that patients are being treated with optimal drug regimens.
-Here, we analyse `r n_samps_total` whole genome sequences (WGS) of Pakistan *Mycobacterium tuberculosis* (*Mtb*) samples dating from `r first_year` to `r last_year`, using `r n_snps_total` SNPs to infer a timed phylogenetic tree and to predict resistance to `r n_drugs_total` drugs. While our data included phenotypic tests of resistance for `r n_pheno_tests` drugs (`r pheno_test_names`), we also applied genotypic tests of drug resistance using TBprofiler [@Coll2015] to predict drug resistance from a database of ~17,000 WGS samples. 
+Here, we analyse `r n_samps_total` whole genome sequences (WGS) of Pakistan *Mycobacterium tuberculosis* (*Mtb*) samples dating from `r first_year` to `r last_year`, using `r fmt(n_snps_total)` SNPs to infer a timed phylogenetic tree and to predict resistance to `r n_drugs_total` drugs. While our data included phenotypic tests of resistance for `r n_pheno_tests` drugs (`r pheno_test_names`), we also applied genotypic tests of drug resistance using TBprofiler [@Coll2015] to predict drug resistance from a database of ~17,000 WGS samples. 
 
 
 ## Results and Discussion
 
 ### Clinical isolates and phylogeny
 
-A total of `r n_samps_total` *M. tuberculosis* WGS isolates from Pakistan were downloaded from the European Nucleotide Archive (ENA). Samples were collected between the years `r first_year` and `r last_year`, hence represent probable closely-related, if not potiential transmission cases. 
+A total of `r n_samps_total` *M. tuberculosis* WGS isolates from Pakistan were downloaded from the European Nucleotide Archive (ENA). The samples were cultured, whole-genome sequenced, and drug susceptibility testing (DST) was applied for `r n_pheno_tests` drugs. Combining the results of the DST and the genotypic prediction tests (see Methods), `r n_sens` (`r pc_sens`%) samples were pan-sensitive, `r n_mdr` (`r pc_mdr`%) classed as MDR (resistant to both rifampicin and isoniazid), and `r n_xdr` (`r pc_xdr`%) were XDR (resistant to isoniazid and rifampicin, plus any fluoroquinolone and at least one of three injectable second-line drugs). See **Table \@ref(tab:drTableLin)** for Pre-MDR, Pre-XDR figures and drug resistance categories by lineage. 
+Upon mapping the sequences, high average coverage was observed across the samples: XXX. A total of `r fmt(n_snps_total)` SNPs were identified, with XXX% found in single isolates. 
 
-The samples were cultured, whole-genome sequenced, and drug susceptibility testing (DST) was applied for `r n_pheno_tests` drugs. Combining the results of the DST and the genotypic prediction tests (see Methods), `r n_sens` (`r pc_sens`) samples were pan-sensitive, `r n_mdr` (`r pc_mdr`) classed as MDR (resistant to both rifampicin and isoniazid), and `r n_xdr` (`r pc_xdr`) were XDR (resistant to isoniazid and rifampicin, plus any fluoroquinolone and at least one of three injectable second-line drugs). See **Table \@ref(tab:drTableLin)** for Pre-MDR, Pre-XDR figures and drug resistance categories by lineage. 
+Historically, *Mtb* samples from Pakistan belong predominantly to the CAS1-Delhi spoligotype family [@Demay2012] (see **Figure \@ref(fig:historical)**), which belongs to Lineage 3 [@Napier2020]. In our samples, Lineage 3 comprises `r lin_tab[lin_tab["Lineages"] == 3, "pc"]`% of the total samples, followed by Lineage 4 (n=`r n_lin_4`, `r pc_lin_4`%), Lineage 2 (n=`r n_lin_2`, `r pc_lin_2`%) and Lineage 1 (n=`r n_lin_1`, `r pc_lin_1`%) (see **Table \@ref(tab:lintable)** for a breakdown of samples by lineage and sublineage and see **Figure \@ref(fig:treeAllSamps)** for a full phylogenetic tree). 
+
+Date of collection was recorded between the years `r first_year` and `r last_year` (`r last_year - first_year` years) for `r sum(!(is.na(metadata$year)))` samples, which represent probable closely-related, if not potiential transmission cases. A dated phylogenetic tree was constructed with these samples in order to infer clusters of closely related samples. 
 
 
-
-[[The DST results revealed 97 (54.5%) isolates as pan-susceptible, 34 (19.1%) MDR-TB (resistance to both rifampicin and isoniazid) and 47 (26.4%) non-MDR-TB drug-resistant (resistance to at least one drug but not to both rifampicin and isoniazid).]]
-
-Historically, *Mtb* samples from Pakistan belong predominantly to the CAS1-Delhi spoligotype family [@Demay2012] (see **Figure \@ref(fig:historical)**), which belongs to Lineage 3 [@Napier2020]. In our samples, Lineage 3 comprise `r lin_tab[lin_tab["Lineages"] == 3, "pc"]`% of the total samples (see **Table \@ref(tab:lintable)** for a breakdown of samples by lineage and sublineage).
 
 
 
@@ -354,9 +364,9 @@ knitr::kable(dr_lin_tab, caption = "Drug resistance categories by lineage. See *
 
 ## Tree
 
-The `r n_samps_total` *M. tuberculosis* isolates: A phylogenetic tree constructed using `r fmt(n_snps_total)` SNPs
+```{r treeAllSamps, echo=FALSE, out.width = "2000px", fig.cap=sprintf("The %s *M. tuberculosis* isolates: A phylogenetic tree constructed using %s SNPs", n_samps_total, fmt(n_snps_total))}
 
-```{r treeAllSamps, echo=FALSE, out.width = "2000px"}
+cap <- sprintf("The %s *M. tuberculosis* isolates: A phylogenetic tree constructed using %s SNPs", n_samps_total, fmt(n_snps_total))
 
 knitr::include_graphics(tree_all_samps_file)
 
