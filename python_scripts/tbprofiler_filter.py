@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 
-# tbprofiler_filter.py --metadata <metadata file> --clusters-file <clusters file> --tbp-results <tbprofiler results directory> --outfile <outfile> 
+# tbprofiler_filter.py --metadata <metadata file> --clusters-file <clusters file> --tbp-results <tbprofiler results directory> --outfile <outfile>
 
 import sys
 import csv
