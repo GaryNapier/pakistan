@@ -89,6 +89,7 @@ plot_text_sz <- 0.5
 
 # Paths ----
 
+methods_path <- "../methods/"
 metadata_path <- "../metadata/"
 plots_path <- "../plots/"
 db_path <- "../../pipeline/db/"
@@ -109,6 +110,7 @@ lineage_conversion_file <- paste0(db_path, "lineage_conversions.txt")
 dist_file <- paste0(dist_path, "PAKISTAN_ALL.dist.dist")
 dist_id_file <- paste0(dist_path, "PAKISTAN_ALL.dist.dist.id")
 # Beast
+beauti_params_file <- paste0(methods_path, "beauti_parameters.csv")
 mcc_tree_file <- paste0(beast_results_path, "PAKISTAN_ALL.mcc.tree")
 beast_log_file <- paste0(beast_results_path, "PAKISTAN_ALL.log")
 beast_clusters_file <- paste0(metadata_path, "PAKISTAN_ALL.clusters.csv")
@@ -133,12 +135,19 @@ lineage_conversions <- read.delim(lineage_conversion_file)
 dist <- read.delim(dist_file, header = F)
 dist_id <- read.delim(dist_id_file, header = F)
 # Beast
+beauti_params <- read.csv(beauti_params_file)
 mcc_tree_ape <- ape::read.nexus(mcc_tree_file)
 mcc_tree <- treeio::read.beast(mcc_tree_file)
 beast_log <- tracerer::parse_beast_log(beast_log_file)
 beast_clusters <- read.csv(beast_clusters_file, header = F, col.names = c("cluster", "id"))
 # Other
 methods_table <- read.table(file = methods_file, sep = '\t', header = TRUE)
+
+```
+
+```{r clean, echo=F}
+
+names(beauti_params) <- c("Beauti tab", "Selection", "Parameter values [min, max]")
 
 ```
 
@@ -279,6 +288,7 @@ dr_lin_tab$dr_status <- factor(dr_lin_tab$dr_status, levels = dr_vals)
 dr_lin_tab <- dr_lin_tab[order(dr_lin_tab$dr_status), ]
 names(dr_lin_tab) <- c("DR status", paste0("L", sort(unique(metadata$main_lineage))))
 dr_lin_tab <- to_table(dr_lin_tab, pc_dir = "all")
+row.names(dr_lin_tab) <- NULL
 
 
 ```
@@ -328,47 +338,7 @@ A total of `r n_samps_total` *M. tuberculosis* WGS isolates from Pakistan were d
 
 Upon mapping the sequences, high average coverage was observed across the samples: XXX. A total of `r fmt(n_snps_total)` SNPs were identified, with XXX% found in single isolates. 
 
-```{r drTableLin, echo=FALSE, out.width = "2000px"}
-
-knitr::kable(dr_lin_tab, caption = "Drug resistance categories by lineage. See *Methods* section for criteria of categories.")
-
-```
-
-```{r drtable, echo=FALSE, out.width = "2000px"}
-
-knitr::kable(dr_tab, align = align, caption = "Numbers and percentages of drug-resistant samples accourding to DST and genotypic predictions (TBprofiler)")
-
-```
-
 Historically, *Mtb* samples from Pakistan belong predominantly to the CAS1-Delhi spoligotype family [@Demay2012] (see **Figure \@ref(fig:historical)**), which belongs to Lineage 3 [@Napier2020]. In our samples, Lineage 3 comprises `r lin_tab[lin_tab["Lineages"] == 3, "pc"]`% of the total samples, followed by Lineage 4 (n=`r n_lin_4`, `r pc_lin_4`%), Lineage 2 (n=`r n_lin_2`, `r pc_lin_2`%) and Lineage 1 (n=`r n_lin_1`, `r pc_lin_1`%) (see **Table \@ref(tab:lintable)** for a breakdown of samples by lineage and sublineage and see **Figure \@ref(fig:treeAllSamps)** for a full phylogenetic tree). 
-
-```{r historical, fig.cap = "Historical genomic data on MTBC in Pakistan [@Demay2012]", echo=FALSE, out.width = "2000px"} 
-
-n_samps_historical <- length(historical_metadata$IsoNumber)
-
-title <- sprintf("Number of samples by spoligotype family \n in historical Mtb data from Pakistan, n = %s", n_samps_historical)
-barplot(table(historical_metadata$Clade), las=2, 
-        main = title, col = col)
-
-```
-
-
-```{r lintable, echo=FALSE, out.width = "2000px"}
-
-# knitr::kable(lin_tab, align = align)
-knitr::kable(lin_conv_tab, caption = "Table of main sublineages as proposed by Comas et al (2010) [@Comas2010] and Stucki et al (2016) [@Stucki2016] and predicted by Napier (2020) [@Napier2020], and their equivalents in 'Large Sequence Polymorphism' lineages[@GagneuxDeRiemer2006] and spoligotype families[@Demay2012].")
-
-```
-
-
-```{r treeAllSamps, echo=FALSE, out.width = "2000px", fig.cap=sprintf("The %s *M. tuberculosis* isolates: A phylogenetic tree constructed using %s SNPs", n_samps_total, fmt(n_snps_total))}
-
-cap <- sprintf("The %s *M. tuberculosis* isolates: A phylogenetic tree constructed using %s SNPs", n_samps_total, fmt(n_snps_total))
-
-knitr::include_graphics(tree_all_samps_file)
-
-```
-
 
 <!--
 [[ Evidence of transmission
@@ -379,97 +349,50 @@ Fifteen clusters were found, with a  maximum size of three isolates. Of these cl
 
 ### Evidence of transmission
 
-Pairwise SNP distances were calculated, revealing that 
+Pairwise SNP distances showed that 
 
 Date of collection was recorded between the years `r first_year` and `r last_year` (`r last_year - first_year` years; **Figure \@ref(fig:dates)**) for `r n_dated_samps` samples, which represent probable closely-related, if not potiential transmission cases. A dated phylogenetic tree was constructed with these samples, and when cut at 50 years before the last sample date, `r n_clusters` potential transmission clusters with simlilar drug-resistance profiles were inferred (see **Figures \@ref(fig:beasttrees) and \@ref(fig:beasttreeszoom)**)
 
-```{r dates, echo=FALSE, out.width = "2000px", fig.cap=sprintf("Histogram of sample collection year; n = %s", n_dated_samps)}
-
-year <- metadata$year[!is.na(metadata$year)]
-years <- sort(unique(year))
-breaks <- (min(year)-0.5):(max(year)+0.5)
-yr_hist <- hist(year, freq = T, xaxt="n", xlab= "year",
-                breaks = breaks, col = col)
-axis(side = 1, at = yr_hist$mids, labels = years)
-
-```
 
 
 
-```{r distanceall, echo=FALSE, out.width = "2000px"}
 
-# Summary of distances for all samples
-lower_dist <- dist[lower.tri(dist)]
-summary(lower_dist)
-boxplot(lower_dist, col = col, 
-        main = sprintf("SNP distances (excluding DR sites), all samples; \n n = %s", nrow(dist)))
+### Methods
+```{r methods, echo=FALSE, out.width = "1500px"}
+
+kable(methods_table)
 
 ```
 
 
-```{r distancedated, echo=FALSE, out.width = "2000px"}
+### Tables
 
-# Summary of dists for dated samples 
-dist_dated <- dist[dated_samps, dated_samps]
-lower_dist_dated <- dist_dated[lower.tri(dist_dated)]
-summary(lower_dist_dated)
-boxplot(lower_dist_dated, col = col, 
-        main = sprintf("SNP distances (excluding DR sites), dated samples; \n n = %s", nrow(dist_dated)))
+```{r drTableLin, echo=FALSE, out.width = "2000px"}
 
-# dist_dated <- as.dist(dist_dated)
-
-# Convert to 'distance matrix' (take out lower triangle)
-dist_dated[upper.tri(dist_dated, diag = T)] <- 0
-
-# Cluster using 'single' method.
-# Clusters all samples within distance of threshold
-clust <- hclust(as.dist(dist_dated), method = "single")
-plot(clust, cex = 0.5,
-     main = sprintf("Clustering of SNP distances, dated samples; n = %s. \n Line at %s ", 
-                    nrow(dist_dated), threshold))
-abline(a = threshold, b = 0)
-# Cut tree at threshold to find samples within threshold
-clusters <- sort(cutree(clust, h = threshold))
-
-# Filter for clusters (take out the samples with their own number, i.e., those not in a group)
-# Gets samples below the threshold
-clusters <- clusters[clusters %in% names(which(table(clusters) > 1)) ]
-
-# Subset
-dist_dated_thresh <- as.dist(dist_dated[sort(names(clusters)), sort(names(clusters))])
-dist_dated_thresh <- dist_dated_thresh+1 # Add 1 because 1/x later.
-
-qgraph(1/dist_dated_thresh, layout='spring', vsize=5, 
-       title = sprintf("Connections among samples with <= %s SNP distance; n = %s",
-                       threshold, length(attributes(dist_dated_thresh)$Labels)))
-
+knitr::kable(dr_lin_tab, row.names = NA, rownames.print = F, caption = "Drug resistance categories by lineage. See *Methods* section for criteria of categories.")
 
 ```
 
+```{r drtable, echo=FALSE, out.width = "2000px"}
 
-### Beast results
+knitr::kable(dr_tab, caption = "Numbers and percentages of drug-resistant samples accourding to DST and genotypic predictions (TBprofiler)")
 
-#### Beast parameters & priors:
+```
 
-Parameters & priors are based on Xu (2020) [@Xu2020]
+```{r lintable, echo=FALSE, out.width = "2000px"}
 
-| Beauti tab | Selection | Parameter values [min, max] |
-|:----------------------|:----------------------|:----------------------|
-| Site model | GTR/Gamma Site Model | gamma distribution [0, inf.] |
-| | |prior frequencies (estimated) [0, 1] |
-| | | Proportion invariant = 0 |
-|Correction for ascertainment bias ("constantSiteWeights") [added manually] | | no. of invariant A, C, G & T sites = 758511, 1449901, 1444524, 758336 |
-| Clock model | Strict clock                                           | Clock rate = 1.0E-7 (0.44 substitutions per genome per year ) |
-| Priors      | Population size model = Coalescent Constant Population | Pop size = log normal(100 [0, 200])                           |
-|             | MRCA  ("TreePrior")                                    | Laplace distribution                                          |
-|             |                                                        | Mu = 0                                                        |
-| MCMC        |      | iterations = 100000000 |
-|             |      | Sample every = 10000   |
+# knitr::kable(lin_tab, align = align)
+knitr::kable(lin_conv_tab, caption = "Table of main sublineages as proposed by Comas et al (2010) [@Comas2010] and Stucki et al (2016) [@Stucki2016] and predicted by Napier (2020) [@Napier2020], and their equivalents in 'Large Sequence Polymorphism' lineages[@GagneuxDeRiemer2006] and spoligotype families[@Demay2012].")
 
+```
 
-#### Beast log file means and ESS values 
+```{r beautiparams, echo=FALSE, out.width = "2000px"}
 
-```{r beastlog, echo=FALSE, out.width = "1500px"}
+knitr::kable(beauti_params, caption = "Settings in Beauti for BEAST analysis. Parameters & priors are based on Xu (2020) [@Xu2020]")
+
+```
+
+```{r beastlogtable, echo=FALSE, out.width = "1500px"}
 
 # Results of beast log
 
@@ -491,21 +414,112 @@ log_table <- cbind(means, esses)
 colnames(log_table) <- c("Mean", "ESS")
 log_table <- round(log_table, 2)
 
-log_table
-
-
-par(mfrow = c(2, 2))
-
-plot(beast_log$posterior, main = "posterior", type= 'l', ylab = "posterior")
-plot(beast_log$likelihood, main = "likelihood", type= 'l', ylab = "likelihood")
-plot(beast_log$prior, main = "prior", type= 'l', ylab = "prior")
-plot(beast_log$mrca.date.TreePrior., main = "MRCA", type= 'l', ylab = "MRCA")
-
-par(mfrow=c(1,1))
+knitr::kable(log_table, caption = "Mean and effective sample size (ESS) outputs from BEAST for tree parameter posteriors.")
 
 ```
 
+### Figures
 
+```{r historical, fig.cap = "Historical genomic data on MTBC in Pakistan [@Demay2012]", echo=FALSE, out.width = "2000px"} 
+
+n_samps_historical <- length(historical_metadata$IsoNumber)
+
+title <- sprintf("Number of samples by spoligotype family \n in historical Mtb data from Pakistan, n = %s", n_samps_historical)
+barplot(table(historical_metadata$Clade), las=2, 
+        main = title, col = col)
+
+```
+ 
+***
+
+```{r treeAllSamps, echo=FALSE, out.width = "2000px", fig.cap=sprintf("The %s *M. tuberculosis* isolates: A phylogenetic tree constructed using %s SNPs", n_samps_total, fmt(n_snps_total))}
+
+cap <- sprintf("The %s *M. tuberculosis* isolates: A phylogenetic tree constructed using %s SNPs", n_samps_total, fmt(n_snps_total))
+
+knitr::include_graphics(tree_all_samps_file)
+
+```
+
+***
+
+```{r dates, echo=FALSE, out.width = "2000px", fig.cap=sprintf("Histogram of sample collection year; n = %s", n_dated_samps)}
+
+year <- metadata$year[!is.na(metadata$year)]
+years <- sort(unique(year))
+breaks <- (min(year)-0.5):(max(year)+0.5)
+yr_hist <- hist(year, freq = T, xaxt="n", xlab= "year",
+                breaks = breaks, col = col)
+axis(side = 1, at = yr_hist$mids, labels = years)
+
+```
+
+***
+
+```{r boxdistanceall, echo=FALSE, out.width = "2000px", fig.cap = sprintf("Boxplot of pairwise SNP distances (excluding DR sites), all samples; \n n = %s", nrow(dist))}
+
+# Summary of distances for all samples
+lower_dist <- dist[lower.tri(dist)]
+boxplot(lower_dist, 
+        col = col, 
+        main = sprintf("mean = %s; median = %s", round(mean(lower_dist), rnd), round(median(lower_dist), rnd) ), 
+        cex.main = 1, 
+        ylab="SNP distance")
+
+```
+***
+```{r boxdistancedated, echo=FALSE, out.width = "2000px", fig.cap = sprintf("Boxplot of pairwise SNP distances (excluding DR sites), dated samples; \n n = %s", nrow(dist_dated))}
+
+# Summary of dists for dated samples 
+dist_dated <- dist[dated_samps, dated_samps]
+lower_dist_dated <- dist_dated[lower.tri(dist_dated)]
+boxplot(lower_dist_dated, col = col,
+        main = sprintf("mean = %s; median = %s", round(mean(lower_dist_dated), rnd), round(median(lower_dist_dated), rnd) ), 
+        cex.main = 1, 
+        ylab="SNP distance")
+
+```
+
+***
+
+```{r clusterstreedated, echo = F, out.width = "2000px", fig.cap = sprintf("Single linkage tree of SNP distances, dated samples. Line shown at a SNP distance of %s; n = %s", threshold, nrow(dist_dated))}
+
+# dist_dated <- as.dist(dist_dated)
+
+# Convert to 'distance matrix' (extract lower triangle)
+dist_dated[upper.tri(dist_dated, diag = T)] <- 0
+
+# Cluster using 'single' method.
+# Clusters all samples within distance of threshold
+clust <- hclust(as.dist(dist_dated), method = "single")
+plot(clust, cex = 0.5,
+     main = sprintf("Clustering of SNP distances, dated samples; n = %s. \n Line at %s ", 
+                    nrow(dist_dated), threshold))
+abline(a = threshold, b = 0)
+# Cut tree at threshold to find samples within threshold
+clusters <- sort(cutree(clust, h = threshold))
+
+# Filter for clusters (take out the samples with their own number, i.e., those not in a group)
+# Gets samples below the threshold
+clusters <- clusters[clusters %in% names(which(table(clusters) > 1)) ]
+
+n_clusters_cut_tree <- length(unique(clusters))
+
+# Subset
+dist_dated_thresh <- as.dist(dist_dated[sort(names(clusters)), sort(names(clusters))])
+dist_dated_thresh <- dist_dated_thresh+1 # Add 1 because 1/x later.
+
+```
+
+***
+
+```{r distancedatedqgraph, echo=FALSE, out.width = "2000px", fig.cap = "Graph of dated samples. sprintf("Connections among samples with <= %s SNP distance; n = %s", threshold, length(attributes(dist_dated_thresh)$Labels)). Thicker lines indicate smalled SNP distance."}
+
+qgraph(1/dist_dated_thresh, layout='spring', vsize=5)
+
+
+```
+
+***
 
 ```{r beasttrees, echo=FALSE, out.width = "1500px", warning = F, message = F, cache=F, fig.show="hold", fig.cap="Timed phylogenetic trees of all dated samples (n = n_dated_samps), inferred from BEAST. A - Timed phylogenetic tree annotated with drug resistance statuses from phylogenetic tests (DST); B - The same tree annotated with drug resistance statuses from genotypic profiling (TBprofiler); C - Annotated with the discrepancies between the phenotypic and genotypic tests."}
 
@@ -664,6 +678,7 @@ gheatmap(dr_status_hm, drug_discrepancy_data,
 
 ```
 
+***
 
 ```{r beasttreeszoom, echo=FALSE, out.width = "1500px", warning = F, message = F, cache=F, fig.show="hold", fig.cap="The same trees and annotations as \\@ref(fig:beasttrees), zoomed in to the last 50 years before the last sample date. Samples which do not form a cluster (the MRCA was before 50 years or there is only one sample) have been dropped. n = n_cluster_samps"}
 
@@ -878,20 +893,22 @@ gheatmap(dr_status_hm, drug_discrepancy_data,
 
 ```
 
+***
 
-### Methods
-```{r methods, echo=FALSE, out.width = "1500px"}
+```{r beastlogplots, echo=FALSE, out.width = "1500px", fig.cap = "Trace plots of BEAST MCMC iterations across posterior, likelihood, prior and MRCA parameters. The plots show no upward or downward trend, hence imply convergence."}
 
-kable(methods_table)
+par(mfrow = c(2, 2))
+
+plot(beast_log$posterior, main = "posterior", type= 'l', ylab = "posterior")
+plot(beast_log$likelihood, main = "likelihood", type= 'l', ylab = "likelihood")
+plot(beast_log$prior, main = "prior", type= 'l', ylab = "prior")
+plot(beast_log$mrca.date.TreePrior., main = "MRCA", type= 'l', ylab = "MRCA")
+
+par(mfrow=c(1,1))
 
 ```
 
 
-### Tables
-
-
-
-### Figures
 
 
 ### References
