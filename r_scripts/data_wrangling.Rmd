@@ -82,6 +82,7 @@ align <- c("l", "r", "r")
 col <- "cornflowerblue"
 threshold <- 50
 plot_text_sz <- 0.5
+main_cex <- 0.5
 
 ```
 
@@ -119,7 +120,7 @@ tree_all_samps_file <- paste0(plots_path, "PAKISTAN_ALL.tree.png")
 beast_clusters_pdf_file <- paste0(plots_path, "PAKISTAN_ALL.beast_clusters.pdf")
 dr_trees_pdf_file <- paste0(plots_path, "PAKISTAN_ALL.dr_trees.pdf")
 # Other
-methods_file <- paste0(metadata_path, "pakistan_methods.tsv")
+methods_file <- paste0(methods_path, "pakistan_methods.tsv")
 
 ```
 
@@ -153,7 +154,7 @@ names(beauti_params) <- c("Beauti tab", "Selection", "Parameter values [min, max
 
 ```{r basic_numbers, echo = F}
 
-# Basic numbers and basic wrangling ----
+# Basic numbers, basic wrangling, setup for plots ----
 
 n_samps_total <- length(metadata$wgs_id)
 n_snps_total <- 37970
@@ -167,6 +168,10 @@ n_dated_samps <- length(dated_samps)
 first_year <- min(metadata_dated$year)
 last_year <- max(metadata_dated$year)
 
+cutoff_year <- 50
+
+# -----
+
 # Drugs
 n_drugs_total <-ncol(dplyr::select(metadata, rifampicin_test:delamanid_test))
 
@@ -176,45 +181,63 @@ pheno_test_names <- names(pheno_tests[,apply(pheno_tests, 2, function(x) {!(all(
 n_pheno_tests <- length(pheno_test_names)
 pheno_test_names <- gsub('.$', '', paste0(pheno_test_names, ",", collapse = " "))
 
+# ----
+
 # Dated samps
 n_dated_samps <- sum(!(is.na(metadata$year)))
 
+# ----
+
 # Clusters
-n_clusters <- length(unique(beast_clusters$cluster))
-n_cluster_samps <- nrow(beast_clusters)
+
+# SNP dist clusters
+
+# clusterstreedated SECTION
+ 
+# dist_dated <- as.dist(dist_dated)
 
 # Add row and col names to distance matrix
 colnames(dist) <- dist_id[, 1]
 row.names(dist) <- dist_id[, 1]
 # Divide dist matrix by 2 
 dist <- dist/2
+# Get lower only
+lower_dist <- dist[lower.tri(dist)]
+
+dist_dated <- dist[dated_samps, dated_samps]
+# Convert to 'distance matrix' (extract lower triangle)
+dist_dated[upper.tri(dist_dated, diag = T)] <- 0
+lower_dist_dated <- dist_dated[lower.tri(dist_dated)]
+
+# Cluster using 'single' method.
+# Clusters all samples within distance of threshold
+clust <- hclust(as.dist(dist_dated), method = "single")
+
+# Cut tree at threshold to find samples within threshold
+clusters <- sort(cutree(clust, h = threshold))
+
+# Filter for clusters (take out the samples with their own number, i.e., those not in a group)
+# Gets samples below the threshold
+clusters <- clusters[clusters %in% names(which(table(clusters) > 1)) ]
+
+n_clusters_cut_tree <- length(unique(clusters))
+
+# Subset
+dist_dated_thresh <- as.dist(dist_dated[sort(names(clusters)), sort(names(clusters))])
+dist_dated_thresh <- dist_dated_thresh+1 # Add 1 because 1/x later.
+
+
+# Beast clusters
+n_beast_clusters <- length(unique(beast_clusters$cluster))
+n_beast_cluster_samps <- nrow(beast_clusters)
 
 ```
 
 ```{r tables}
 
-# Table 1 ----
 
-# https://www.nature.com/articles/s41598-019-45566-5/tables/1
+# Lineages ----
 
-# Table 1 - Mycobacterium tuberculosis samples (N = 178)
-
-# Characteristic	N	%
-# 
-# Location*
-#   
-# Lineages
-# 
-# Drug resistance**
-# 
-# Rifampicin
-# Isoniazid...etc
-# 
-# Dr type
-# MDR-TB...etc
-
-
-# Lineages
 lin_tab <- reshape2::dcast(metadata, main_lineage ~ "N", value.var = id_col, fun.aggregate = length)
 names(lin_tab) <- c("Lineages", names(lin_tab)[length(names(lin_tab))])
 lin_tab$pc <- round((lin_tab$N/sum(lin_tab$N)) * 100, rnd)
@@ -239,7 +262,8 @@ lin_conv_tab <- reshape2::dcast(lin_conv, main_lineage + sub_lineage + lsp_linea
 names(lin_conv_tab) <- c("Main lineage", "Sub lineage", "LSP lineage", "Spoligotype family", "RD number", "N")
 
 
-# DR
+# DR ----
+
 # Specific drugs - phenotypic tests (DST)
 drugs_data <- apply(metadata[drugs], 2, as.numeric)
 dr_tab <- as.data.frame(t(t(apply(drugs_data[, drugs], 2, sum, na.rm = T))))
@@ -264,6 +288,24 @@ tbp_data$drug <- gsub("_tbp", "", tbp_data$drug)
 # Put DST and TBprofiler results together
 dr_tab <- merge(dr_tab, tbp_data, by = "drug", all = T, sort = F)
 names(dr_tab) <- c("Drug", "N DST resistant", "%", "N genotypic resistant", "%")
+
+# Discrepancies
+FN <- "pheno_res; geno_sens"
+FP <- "pheno_sens; geno_res"
+discrepancy_data <- metadata[, c("id_year", grep("_test", names(metadata), value = T))]
+discrepancy_data <- discrepancy_data[discrepancy_data[, "id_year"] %in% beast_clusters$id, ]
+discrepancy_data <- discrepancy_data[, -which(names(discrepancy_data) %in% "id_year")]
+# discrepancy_data[discrepancy_data["pyrazinamide_test"] == FN, c("id_year", "pyrazinamide_test")]
+FN_res <- apply(discrepancy_data, 2, function(x){sum(x == FN)})
+FP_res <- apply(discrepancy_data, 2, function(x){sum(x == FP)})
+n_FN_samps <- sum(FN_res)
+n_FP_samps <- sum(FP_res)
+FN_drugs <- names(FN_res[FN_res > 0])
+FP_drugs <- names(FP_res[FP_res > 0])
+n_FN_drugs <- length(FN_drugs)
+n_FP_drugs <- length(FP_drugs)
+FN_drugs <- gsub("_test", "", paste0(FN_drugs, collapse = ", ") )
+FP_drugs <- gsub("_test", "", paste0(FP_drugs, collapse = ", ") )
 
 
 # DR status
@@ -295,16 +337,6 @@ row.names(dr_lin_tab) <- NULL
 
 
 ## Introduction
-
-<!--
-In 2019 [@WHO_2020]: 
-
-* Pakistan is a high-burden TB country (population 216.6 million).
-* One of eight countries accounting for two thirds of the global total TB instance (5.7%).
-* HIV prevalence is increasing. 190,000 people living with HIV (0.1 prevalence); 25,000 new infections. [@UNAIDS_2020]
-* High burden for multidrug-resistance (MDR-TB, resistance to isoniazid and rifampicin treatments (see table below)).
-* However overall treatment success rate is 93% and the mortality rate has been declining since at least 2000. 
--->
 
 
 Pakistan is a high-burden TB country, being one of eight countries accounting for two-thirds of the global total TB instance (5.7%). In 2019 it had a  total TB incidence of 570,000 and 43,900 deaths [@WHO_2020]. Furthermore, HIV prevalence in the country is increasing (0.1 prevalence 2019), which compounds the problem of TB infections and treatment [@UNAIDS_2020] (5,100 cases and 1,900 HIV-positive mortality cases in 2019). There is also a high burden for multidrug-resistance (MDR-TB, resistance to isoniazid and rifampicin treatments), with 25,000 cases in the latest WHO estimates. 
@@ -338,32 +370,44 @@ A total of `r n_samps_total` *M. tuberculosis* WGS isolates from Pakistan were d
 
 Upon mapping the sequences, high average coverage was observed across the samples: XXX. A total of `r fmt(n_snps_total)` SNPs were identified, with XXX% found in single isolates. 
 
+
 Historically, *Mtb* samples from Pakistan belong predominantly to the CAS1-Delhi spoligotype family [@Demay2012] (see **Figure \@ref(fig:historical)**), which belongs to Lineage 3 [@Napier2020]. In our samples, Lineage 3 comprises `r lin_tab[lin_tab["Lineages"] == 3, "pc"]`% of the total samples, followed by Lineage 4 (n=`r n_lin_4`, `r pc_lin_4`%), Lineage 2 (n=`r n_lin_2`, `r pc_lin_2`%) and Lineage 1 (n=`r n_lin_1`, `r pc_lin_1`%) (see **Table \@ref(tab:lintable)** for a breakdown of samples by lineage and sublineage and see **Figure \@ref(fig:treeAllSamps)** for a full phylogenetic tree). 
-
-<!--
-[[ Evidence of transmission
-Potential transmission clusters were found by calculating the pairwise SNP distance between isolates and using an established difference cut-off of 10 SNPs or less8.
-
-Fifteen clusters were found, with a  maximum size of three isolates. Of these clusters, nine contained MDR-TB strains, ten belonged to lineage 1, and five to lineage 4 (Supplementary Fig. 2). In order to establish whether particular strains are circulating locally or nation-wide, the phylogeographical distribution of the 178 strains was analysed (Supplementary Fig. 3A). There was no association of island group (Luzon, Mindanao and Visayas) with phylogenetic placement (Slatkin-Maddison P = 0.87). Using the closest neighbour for each strain, a weak correlation between genetic distance (SNP differences) and geographic distance was observed (Spearmans correlation = 0.36) (Supplementary Fig. 3B). ]]
--->
 
 ### Evidence of transmission
 
-Pairwise SNP distances showed that 
+Median pairwise SNP distances was `r round(median(lower_dist), rnd)` for all `r n_samps_total` samples (**Figure \@ref(fig:boxdistanceall)**). For all dated samples (n=`r n_dated_samps`), the median SNP distance was `r round(median(lower_dist_dated), rnd)` (**Figure \@ref(fig:boxdistancedated)**). With a threshold of `r threshold` SNPs for the dated samples, `r n_clusters_cut_tree` clusters formed, where a cluster contains at least two samples (**Figure \@ref(fig:clusterstreedated)**). **Figure \@ref(fig:distancedatedqgraph)** shows a graph of SNP distance connections among all dated samples within the `r threshold`-threshold SNP distance.  
 
-Date of collection was recorded between the years `r first_year` and `r last_year` (`r last_year - first_year` years; **Figure \@ref(fig:dates)**) for `r n_dated_samps` samples, which represent probable closely-related, if not potiential transmission cases. A dated phylogenetic tree was constructed with these samples, and when cut at 50 years before the last sample date, `r n_clusters` potential transmission clusters with simlilar drug-resistance profiles were inferred (see **Figures \@ref(fig:beasttrees) and \@ref(fig:beasttreeszoom)**)
+Date of collection was recorded between the years `r first_year` and `r last_year` (`r last_year - first_year` years; **Figure \@ref(fig:dates)**) for `r n_dated_samps` samples, which represent probable closely-related, if not potiential transmission cases. A dated phylogenetic tree was constructed with these samples (**Figures \@ref(fig:beasttrees)**), and when cut at `r cutoff_year` years before the last sample date, `r n_beast_clusters` clusters (n=`r n_beast_cluster_samps`) were inferred (**Figures \@ref(fig:beasttreeszoom)**). 
+
+### Drug susceptibility discrepancies
+
+We identified DSTs that disagreed with the genotypic drug resistance predictions. These discrepancies were classified into two kinds (relevant to novel mutations) - where the phenotypic test showed resistance and the genotypic test predicted sensitivity ("false negative" (FN)), and where the phenotypic test result was sensitive but the genotypic test predicted resistance ("false positive" (FP)). Within the clusters defined above, `r n_FN_samps` samples were FN for `r n_FN_drugs` (`r FN_drugs`) and `r n_FP_samps` samples were FP for `r n_FN_drugs` (`r FP_drugs`) (**Figure \@ref(fig:beasttreeszoom)(C)**).
+
+### Mutations underlying drug-resistance
 
 
 
+## Methods
 
-
-### Methods
+<!--
 ```{r methods, echo=FALSE, out.width = "1500px"}
 
 kable(methods_table)
 
 ```
+-->
 
+Sequences were downloaded from the European Nucleotide Archive (ENA www.ebi.ac.uk/ena/) and quality inspection of reads assessed in fastQC (version 0.11.9, www.bioinformatics.babraham.ac.uk/projects/fastqc/). Reads were trimmed to remove low-quality sequences in Trimmomatic v0.39 [@Bolger2014] and aligned to the H37Rv reference genome (AL123456) with BWA mem v0.7.17 [@Li2013], [@Cole1998]. 
+
+Joint SNP calling was processed in gatk GenotypeGVCFs v4.1.3.0 [@Depristo2011]. SNP filtering excluded indels, heterozygous SNPs, monomorphic SNPs and non-unique regions of the genome (e.g. PE/PPE genes), which was conducted in bcftools v1.9 [@Li2009]. 
+
+A multi-FASTA format file was created from the filtered SNP file and H37Rv reference fasta using bedtools makewindows v2.28.0 [@Quinlan2010] which in turn was used to construct a phylogenetic tree with IQ-TREE v1.6.12. Here, a general time reversible model with rate heterogeneity set to a discrete Gamma model and an ascertainment bias correction were used (parameters -m GTR+G+ASC), with 1000 bootstrap samples used to measure branch quality and robustness. [@Nguyen2015] [@Hoang2018] [@Tavare1986] [@Lewis2001] [@Yang1994].
+
+Pairwise distance matrices were calculated in Plink v1.90b4 [@Purcell2007]. Drug resistance and lineages were predicted *in silico* using TB-Profiler v2.4 [@Phelan2019] [@Coll2015] [@Napier2020]. In categorising samples as *Susceptible*, *Pre-MDR*...etc., the TB-Profiler predictions were used in place of missing or contradictory DST data. 
+
+BEAST v2.6.3 [@Bouckaert2019] was used to infer timed phylogenetic trees (see **Table \@ref(tab:beautiparams)** for parameters and settings). From the high ESS values (**Table \@ref(tab:beastlogtable)**) and the non-directional trace plots in (**Figure \@ref(fig:beastlogplots)**), effective sample size seems satisfactory and parameters have converged.
+
+***
 
 ### Tables
 
@@ -372,26 +416,26 @@ kable(methods_table)
 knitr::kable(dr_lin_tab, row.names = NA, rownames.print = F, caption = "Drug resistance categories by lineage. See *Methods* section for criteria of categories.")
 
 ```
-
+***
 ```{r drtable, echo=FALSE, out.width = "2000px"}
 
 knitr::kable(dr_tab, caption = "Numbers and percentages of drug-resistant samples accourding to DST and genotypic predictions (TBprofiler)")
 
 ```
-
+***
 ```{r lintable, echo=FALSE, out.width = "2000px"}
 
 # knitr::kable(lin_tab, align = align)
 knitr::kable(lin_conv_tab, caption = "Table of main sublineages as proposed by Comas et al (2010) [@Comas2010] and Stucki et al (2016) [@Stucki2016] and predicted by Napier (2020) [@Napier2020], and their equivalents in 'Large Sequence Polymorphism' lineages[@GagneuxDeRiemer2006] and spoligotype families[@Demay2012].")
 
 ```
-
+***
 ```{r beautiparams, echo=FALSE, out.width = "2000px"}
 
 knitr::kable(beauti_params, caption = "Settings in Beauti for BEAST analysis. Parameters & priors are based on Xu (2020) [@Xu2020]")
 
 ```
-
+***
 ```{r beastlogtable, echo=FALSE, out.width = "1500px"}
 
 # Results of beast log
@@ -417,6 +461,7 @@ log_table <- round(log_table, 2)
 knitr::kable(log_table, caption = "Mean and effective sample size (ESS) outputs from BEAST for tree parameter posteriors.")
 
 ```
+***
 
 ### Figures
 
@@ -458,61 +503,61 @@ axis(side = 1, at = yr_hist$mids, labels = years)
 ```{r boxdistanceall, echo=FALSE, out.width = "2000px", fig.cap = sprintf("Boxplot of pairwise SNP distances (excluding DR sites), all samples; \n n = %s", nrow(dist))}
 
 # Summary of distances for all samples
-lower_dist <- dist[lower.tri(dist)]
+# lower_dist <- dist[lower.tri(dist)]
 boxplot(lower_dist, 
-        col = col, 
-        main = sprintf("mean = %s; median = %s", round(mean(lower_dist), rnd), round(median(lower_dist), rnd) ), 
-        cex.main = 1, 
-        ylab="SNP distance")
+    col = col, 
+    main = sprintf("mean = %s; median = %s", round(mean(lower_dist), rnd), round(median(lower_dist), rnd) ), 
+    cex.main = main_cex, 
+    ylab="SNP distance")
 
 ```
+
 ***
+
 ```{r boxdistancedated, echo=FALSE, out.width = "2000px", fig.cap = sprintf("Boxplot of pairwise SNP distances (excluding DR sites), dated samples; \n n = %s", nrow(dist_dated))}
 
-# Summary of dists for dated samples 
-dist_dated <- dist[dated_samps, dated_samps]
-lower_dist_dated <- dist_dated[lower.tri(dist_dated)]
+# Summary of dists for dated samples
+# dist_dated <- dist[dated_samps, dated_samps]
+# lower_dist_dated <- dist_dated[lower.tri(dist_dated)]
 boxplot(lower_dist_dated, col = col,
         main = sprintf("mean = %s; median = %s", round(mean(lower_dist_dated), rnd), round(median(lower_dist_dated), rnd) ), 
-        cex.main = 1, 
+        cex.main = main_cex, 
         ylab="SNP distance")
 
 ```
 
 ***
 
-```{r clusterstreedated, echo = F, out.width = "2000px", fig.cap = sprintf("Single linkage tree of SNP distances, dated samples. Line shown at a SNP distance of %s; n = %s", threshold, nrow(dist_dated))}
+```{r clusterstreedated, echo = F, out.width = "2000px", fig.cap = sprintf("Single linkage tree of SNP distances, dated samples. Line shown at a SNP distance of %s; n = %s; n clusters = %s", threshold, nrow(dist_dated), n_clusters_cut_tree)}
 
-# dist_dated <- as.dist(dist_dated)
-
-# Convert to 'distance matrix' (extract lower triangle)
-dist_dated[upper.tri(dist_dated, diag = T)] <- 0
-
-# Cluster using 'single' method.
-# Clusters all samples within distance of threshold
-clust <- hclust(as.dist(dist_dated), method = "single")
-plot(clust, cex = 0.5,
-     main = sprintf("Clustering of SNP distances, dated samples; n = %s. \n Line at %s ", 
-                    nrow(dist_dated), threshold))
+# # dist_dated <- as.dist(dist_dated)
+# 
+# # Convert to 'distance matrix' (extract lower triangle)
+# dist_dated[upper.tri(dist_dated, diag = T)] <- 0
+# 
+# # Cluster using 'single' method.
+# # Clusters all samples within distance of threshold
+# clust <- hclust(as.dist(dist_dated), method = "single")
+plot(clust, cex = main_cex, xlab = "", main = "")
 abline(a = threshold, b = 0)
-# Cut tree at threshold to find samples within threshold
-clusters <- sort(cutree(clust, h = threshold))
-
-# Filter for clusters (take out the samples with their own number, i.e., those not in a group)
-# Gets samples below the threshold
-clusters <- clusters[clusters %in% names(which(table(clusters) > 1)) ]
-
-n_clusters_cut_tree <- length(unique(clusters))
-
-# Subset
-dist_dated_thresh <- as.dist(dist_dated[sort(names(clusters)), sort(names(clusters))])
-dist_dated_thresh <- dist_dated_thresh+1 # Add 1 because 1/x later.
+# # Cut tree at threshold to find samples within threshold
+# clusters <- sort(cutree(clust, h = threshold))
+# 
+# # Filter for clusters (take out the samples with their own number, i.e., those not in a group)
+# # Gets samples below the threshold
+# clusters <- clusters[clusters %in% names(which(table(clusters) > 1)) ]
+# 
+# n_clusters_cut_tree <- length(unique(clusters))
+# 
+# # Subset
+# dist_dated_thresh <- as.dist(dist_dated[sort(names(clusters)), sort(names(clusters))])
+# dist_dated_thresh <- dist_dated_thresh+1 # Add 1 because 1/x later.
 
 ```
 
 ***
 
-```{r distancedatedqgraph, echo=FALSE, out.width = "2000px", fig.cap = "Graph of dated samples. sprintf("Connections among samples with <= %s SNP distance; n = %s", threshold, length(attributes(dist_dated_thresh)$Labels)). Thicker lines indicate smalled SNP distance."}
+```{r distancedatedqgraph, echo=FALSE, out.width = "2000px", fig.cap = sprintf("Graph of dated samples. Connections among samples with <= %s SNP distance; n = %s. Thicker lines indicate smalled SNP distance.", threshold, length(attributes(dist_dated_thresh)$Labels)) }
 
 qgraph(1/dist_dated_thresh, layout='spring', vsize=5)
 
@@ -643,10 +688,8 @@ gheatmap(dr_status_hm, dr_data,
   labs(fill = "Drug\nresistance")+
   legend_spec
 
-
 # Drug resistance from TB profiler (genotypic drug resistance predictions)
 
-# pdf(file = dr_trees_pdf_file)
 gheatmap(dr_status_hm, dr_tbp_data,
          offset = offset+200,
          width = width + width_plus,
@@ -680,7 +723,7 @@ gheatmap(dr_status_hm, drug_discrepancy_data,
 
 ***
 
-```{r beasttreeszoom, echo=FALSE, out.width = "1500px", warning = F, message = F, cache=F, fig.show="hold", fig.cap="The same trees and annotations as \\@ref(fig:beasttrees), zoomed in to the last 50 years before the last sample date. Samples which do not form a cluster (the MRCA was before 50 years or there is only one sample) have been dropped. n = n_cluster_samps"}
+```{r beasttreeszoom, echo=FALSE, out.width = "1500px", warning = F, message = F, cache=F, fig.show="hold", fig.cap=sprintf("The same trees and annotations as Figure \\@ref(fig:beasttrees), zoomed in to the last 50 years before the last sample date. Samples which do not form a cluster (the MRCA was before 50 years or there is only one sample) have been dropped. n = %s",  n_cluster_samps)}
 
 # Zoom in to clusters
 
@@ -783,8 +826,10 @@ gheatmap(dr_status_hm, drug_discrepancy_data,
   legend_spec
 
 # dev.off()
-# 
-# 
+
+
+
+
 # # Loop through clusters
 # 
 # clusters_split <- split(beast_clusters, beast_clusters$cluster)
