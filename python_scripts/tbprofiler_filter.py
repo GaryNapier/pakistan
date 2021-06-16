@@ -35,7 +35,6 @@ def main(args):
     db = args.db
 
     # Read in locus-drug resistance associations
-    db = 'tbdb'
     bed_file = "%s/share/tbprofiler/%s.bed" % (sys.base_prefix, db)
     locus_tag2drugs = tbprofiler.get_lt2drugs(bed_file)
 
