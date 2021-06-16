@@ -123,7 +123,7 @@ def main(args):
 parser = argparse.ArgumentParser(description='tbprofiler script',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 # parser.add_argument('--samples',type=str,help='File with samples')
 parser.add_argument('--metadata',type=str,help='metadata file')
-parser.add_argument('--clus ters-file',type=str,help='clusters file from ')
+parser.add_argument('--clusters-file',type=str,help='clusters file from ')
 parser.add_argument('--tbp-results', default="results/",type=str,help='tbprofiler results directory (json files)')
 # parser.add_argument('--db',default="tbdb",type=str,help='Database name')
 parser.add_argument('--outfile',default="other_variants.txt",type=str,help='name of output file')
