@@ -14,6 +14,7 @@ csl: biomed-central.csl
 knitr::opts_chunk$set(echo = F)
 library(knitr)
 library(dplyr)
+library(tidyr)
 library(janitor)
 library(qgraph)
 library(ape)
@@ -82,7 +83,7 @@ align <- c("l", "r", "r")
 col <- "cornflowerblue"
 threshold <- 50
 plot_text_sz <- 0.5
-main_cex <- 0.5
+main_cex <- 1.5
 
 ```
 
@@ -106,7 +107,9 @@ beast_results_path <- "../beast_results/"
 # Metadata
 metadata_file <- paste0(metadata_path, "pakistan_metadata.csv")
 historical_metadata_file <- paste0(metadata_path, "historical_metadata.csv") # http://www.pasteur-guadeloupe.fr/
+# Database data
 lineage_conversion_file <- paste0(db_path, "lineage_conversions.txt")
+dr_genes_file <- paste0(db_path, "tbdb.bed")
 # Distance
 dist_file <- paste0(dist_path, "PAKISTAN_ALL.dist.dist")
 dist_id_file <- paste0(dist_path, "PAKISTAN_ALL.dist.dist.id")
@@ -115,6 +118,8 @@ beauti_params_file <- paste0(methods_path, "beauti_parameters.csv")
 mcc_tree_file <- paste0(beast_results_path, "PAKISTAN_ALL.mcc.tree")
 beast_log_file <- paste0(beast_results_path, "PAKISTAN_ALL.log")
 beast_clusters_file <- paste0(metadata_path, "PAKISTAN_ALL.clusters.csv")
+# Drug resistance
+other_variants_file <- paste0(metadata_path, "PAKISTAN_ALL.other_variants.txt")
 # Images
 tree_all_samps_file <- paste0(plots_path, "PAKISTAN_ALL.tree.png")
 beast_clusters_pdf_file <- paste0(plots_path, "PAKISTAN_ALL.beast_clusters.pdf")
@@ -131,7 +136,9 @@ methods_file <- paste0(methods_path, "pakistan_methods.tsv")
 # Metadata
 metadata <- read.csv(metadata_file)
 historical_metadata <- read.csv(historical_metadata_file)
+# Database data
 lineage_conversions <- read.delim(lineage_conversion_file)
+dr_genes <- read.delim(dr_genes_file, header = F)
 # Dist
 dist <- read.delim(dist_file, header = F)
 dist_id <- read.delim(dist_id_file, header = F)
@@ -141,14 +148,10 @@ mcc_tree_ape <- ape::read.nexus(mcc_tree_file)
 mcc_tree <- treeio::read.beast(mcc_tree_file)
 beast_log <- tracerer::parse_beast_log(beast_log_file)
 beast_clusters <- read.csv(beast_clusters_file, header = F, col.names = c("cluster", "id"))
+# Drug resistance
+other_variants <- read.delim(other_variants_file, header = T)
 # Other
 methods_table <- read.table(file = methods_file, sep = '\t', header = TRUE)
-
-```
-
-```{r clean, echo=F}
-
-names(beauti_params) <- c("Beauti tab", "Selection", "Parameter values [min, max]")
 
 ```
 
@@ -233,7 +236,7 @@ n_beast_cluster_samps <- nrow(beast_clusters)
 
 ```
 
-```{r tables}
+```{r wrangle, echo=F}
 
 
 # Lineages ----
@@ -260,6 +263,11 @@ lin_conv <- merge(metadata[c("main_lineage", "sub_lineage")], lineage_conversion
 lin_conv_tab <- reshape2::dcast(lin_conv, main_lineage + sub_lineage + lsp_lineage + spoligotype_family + rd_number ~ "N",
                                 value.var = "sub_lineage", fun.aggregate = length)
 names(lin_conv_tab) <- c("Main lineage", "Sub lineage", "LSP lineage", "Spoligotype family", "RD number", "N")
+
+
+# BEAST ----
+
+names(beauti_params) <- c("Beauti tab", "Selection", "Parameter values [min, max]")
 
 
 # DR ----
@@ -295,17 +303,18 @@ FP <- "pheno_sens; geno_res"
 discrepancy_data <- metadata[, c("id_year", grep("_test", names(metadata), value = T))]
 discrepancy_data <- discrepancy_data[discrepancy_data[, "id_year"] %in% beast_clusters$id, ]
 discrepancy_data <- discrepancy_data[, -which(names(discrepancy_data) %in% "id_year")]
+discrepancy_data$id_year <- row.names(discrepancy_data) # Put id back in for the other variants stuff
 # discrepancy_data[discrepancy_data["pyrazinamide_test"] == FN, c("id_year", "pyrazinamide_test")]
 FN_res <- apply(discrepancy_data, 2, function(x){sum(x == FN)})
 FP_res <- apply(discrepancy_data, 2, function(x){sum(x == FP)})
 n_FN_samps <- sum(FN_res)
 n_FP_samps <- sum(FP_res)
-FN_drugs <- names(FN_res[FN_res > 0])
-FP_drugs <- names(FP_res[FP_res > 0])
+FN_drugs_split <- names(FN_res[FN_res > 0])
+FP_drugs_split <- names(FP_res[FP_res > 0])
 n_FN_drugs <- length(FN_drugs)
 n_FP_drugs <- length(FP_drugs)
-FN_drugs <- gsub("_test", "", paste0(FN_drugs, collapse = ", ") )
-FP_drugs <- gsub("_test", "", paste0(FP_drugs, collapse = ", ") )
+FN_drugs <- gsub("_test", "", paste0(FN_drugs_split, collapse = ", ") )
+FP_drugs <- gsub("_test", "", paste0(FP_drugs_split, collapse = ", ") )
 
 
 # DR status
@@ -333,7 +342,77 @@ dr_lin_tab <- to_table(dr_lin_tab, pc_dir = "all")
 row.names(dr_lin_tab) <- NULL
 
 
+# Drug resistance genes lookup table ----
+
+# Convert to one row per drug
+names(dr_genes) <- c("chr", "start", "end", "locus", "gene", "drugs")
+dr_genes$drugs <- gsub("para-aminosalicylic_acid", "para_aminosalicylic_acid", dr_genes$drugs)
+dr_genes <- data.frame(dr_genes %>% 
+                         mutate(drugs = strsplit(as.character(drugs), ",")) %>% 
+                         unnest(drugs))
+
+dr_genes <- dr_genes[order(dr_genes$drugs), ]
+
+
+# Other variants ---- 
+
+head(other_variants)
+head(discrepancy_data)
+dr_genes
+
+
+FN_results <- data.frame()
+for(i in seq(FN_drugs_split)){
+  # Get drug and remove "_test"
+  drug <- FN_drugs_split[i]
+  drug_proper <- gsub("_test", "", drug)
+  # Get the FN samples for the drug
+  FN_samps <- discrepancy_data[discrepancy_data[drug] == FN, "id_year"]
+  # Subset the other variants data by the samples
+  ov_sub <- other_variants[other_variants[,"id_year"] %in% FN_samps, ]
+  # Get the loci for the relevant drug
+  loci <- dr_genes[dr_genes[, "drugs"] == drug_proper, ]$locus
+  # Subset the FN other variants data by the loci associated with the drug  
+  ov_sub <- ov_sub[ov_sub[, "locus_tag"] %in% loci, ]
+  # Append the drug name (for tidiness/neatness)
+  ov_sub$drug <- rep(drug_proper, nrow(ov_sub))
+  FN_results <- rbind(ov_sub, FN_results)
+}
+
+# other_variants[other_variants[, "id_year"] == "ERR3335766_2016", ]
+ 
+# discrepancy_data[discrepancy_data[, "id_year"] == "ERR3335766_2016", ]
+
+
+FP_results <- data.frame()
+for(i in seq(FP_drugs_split)){
+  # Get drug and remove "_test"
+  drug <- FP_drugs_split[i]
+  drug_proper <- gsub("_test", "", drug)
+  # Get the FN samples for the drug
+  FP_samps <- discrepancy_data[discrepancy_data[drug] == FP, "id_year"]
+  # Subset the other variants data by the samples
+  ov_sub <- other_variants[other_variants[,"id_year"] %in% FP_samps, ]
+  # Get the loci for the relevant drug
+  loci <- dr_genes[dr_genes[, "drugs"] == drug_proper, ]$locus
+  # Subset the FN other variants data by the loci associated with the drug  
+  ov_sub <- ov_sub[ov_sub[, "locus_tag"] %in% loci, ]
+  # Append the drug name (for tidiness/neatness)
+  ov_sub$drug <- rep(drug_proper, nrow(ov_sub))
+  FP_results <- rbind(ov_sub, FP_results)
+}
+
+
+
+
+
 ```
+
+
+
+
+
+
 
 
 ## Introduction
@@ -375,7 +454,7 @@ Historically, *Mtb* samples from Pakistan belong predominantly to the CAS1-Delhi
 
 ### Evidence of transmission
 
-Median pairwise SNP distances was `r round(median(lower_dist), rnd)` for all `r n_samps_total` samples (**Figure \@ref(fig:boxdistanceall)**). For all dated samples (n=`r n_dated_samps`), the median SNP distance was `r round(median(lower_dist_dated), rnd)` (**Figure \@ref(fig:boxdistancedated)**). With a threshold of `r threshold` SNPs for the dated samples, `r n_clusters_cut_tree` clusters formed, where a cluster contains at least two samples (**Figure \@ref(fig:clusterstreedated)**). **Figure \@ref(fig:distancedatedqgraph)** shows a graph of SNP distance connections among all dated samples within the `r threshold`-threshold SNP distance.  
+Median pairwise SNP distances was `r round(median(lower_dist), rnd)` for all `r n_samps_total` samples (**Figure \@ref(fig:boxdistance)**). For all dated samples (n=`r n_dated_samps`), the median SNP distance was `r round(median(lower_dist_dated), rnd)` (**Figure \@ref(fig:boxdistance)**). With a threshold of `r threshold` SNPs for the dated samples, `r n_clusters_cut_tree` clusters formed, where a cluster contains at least two samples (**Figure \@ref(fig:clusterstreedated)**). **Figure \@ref(fig:distancedatedqgraph)** shows a graph of SNP distance connections among all dated samples within the `r threshold`-threshold SNP distance.  
 
 Date of collection was recorded between the years `r first_year` and `r last_year` (`r last_year - first_year` years; **Figure \@ref(fig:dates)**) for `r n_dated_samps` samples, which represent probable closely-related, if not potiential transmission cases. A dated phylogenetic tree was constructed with these samples (**Figures \@ref(fig:beasttrees)**), and when cut at `r cutoff_year` years before the last sample date, `r n_beast_clusters` clusters (n=`r n_beast_cluster_samps`) were inferred (**Figures \@ref(fig:beasttreeszoom)**). 
 
@@ -465,13 +544,11 @@ knitr::kable(log_table, caption = "Mean and effective sample size (ESS) outputs 
 
 ### Figures
 
-```{r historical, fig.cap = "Historical genomic data on MTBC in Pakistan [@Demay2012]", echo=FALSE, out.width = "2000px"} 
+```{r historical, fig.cap = sprintf("Number of samples by spoligotype family \n in historical Mtb data from Pakistan [@Demay2012], n = %s", n_samps_historical) , echo=FALSE, out.width = "2000px"} 
 
 n_samps_historical <- length(historical_metadata$IsoNumber)
 
-title <- sprintf("Number of samples by spoligotype family \n in historical Mtb data from Pakistan, n = %s", n_samps_historical)
-barplot(table(historical_metadata$Clade), las=2, 
-        main = title, col = col)
+barplot(table(historical_metadata$Clade), las=2, main = "", col = col, cex.axis = 0.5, cex.names=0.75)
 
 ```
  
@@ -493,14 +570,14 @@ year <- metadata$year[!is.na(metadata$year)]
 years <- sort(unique(year))
 breaks <- (min(year)-0.5):(max(year)+0.5)
 yr_hist <- hist(year, freq = T, xaxt="n", xlab= "year",
-                breaks = breaks, col = col)
+                breaks = breaks, col = col, main = "")
 axis(side = 1, at = yr_hist$mids, labels = years)
 
 ```
 
 ***
 
-```{r boxdistanceall, echo=FALSE, out.width = "2000px", fig.cap = sprintf("Boxplot of pairwise SNP distances (excluding DR sites), all samples; \n n = %s", nrow(dist))}
+```{r boxdistance, echo=FALSE, fig.show="hold", out.width="50%", fig.cap = sprintf("Boxplot of pairwise SNP distances (excluding DR sites), all samples (left; n = %s) and dated samples (right; n = %s)", nrow(dist), nrow(dist_dated))}
 
 # Summary of distances for all samples
 # lower_dist <- dist[lower.tri(dist)]
@@ -509,12 +586,6 @@ boxplot(lower_dist,
     main = sprintf("mean = %s; median = %s", round(mean(lower_dist), rnd), round(median(lower_dist), rnd) ), 
     cex.main = main_cex, 
     ylab="SNP distance")
-
-```
-
-***
-
-```{r boxdistancedated, echo=FALSE, out.width = "2000px", fig.cap = sprintf("Boxplot of pairwise SNP distances (excluding DR sites), dated samples; \n n = %s", nrow(dist_dated))}
 
 # Summary of dists for dated samples
 # dist_dated <- dist[dated_samps, dated_samps]
@@ -538,7 +609,7 @@ boxplot(lower_dist_dated, col = col,
 # # Cluster using 'single' method.
 # # Clusters all samples within distance of threshold
 # clust <- hclust(as.dist(dist_dated), method = "single")
-plot(clust, cex = main_cex, xlab = "", main = "")
+plot(clust, labels = F, xlab = "", main = "")
 abline(a = threshold, b = 0)
 # # Cut tree at threshold to find samples within threshold
 # clusters <- sort(cutree(clust, h = threshold))
@@ -557,7 +628,7 @@ abline(a = threshold, b = 0)
 
 ***
 
-```{r distancedatedqgraph, echo=FALSE, out.width = "2000px", fig.cap = sprintf("Graph of dated samples. Connections among samples with <= %s SNP distance; n = %s. Thicker lines indicate smalled SNP distance.", threshold, length(attributes(dist_dated_thresh)$Labels)) }
+```{r distancedatedqgraph, echo=FALSE, out.width = "2000px", fig.cap = sprintf("Graph of dated samples. Connections among samples with <= %s SNP distance; n = %s. Thicker lines indicate smaller SNP distance.", threshold, length(attributes(dist_dated_thresh)$Labels)) }
 
 qgraph(1/dist_dated_thresh, layout='spring', vsize=5)
 
@@ -723,7 +794,7 @@ gheatmap(dr_status_hm, drug_discrepancy_data,
 
 ***
 
-```{r beasttreeszoom, echo=FALSE, out.width = "1500px", warning = F, message = F, cache=F, fig.show="hold", fig.cap=sprintf("The same trees and annotations as Figure \\@ref(fig:beasttrees), zoomed in to the last 50 years before the last sample date. Samples which do not form a cluster (the MRCA was before 50 years or there is only one sample) have been dropped. n = %s",  n_cluster_samps)}
+```{r beasttreeszoom, echo=FALSE, out.width = "1500px", warning = F, message = F, cache=F, fig.show="hold", fig.cap=sprintf("The same trees and annotations as Figure \\@ref(fig:beasttrees), zoomed in to the last 50 years before the last sample date. Samples which do not form a cluster (the MRCA was before 50 years or there is only one sample) have been dropped. n = %s",  n_beast_cluster_samps)}
 
 # Zoom in to clusters
 
