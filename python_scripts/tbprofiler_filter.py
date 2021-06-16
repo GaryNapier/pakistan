@@ -32,6 +32,12 @@ def main(args):
     tbprofiler_results_location = args.tbp_results
     clusters_file = args.clusters_file
     outfile = args.outfile
+    db = args.db
+
+    # Read in locus-drug resistance associations
+    db = 'tbdb'
+    bed_file = "%s/share/tbprofiler/%s.bed" % (sys.base_prefix, db)
+    locus_tag2drugs = tbprofiler.get_lt2drugs(bed_file)
 
     # Read in metadata
     # metadata = 'metadata/pakistan_metadata.csv'
@@ -57,43 +63,51 @@ def main(args):
     drug_tests = [x for x in first_dict.keys() if '_test' in x]
     tbprofiler_keys = [x for x in first_dict.keys() if '_tbp' in x]
 
-    # Define the false positive/false negative labels interested in
-    outcomes = ["pheno_sens; geno_res", "pheno_res; geno_sens"]
-    # Define new dict
-    filter_dict = defaultdict(list)
-    # Pull together the keys to subset the metadata dictonary
-    keys_needed = ['id_year', 'wgs_id'] + drug_tests + tbprofiler_keys
-    # Loop through the clusters
-    for clust in clusters_dict:
-        # Loop through the samples belonging to each cluster
-        for samp in clusters_dict[clust]:
-            # Loop through the DR tests
-            for test in drug_tests:
-                # If a sample has a false positive/false negative for any drug, append the subset of the metadata dict to the new dict
-                if meta_dict[samp][test] in outcomes:
-                    filter_dict[clust].append({key:meta_dict[samp][key] for key in keys_needed})
-                    # Break the loop because only need once per sample
-                    break
+    # # Define the false positive/false negative labels interested in
+    # outcomes = ["pheno_sens; geno_res", "pheno_res; geno_sens"]
+    # # Define new dict
+    # filter_dict = defaultdict(list)
+    # # Pull together the keys to subset the metadata dictonary
+    # keys_needed = ['id_year', 'wgs_id'] + drug_tests + tbprofiler_keys
+    # # Loop through the clusters
+    # for clust in clusters_dict:
+    #     # Loop through the samples belonging to each cluster
+    #     for samp in clusters_dict[clust]:
+    #         # Loop through the DR tests
+    #         for test in drug_tests:
+    #             # If a sample has a false positive/false negative for any drug, append the subset of the metadata dict to the new dict
+    #             if meta_dict[samp][test] in outcomes:
+    #                 filter_dict[clust].append({key:meta_dict[samp][key] for key in keys_needed})
+    #                 # Break the loop because only need once per sample
+    #                 break
 
-    # Once the samples with false positive/false negative (per cluster) have been found, find the variants that are non-drug resistance associated
+
     other_variants_dict = {}
-    # Loop through the dictionary just created (by cluster)
-    for clust in filter_dict:
+    # other_variants_dict = defaultdict()
+    for clust in clusters_dict:
         # Create empty list per cluster
         other_variants_dict[clust] = []
-        # Loop through the dictionaries (one per sample) belonging to each cluster
-        for samp_dict in filter_dict[clust]:
-            # Get the id and open the json file containing the 'other variants' for it
-            id = samp_dict['wgs_id']
+        for samp in clusters_dict[clust]:
+            id = "_".join(samp.split("_")[:-1])
+            # print("ID: ", id)
             json_file = tbprofiler_results_location + id + '.results.json'
             tbp_result = json.load(open(json_file))
             # Loop over the other_variants dictionaries
             for variant in tbp_result['other_variants']:
+                # print("VARIANT: ", variant['sample'])
                 # Exclude synonymous
                 if variant['type'] != 'synonymous':
-                    # Put it all together
-                    other_variants_dict[clust].append({'cluster': clust, 'wgs_id': variant['sample'], 'gene': variant['gene'], 'genome_pos': variant['genome_pos'], 'type': variant['type'],
-                    'change': variant['change'], 'nucleotide_change': variant['nucleotide_change'],'locus_tag': variant['locus_tag']})
+                    # Put it all together. Left join locus/gene drug resistance associations from locus_tag2drugs table
+                    empty_str = ""
+                    variant.setdefault("gene", empty_str)
+                    variant.setdefault("genome_pos", empty_str)
+                    variant.setdefault("type", empty_str)
+                    variant.setdefault("change", empty_str)
+                    variant.setdefault("nucleotide_change", empty_str)
+                    variant.setdefault("locus_tag", empty_str)
+                    locus_tag2drugs.setdefault(variant['locus_tag'], empty_str)
+                    other_variants_dict[clust].append({'cluster': clust, 'wgs_id': id, 'id_year': samp, 'gene': variant['gene'], 'genome_pos': variant['genome_pos'], 'type': variant['type'],
+                    'change': variant['change'], 'nucleotide_change': variant['nucleotide_change'], 'locus_tag': variant['locus_tag'], 'locus_tag_drugs': locus_tag2drugs[variant['locus_tag']]})
 
     # Save a tab-sep text file
 
@@ -110,7 +124,7 @@ def main(args):
 parser = argparse.ArgumentParser(description='tbprofiler script',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 # parser.add_argument('--samples',type=str,help='File with samples')
 parser.add_argument('--metadata',type=str,help='metadata file')
-parser.add_argument('--clusters-file',type=str,help='clusters file from ')
+parser.add_argument('--clus ters-file',type=str,help='clusters file from ')
 parser.add_argument('--tbp-results', default="results/",type=str,help='tbprofiler results directory (json files)')
 # parser.add_argument('--db',default="tbdb",type=str,help='Database name')
 parser.add_argument('--outfile',default="other_variants.txt",type=str,help='name of output file')
