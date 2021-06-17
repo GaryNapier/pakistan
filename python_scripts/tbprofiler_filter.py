@@ -39,7 +39,7 @@ def main(args):
     locus_tag2drugs = tbprofiler.get_lt2drugs(bed_file)
 
     # Get list of files in tbprofiler results directory
-    os.listdir(tbprofiler_results_location)
+    tbprofiler_results_files = os.listdir(tbprofiler_results_location)
 
     # Read in metadata
     # metadata = 'metadata/pakistan_metadata.csv'
