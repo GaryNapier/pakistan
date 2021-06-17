@@ -28,9 +28,9 @@ def invert_dict(d):
 def main(args):
 
     # tbprofiler_results_location = 'tbprofiler_pakistan_results/'
-    metadata = args.metadata
+    # metadata = args.metadata
     tbprofiler_results_location = args.tbp_results
-    clusters_file = args.clusters_file
+    # clusters_file = args.clusters_file
     outfile = args.outfile
     db = args.db
 
@@ -38,22 +38,25 @@ def main(args):
     bed_file = "%s/share/tbprofiler/%s.bed" % (sys.base_prefix, db)
     locus_tag2drugs = tbprofiler.get_lt2drugs(bed_file)
 
+    # Get list of files in tbprofiler results directory
+    os.listdir(tbprofiler_results_location)
+
     # Read in metadata
     # metadata = 'metadata/pakistan_metadata.csv'
-    meta_reader = csv.DictReader(open(metadata))
-    meta_dict = {}
-    for row in meta_reader:
-        # Make the id the key, but also recapitulate the id in the key-values by including everything
-        meta_dict[row['id_year']] = row
+    # meta_reader = csv.DictReader(open(metadata))
+    # meta_dict = {}
+    # for row in meta_reader:
+    #     # Make the id the key, but also recapitulate the id in the key-values by including everything
+    #     meta_dict[row['id_year']] = row
 
     # Read in clusters file
     # Not sure why this one is read in differently to the metadata
     # {cluster number : [samples list]}
     # clusters_file = 'metadata/PAKISTAN_ALL.clusters.csv'
-    clusters_reader = csv.reader(open(clusters_file))
-    clusters_dict = defaultdict(list)
-    for row in clusters_reader:
-        clusters_dict[row[0]].append(row[1])
+    # clusters_reader = csv.reader(open(clusters_file))
+    # clusters_dict = defaultdict(list)
+    # for row in clusters_reader:
+    #     clusters_dict[row[0]].append(row[1])
 
     # Get first dict in meta_dict
     first_dict = next(iter(meta_dict.values()))
@@ -81,33 +84,59 @@ def main(args):
     #                 break
 
 
-    other_variants_dict = {}
-    # other_variants_dict = defaultdict()
-    for clust in clusters_dict:
-        # Create empty list per cluster
-        other_variants_dict[clust] = []
-        for samp in clusters_dict[clust]:
-            id = "_".join(samp.split("_")[:-1])
-            # print("ID: ", id)
-            json_file = tbprofiler_results_location + id + '.results.json'
-            tbp_result = json.load(open(json_file))
-            # Loop over the other_variants dictionaries
-            for variant in tbp_result['other_variants']:
-                # print("VARIANT: ", variant['sample'])
-                # Exclude synonymous
-                if variant['type'] != 'synonymous':
-                    # Put it all together. Left join locus/gene drug resistance associations from locus_tag2drugs table
-                    empty_str = ""
-                    variant.setdefault("gene", empty_str)
-                    variant.setdefault("genome_pos", empty_str)
-                    variant.setdefault("type", empty_str)
-                    variant.setdefault("change", empty_str)
-                    variant.setdefault("nucleotide_change", empty_str)
-                    variant.setdefault("locus_tag", empty_str)
-                    locus_tag2drugs.setdefault(variant['locus_tag'], empty_str)
-                    other_variants_dict[clust].append({'cluster': clust, 'wgs_id': id, 'id_year': samp, 'gene': variant['gene'], 'genome_pos': variant['genome_pos'], 'type': variant['type'],
-                    'change': variant['change'], 'nucleotide_change': variant['nucleotide_change'], 'locus_tag': variant['locus_tag'], 'locus_tag_drugs': locus_tag2drugs[variant['locus_tag']]})
+    # other_variants_dict = {}
+    # # other_variants_dict = defaultdict()
+    # for clust in clusters_dict:
+    #     # Create empty list per cluster
+    #     other_variants_dict[clust] = []
+    #     for samp in clusters_dict[clust]:
+    #         id = "_".join(samp.split("_")[:-1])
+    #         # print("ID: ", id)
+    #         json_file = tbprofiler_results_location + id + '.results.json'
+    #         tbp_result = json.load(open(json_file))
+    #         # Loop over the other_variants dictionaries
+    #         for variant in tbp_result['other_variants']:
+    #             # print("VARIANT: ", variant['sample'])
+    #             # Exclude synonymous
+    #             if variant['type'] != 'synonymous':
+    #                 # Put it all together. Left join locus/gene drug resistance associations from locus_tag2drugs table
+    #                 empty_str = ""
+    #                 variant.setdefault("gene", empty_str)
+    #                 variant.setdefault("genome_pos", empty_str)
+    #                 variant.setdefault("type", empty_str)
+    #                 variant.setdefault("change", empty_str)
+    #                 variant.setdefault("nucleotide_change", empty_str)
+    #                 variant.setdefault("locus_tag", empty_str)
+    #                 locus_tag2drugs.setdefault(variant['locus_tag'], empty_str)
+    #                 other_variants_dict[clust].append({'cluster': clust, 'wgs_id': id, 'id_year': samp, 'gene': variant['gene'], 'genome_pos': variant['genome_pos'], 'type': variant['type'],
+    #                 'change': variant['change'], 'nucleotide_change': variant['nucleotide_change'], 'locus_tag': variant['locus_tag'], 'locus_tag_drugs': locus_tag2drugs[variant['locus_tag']]})
 
+
+    other_variants_dict = {}
+    for json_file in tbprofiler_results_files:
+        id = ''.join(json_file.split(".")[:-2])
+        # Create empty list per id
+        other_variants_dict[id] = []
+        json_file = tbprofiler_results_location + json_file
+        tbp_result = json.load(open(json_file))
+        # Loop over the other_variants dictionaries
+        for variant in tbp_result['other_variants']:
+            # print("VARIANT: ", variant['sample'])
+            # Exclude synonymous
+            if variant['type'] != 'synonymous':
+                # Put it all together. Left join locus/gene drug resistance associations from locus_tag2drugs table
+                empty_str = ""
+                variant.setdefault("gene", empty_str)
+                variant.setdefault("genome_pos", empty_str)
+                variant.setdefault("type", empty_str)
+                variant.setdefault("change", empty_str)
+                variant.setdefault("nucleotide_change", empty_str)
+                variant.setdefault("locus_tag", empty_str)
+                locus_tag2drugs.setdefault(variant['locus_tag'], empty_str)
+                # other_variants_dict[clust].append({'wgs_id': id, 'gene': variant['gene'], 'genome_pos': variant['genome_pos'], 'type': variant['type'],
+                # 'change': variant['change'], 'nucleotide_change': variant['nucleotide_change'], 'locus_tag': variant['locus_tag'], 'locus_tag_drugs': locus_tag2drugs[variant['locus_tag']]})
+                other_variants_dict[id].append({'wgs_id': id, 'gene': variant['gene'], 'genome_pos': variant['genome_pos'], 'type': variant['type'],
+                'change': variant['change'], 'nucleotide_change': variant['nucleotide_change'], 'locus_tag': variant['locus_tag'], 'locus_tag_drugs': locus_tag2drugs[variant['locus_tag']]})
     # Save a tab-sep text file
 
     # Define headers from the first dict
