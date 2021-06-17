@@ -583,7 +583,7 @@ if [ ! -f ${tbprofiler_variants_file} ]; then
     echo "Running tbprofiler_filter.py - outputs ${tbprofiler_variants_file}"
     set -x
     # tbprofiler_filter.py --metadata <metadata file> --clusters-file <clusters file> --tbp-results <tbprofiler results directory> --outfile <outfile>
-    python python_scripts/tbprofiler_filter.py --db tbdb --metadata ${pakistan_metadata_file} --clusters-file ${beast_clusters_file} --tbp-results ${tbprofiler_results_dir} --outfile ${tbprofiler_variants_file}
+    python python_scripts/tbprofiler_filter.py --db tbdb --tbp-results ${tbprofiler_results_dir} --outfile ${tbprofiler_variants_file}
     set +x
     echo "------------------------------------------------------------------------------"
     printf "\n"
