@@ -146,7 +146,7 @@ def main(args):
         writer = csv.DictWriter(f, fieldnames=fieldnames, delimiter='\t')
         writer.writeheader()
         # Loop over the dictionaries, appending each dictionary as a row in the file
-        for clust in other_variants_dict:
+        for id in other_variants_dict:
             writer.writerows(other_variants_dict[id])
 
 parser = argparse.ArgumentParser(description='tbprofiler script',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
