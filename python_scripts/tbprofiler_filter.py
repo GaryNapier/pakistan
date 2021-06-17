@@ -59,11 +59,11 @@ def main(args):
     #     clusters_dict[row[0]].append(row[1])
 
     # Get first dict in meta_dict
-    first_dict = next(iter(meta_dict.values()))
-
-    # Get drug-resistance test names (subset of keys in first_val)
-    drug_tests = [x for x in first_dict.keys() if '_test' in x]
-    tbprofiler_keys = [x for x in first_dict.keys() if '_tbp' in x]
+    # first_dict = next(iter(meta_dict.values()))
+    #
+    # # Get drug-resistance test names (subset of keys in first_val)
+    # drug_tests = [x for x in first_dict.keys() if '_test' in x]
+    # tbprofiler_keys = [x for x in first_dict.keys() if '_tbp' in x]
 
     # # Define the false positive/false negative labels interested in
     # outcomes = ["pheno_sens; geno_res", "pheno_res; geno_sens"]
@@ -152,8 +152,8 @@ def main(args):
 parser = argparse.ArgumentParser(description='tbprofiler script',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 # parser.add_argument('--samples',type=str,help='File with samples')
 parser.add_argument('--db',default="tbdb",type=str,help='prefix to bed file for locus-DR associations')
-parser.add_argument('--metadata',type=str,help='metadata file')
-parser.add_argument('--clusters-file',type=str,help='clusters file from ')
+# parser.add_argument('--metadata',type=str,help='metadata file')
+# parser.add_argument('--clusters-file',type=str,help='clusters file from ')
 parser.add_argument('--tbp-results', default="results/",type=str,help='tbprofiler results directory (json files)')
 # parser.add_argument('--db',default="tbdb",type=str,help='Database name')
 parser.add_argument('--outfile',default="other_variants.txt",type=str,help='name of output file')
