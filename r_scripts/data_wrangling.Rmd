@@ -5,7 +5,7 @@ output:
     fig_caption: yes
     table_caption: yes
     number_sections: no
-bibliography:   all_refs.bib
+bibliography: all_refs.bib
 csl: biomed-central.csl
 ---
 
@@ -18,7 +18,7 @@ library(tidyr)
 library(janitor)
 library(qgraph)
 library(ape)
-library(TransPhylo)
+library(phytools)
 library(coda)
 library(ggplot2)
 library(ggtree)
@@ -93,6 +93,7 @@ main_cex <- 1.5
 
 methods_path <- "../methods/"
 metadata_path <- "../metadata/"
+newick_path <- "../newick/"
 plots_path <- "../plots/"
 db_path <- "../../pipeline/db/"
 dist_path <- "../dist_and_pca/"
@@ -113,6 +114,8 @@ dr_genes_file <- paste0(db_path, "tbdb.bed")
 # Distance
 dist_file <- paste0(dist_path, "PAKISTAN_ALL.dist.dist")
 dist_id_file <- paste0(dist_path, "PAKISTAN_ALL.dist.dist.id")
+# Trees
+tree_all_samps_file <- paste0(newick_path, "PAKISTAN_ALL.filt.val.gt.g.snps.fa.treefile")
 # Beast
 beauti_params_file <- paste0(methods_path, "beauti_parameters.csv")
 mcc_tree_file <- paste0(beast_results_path, "PAKISTAN_ALL.mcc.tree")
@@ -142,6 +145,8 @@ dr_genes <- read.delim(dr_genes_file, header = F)
 # Dist
 dist <- read.delim(dist_file, header = F)
 dist_id <- read.delim(dist_id_file, header = F)
+# Trees
+tree_all_samps <- read.newick(tree_all_samps_file)
 # Beast
 beauti_params <- read.csv(beauti_params_file)
 mcc_tree_ape <- ape::read.nexus(mcc_tree_file)
@@ -236,8 +241,7 @@ n_beast_cluster_samps <- nrow(beast_clusters)
 
 ```
 
-```{r wrangle, echo=F}
-
+```{r wrangle-lineages, echo=F}
 
 # Lineages ----
 
@@ -265,9 +269,24 @@ lin_conv_tab <- reshape2::dcast(lin_conv, main_lineage + sub_lineage + lsp_linea
 names(lin_conv_tab) <- c("Main lineage", "Sub lineage", "LSP lineage", "Spoligotype family", "RD number", "N")
 
 
+```
+
+```{r wrangle-tree, echo=F}
+
+# Midpoint root the tree
+tree_all_samps <- midpoint.root(tree_all_samps)
+
+```
+
+```{r wrangle-beast, echo=F}
+
 # BEAST ----
 
 names(beauti_params) <- c("Beauti tab", "Selection", "Parameter values [min, max]")
+
+```
+
+```{r wrangle-DR-basic, echo=F}
 
 
 # DR ----
@@ -297,24 +316,7 @@ tbp_data$drug <- gsub("_tbp", "", tbp_data$drug)
 dr_tab <- merge(dr_tab, tbp_data, by = "drug", all = T, sort = F)
 names(dr_tab) <- c("Drug", "N DST resistant", "%", "N genotypic resistant", "%")
 
-# Discrepancies
-FN <- "pheno_res; geno_sens"
-FP <- "pheno_sens; geno_res"
-discrepancy_data <- metadata[, c("id_year", grep("_test", names(metadata), value = T))]
-discrepancy_data <- discrepancy_data[discrepancy_data[, "id_year"] %in% beast_clusters$id, ]
-discrepancy_data <- discrepancy_data[, -which(names(discrepancy_data) %in% "id_year")]
-discrepancy_data$id_year <- row.names(discrepancy_data) # Put id back in for the other variants stuff
-# discrepancy_data[discrepancy_data["pyrazinamide_test"] == FN, c("id_year", "pyrazinamide_test")]
-FN_res <- apply(discrepancy_data, 2, function(x){sum(x == FN)})
-FP_res <- apply(discrepancy_data, 2, function(x){sum(x == FP)})
-n_FN_samps <- sum(FN_res)
-n_FP_samps <- sum(FP_res)
-FN_drugs_split <- names(FN_res[FN_res > 0])
-FP_drugs_split <- names(FP_res[FP_res > 0])
-n_FN_drugs <- length(FN_drugs)
-n_FP_drugs <- length(FP_drugs)
-FN_drugs <- gsub("_test", "", paste0(FN_drugs_split, collapse = ", ") )
-FP_drugs <- gsub("_test", "", paste0(FP_drugs_split, collapse = ", ") )
+
 
 
 # DR status
@@ -342,6 +344,26 @@ dr_lin_tab <- to_table(dr_lin_tab, pc_dir = "all")
 row.names(dr_lin_tab) <- NULL
 
 
+```
+
+```{r wrangle-discrepancies-other-variants, echo=F}
+
+# Discrepancies
+FN <- "pheno_res; geno_sens"
+FP <- "pheno_sens; geno_res"
+discrepancy_data <- metadata[, grep("_test", names(metadata), value = T)]
+FN_res <- apply(discrepancy_data, 2, function(x){sum(x == FN)})
+FP_res <- apply(discrepancy_data, 2, function(x){sum(x == FP)})
+discrepancy_data$wgs_id <- metadata$wgs_id # Add ids in for the other variants stuff
+n_FN_samps <- sum(FN_res)
+n_FP_samps <- sum(FP_res)
+FN_drugs_split <- names(FN_res[FN_res > 0])
+FP_drugs_split <- names(FP_res[FP_res > 0])
+n_FN_drugs <- length(FN_drugs_split)
+n_FP_drugs <- length(FP_drugs_split)
+FN_drugs <- gsub("_test", "", paste0(FN_drugs_split, collapse = ", ") )
+FP_drugs <- gsub("_test", "", paste0(FP_drugs_split, collapse = ", ") )
+
 # Drug resistance genes lookup table ----
 
 # Convert to one row per drug
@@ -356,10 +378,13 @@ dr_genes <- dr_genes[order(dr_genes$drugs), ]
 
 # Other variants ---- 
 
-head(other_variants)
-head(discrepancy_data)
-dr_genes
+# # Join id_year col onto other_variants data
+# other_variants <- merge(other_variants, metadata[, c("wgs_id")], 
+#                         by = "wgs_id", sort = F)
 
+
+
+# FN
 
 FN_results <- data.frame()
 for(i in seq(FN_drugs_split)){
@@ -367,9 +392,9 @@ for(i in seq(FN_drugs_split)){
   drug <- FN_drugs_split[i]
   drug_proper <- gsub("_test", "", drug)
   # Get the FN samples for the drug
-  FN_samps <- discrepancy_data[discrepancy_data[drug] == FN, "id_year"]
+  FN_samps <- discrepancy_data[discrepancy_data[drug] == FN, "wgs_id"]
   # Subset the other variants data by the samples
-  ov_sub <- other_variants[other_variants[,"id_year"] %in% FN_samps, ]
+  ov_sub <- other_variants[other_variants[,"wgs_id"] %in% FN_samps, ]
   # Get the loci for the relevant drug
   loci <- dr_genes[dr_genes[, "drugs"] == drug_proper, ]$locus
   # Subset the FN other variants data by the loci associated with the drug  
@@ -379,10 +404,21 @@ for(i in seq(FN_drugs_split)){
   FN_results <- rbind(ov_sub, FN_results)
 }
 
-# other_variants[other_variants[, "id_year"] == "ERR3335766_2016", ]
- 
-# discrepancy_data[discrepancy_data[, "id_year"] == "ERR3335766_2016", ]
+# other_variants[other_variants[,"id_year"] == "ERR2510452_NA", ]
 
+# Neaten table 
+FN_results_table <- unique(FN_results[, !(names(FN_results) %in% c("locus_tag_drugs", "wgs_id", "id_year"))])
+FN_results_table <- FN_results_table[order(FN_results_table$drug, FN_results_table$gene, FN_results_table$genome_pos), ]
+row.names(FN_results_table) <- NULL
+
+# FN_results_table[, !(names(FN_results_table) %in% c(""))]
+
+# n_pza_FN_samps <- length(unique(FN_results[FN_results$drug == "pyrazinamide"]$wgs_id))
+# pza_FN_mutations <- unique(FN_results[FN_results$drug == "pyrazinamide"]$change)
+# pza_FN_mutations_print <- paste0(pza_FN_mutations, collapse = ", ")
+# n_pza_FN_mutations <- length(pza_FN_mutations)
+
+# FP 
 
 FP_results <- data.frame()
 for(i in seq(FP_drugs_split)){
@@ -390,9 +426,9 @@ for(i in seq(FP_drugs_split)){
   drug <- FP_drugs_split[i]
   drug_proper <- gsub("_test", "", drug)
   # Get the FN samples for the drug
-  FP_samps <- discrepancy_data[discrepancy_data[drug] == FP, "id_year"]
+  FP_samps <- discrepancy_data[discrepancy_data[drug] == FP, "wgs_id"]
   # Subset the other variants data by the samples
-  ov_sub <- other_variants[other_variants[,"id_year"] %in% FP_samps, ]
+  ov_sub <- other_variants[other_variants[,"wgs_id"] %in% FP_samps, ]
   # Get the loci for the relevant drug
   loci <- dr_genes[dr_genes[, "drugs"] == drug_proper, ]$locus
   # Subset the FN other variants data by the loci associated with the drug  
@@ -402,16 +438,17 @@ for(i in seq(FP_drugs_split)){
   FP_results <- rbind(ov_sub, FP_results)
 }
 
-
-
-
+# Neaten table
+FP_results_table <- unique(FP_results[, !(names(FP_results) %in% c("locus_tag_drugs", "wgs_id", "id_year"))])
+FP_results_table <- FP_results_table[order(FP_results_table$drug, FP_results_table$gene, FP_results_table$genome_pos), ]
+row.names(FP_results_table) <- NULL
 
 ```
 
 
 
 
-
+## Abstract
 
 
 
@@ -420,7 +457,7 @@ for(i in seq(FP_drugs_split)){
 
 Pakistan is a high-burden TB country, being one of eight countries accounting for two-thirds of the global total TB instance (5.7%). In 2019 it had a  total TB incidence of 570,000 and 43,900 deaths [@WHO_2020]. Furthermore, HIV prevalence in the country is increasing (0.1 prevalence 2019), which compounds the problem of TB infections and treatment [@UNAIDS_2020] (5,100 cases and 1,900 HIV-positive mortality cases in 2019). There is also a high burden for multidrug-resistance (MDR-TB, resistance to isoniazid and rifampicin treatments), with 25,000 cases in the latest WHO estimates. 
 
-
+<!--
 **Estimates of TB burden, 2019** 
 
 | | Number | (Rate per 100,000 population) |
@@ -437,6 +474,7 @@ Pakistan is a high-burden TB country, being one of eight countries accounting fo
 |-----------|-----------|
 | New cases |	4.2% (3.2-5.3) |
 | Previously treated cases |	7.3% (6.8-7.8) |
+-->
 
 Within such a context, it is crucial to monitor transmission patterns and ensure that patients are being treated with optimal drug regimens. Here, we analyse `r n_samps_total` whole genome sequences (WGS) of Pakistan *Mycobacterium tuberculosis* (*Mtb*) samples dating from `r first_year` to `r last_year`, using `r fmt(n_snps_total)` SNPs to infer a timed phylogenetic tree and to predict resistance to `r n_drugs_total` drugs. While our data included phenotypic tests of resistance for `r n_pheno_tests` drugs (`r pheno_test_names`), we also applied genotypic tests of drug resistance using TBprofiler [@Coll2015] to predict drug resistance from a database of ~17,000 WGS samples. 
 
@@ -449,7 +487,6 @@ A total of `r n_samps_total` *M. tuberculosis* WGS isolates from Pakistan were d
 
 Upon mapping the sequences, high average coverage was observed across the samples: XXX. A total of `r fmt(n_snps_total)` SNPs were identified, with XXX% found in single isolates. 
 
-
 Historically, *Mtb* samples from Pakistan belong predominantly to the CAS1-Delhi spoligotype family [@Demay2012] (see **Figure \@ref(fig:historical)**), which belongs to Lineage 3 [@Napier2020]. In our samples, Lineage 3 comprises `r lin_tab[lin_tab["Lineages"] == 3, "pc"]`% of the total samples, followed by Lineage 4 (n=`r n_lin_4`, `r pc_lin_4`%), Lineage 2 (n=`r n_lin_2`, `r pc_lin_2`%) and Lineage 1 (n=`r n_lin_1`, `r pc_lin_1`%) (see **Table \@ref(tab:lintable)** for a breakdown of samples by lineage and sublineage and see **Figure \@ref(fig:treeAllSamps)** for a full phylogenetic tree). 
 
 ### Evidence of transmission
@@ -460,10 +497,11 @@ Date of collection was recorded between the years `r first_year` and `r last_yea
 
 ### Drug susceptibility discrepancies
 
-We identified DSTs that disagreed with the genotypic drug resistance predictions. These discrepancies were classified into two kinds (relevant to novel mutations) - where the phenotypic test showed resistance and the genotypic test predicted sensitivity ("false negative" (FN)), and where the phenotypic test result was sensitive but the genotypic test predicted resistance ("false positive" (FP)). Within the clusters defined above, `r n_FN_samps` samples were FN for `r n_FN_drugs` (`r FN_drugs`) and `r n_FP_samps` samples were FP for `r n_FN_drugs` (`r FP_drugs`) (**Figure \@ref(fig:beasttreeszoom)(C)**).
+We identified DSTs that disagreed with the genotypic drug resistance predictions for all samples (n=`r n_samps_total`). These discrepancies were classified into two kinds (relevant to novel mutations) - where the phenotypic test showed resistance and the genotypic test predicted sensitivity ("false negative" (FN)), and where the phenotypic test result was sensitive but the genotypic test predicted resistance ("false positive" (FP)). Within the clusters defined above, `r n_FN_samps` samples were FN for `r n_FN_drugs` (`r FN_drugs`) and `r n_FP_samps` samples were FP for `r n_FN_drugs` (`r FP_drugs`) (**Figure \@ref(fig:beasttreeszoom)(C)**).
 
 ### Mutations underlying drug-resistance
 
+For FN samples (n=`r n_FN_samps`), **Table \@ref(tab:FNresultstable)** shows variants found in drug resistance-associated genes for `r n_FN_drugs` (`r FN_drugs`), that were previously unknown to be associated with each respective drug, potentially explaining discrepancies between DST and genotypic predictions. 
 
 
 ## Methods
@@ -482,7 +520,7 @@ Joint SNP calling was processed in gatk GenotypeGVCFs v4.1.3.0 [@Depristo2011]. 
 
 A multi-FASTA format file was created from the filtered SNP file and H37Rv reference fasta using bedtools makewindows v2.28.0 [@Quinlan2010] which in turn was used to construct a phylogenetic tree with IQ-TREE v1.6.12. Here, a general time reversible model with rate heterogeneity set to a discrete Gamma model and an ascertainment bias correction were used (parameters -m GTR+G+ASC), with 1000 bootstrap samples used to measure branch quality and robustness. [@Nguyen2015] [@Hoang2018] [@Tavare1986] [@Lewis2001] [@Yang1994].
 
-Pairwise distance matrices were calculated in Plink v1.90b4 [@Purcell2007]. Drug resistance and lineages were predicted *in silico* using TB-Profiler v2.4 [@Phelan2019] [@Coll2015] [@Napier2020]. In categorising samples as *Susceptible*, *Pre-MDR*...etc., the TB-Profiler predictions were used in place of missing or contradictory DST data. 
+Pairwise distance matrices were calculated in Plink v1.90b4 [@Purcell2007]. Drug resistance status, drug resistance-associated mutations, other mutations, and lineages were predicted *in silico* using TB-Profiler v2.4 [@Phelan2019] [@Coll2015] [@Napier2020]. In categorising samples as *Susceptible*, *Pre-MDR*, *MDR*, *Pre-XDR*, *XDR*, or *other*, the TB-Profiler predictions were used in place of missing or contradictory DST data. 
 
 BEAST v2.6.3 [@Bouckaert2019] was used to infer timed phylogenetic trees (see **Table \@ref(tab:beautiparams)** for parameters and settings). From the high ESS values (**Table \@ref(tab:beastlogtable)**) and the non-directional trace plots in (**Figure \@ref(fig:beastlogplots)**), effective sample size seems satisfactory and parameters have converged.
 
@@ -506,6 +544,12 @@ knitr::kable(dr_tab, caption = "Numbers and percentages of drug-resistant sample
 
 # knitr::kable(lin_tab, align = align)
 knitr::kable(lin_conv_tab, caption = "Table of main sublineages as proposed by Comas et al (2010) [@Comas2010] and Stucki et al (2016) [@Stucki2016] and predicted by Napier (2020) [@Napier2020], and their equivalents in 'Large Sequence Polymorphism' lineages[@GagneuxDeRiemer2006] and spoligotype families[@Demay2012].")
+
+```
+***
+```{r FNresultstable, echo=FALSE, out.width = "2500px"}
+
+knitr::kable(FN_results_table, caption = sprintf("Table of variants previously unknown to be associated with drug resistance (for each respective drug) among 'FN' drug susceptibility test samples (n=%s)", n_FN_samps))
 
 ```
 ***
@@ -898,9 +942,6 @@ gheatmap(dr_status_hm, drug_discrepancy_data,
 
 # dev.off()
 
-
-
-
 # # Loop through clusters
 # 
 # clusters_split <- split(beast_clusters, beast_clusters$cluster)
@@ -1005,6 +1046,45 @@ gheatmap(dr_status_hm, drug_discrepancy_data,
 # print(final_plot)
 # }
 # # dev.off()
+
+
+```
+
+
+```{r fulltree-FN-other-variants, echo=FALSE, out.width = "1500px", warning = F, message = F, cache=F, fig.show="hold", fig.cap=""}
+
+
+
+
+# Tree setup
+line_sz <- 0.25
+n <- length(tree_all_samps$tip.label)
+
+# Remove years from lineage data
+row.names(lin_data) <- unlist(lapply(strsplit(row.names(lin_data), "_"), function(x){ paste0(x[1:(length(x)-1)], collapse = "_") }))
+
+FN_ov_tree <- ggtree(tree_all_samps, size = line_sz)+
+  theme_tree2()+
+  coord_cartesian(ylim = c(0, n+(n*0.05))) +
+  scale_x_continuous(limits = c(0, 0.1))
+
+gheatmap(FN_ov_tree, lin_data,
+         width = 0.1,
+         # offset = offset,
+         color = NULL,
+         colnames_position = "top",
+         colnames_angle = angle, 
+         colnames_offset_y = 1,
+         hjust = 0,
+         font.size = 2) +
+  scale_fill_manual(values = lin_colours, breaks = names(lin_colours) ) +
+  labs(fill = "Lineage")+
+  legend_spec
+
+
+FN_results[order(FN_results$wgs_id), ]
+
+
 
 
 ```
