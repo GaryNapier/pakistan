@@ -1,5 +1,5 @@
 ---
-title: "Pakistan data summary"
+title: "Characterisation of drug-resistant Mycobacterium tuberculosis mutations and transmission in Pakistan"
 output: 
   bookdown::html_document2: 
     fig_caption: yes
@@ -115,7 +115,7 @@ dr_genes_file <- paste0(db_path, "tbdb.bed")
 dist_file <- paste0(dist_path, "PAKISTAN_ALL.dist.dist")
 dist_id_file <- paste0(dist_path, "PAKISTAN_ALL.dist.dist.id")
 # Trees
-tree_all_samps_file <- paste0(newick_path, "PAKISTAN_ALL.filt.val.gt.g.snps.fa.treefile")
+tree_all_samps_newick_file <- paste0(newick_path, "PAKISTAN_ALL.filt.val.gt.g.snps.fa.treefile")
 # Beast
 beauti_params_file <- paste0(methods_path, "beauti_parameters.csv")
 mcc_tree_file <- paste0(beast_results_path, "PAKISTAN_ALL.mcc.tree")
@@ -146,7 +146,7 @@ dr_genes <- read.delim(dr_genes_file, header = F)
 dist <- read.delim(dist_file, header = F)
 dist_id <- read.delim(dist_id_file, header = F)
 # Trees
-tree_all_samps <- read.newick(tree_all_samps_file)
+tree_all_samps <- read.newick(tree_all_samps_newick_file)
 # Beast
 beauti_params <- read.csv(beauti_params_file)
 mcc_tree_ape <- ape::read.nexus(mcc_tree_file)
@@ -446,16 +446,54 @@ row.names(FP_results_table) <- NULL
 ```
 
 
+| | |
+| ----------- | ----------- |
+|Gary Napier^1^,* | gary.napier@lshtm.ac.uk |
+|Anwar Sheed Khan^2^,^3^,*	|	anwar786kp@hotmail.com |
+|Muhammad Tahir Khan^4^ |	muhammad.tahir8@imbb.uol.edu.pk |
+|Sajid Ali^2^ | sajidjan@live.com |
+|Muhammad Qasim^2^ | qasim@kust.edu.pk |
+
+XXXXX Aga Khan group XXXX	
+
+| | |
+| ----------- | ----------- |
+|Susana Campino^1^ | susana.campino@lshtm.ac.uk |
+|Sajjad Ahmad^5^ | sajjadahmad793@yahoo.com |
+|Hazir Rahman^6^ | hazirrahman@hotmail.com |
+|Taj Ali Khan^5^,** | tajalikhan.ibms@kmu.edu.pk |
+|Jody E. Phelan^1^,** | jody.phelan@lshtm.ac.uk |
+|Taane G. Clark^1^,^7^,** | taane.clark@lshtm.ac.uk |
+
+XXX to be confirmed XXX
+
+^1^ Faculty of Infectious & Tropical Diseases, London School of Hygiene & Tropical Medicine, London, UK \
+^2^ Department of Microbiology, Kohat University of Science and Technology, Kohat, Pakistan; \
+^3^ Provincial Tuberculosis Reference, Laboratory Hayatabad Medical Complex, Peshawar, Pakistan; \
+^4^ Institute of Molecular Biology and Biotechnology (IMBB), The University of Lahore. KM, Defense Road, Lahore 58810, Pakistan \
+^5^ Institute of Basic medical Science Khyber Medical University, Peshawar KP, Pakistan \
+^6^ Department of Microbiology, Abdul Wali Khan University, Mardan, Pakistan \
+^7^ Faculty of Epidemiology and Population Health, London School of Hygiene & Tropical Medicine, London, UK \
 
 
-## Abstract
+\* Joint authors \
+\*\* Joint Correspondence: \
+Prof. Taane G. Clark, London School of Hygiene & Tropical Medicine, UK; taane.clark@lshtm.ac.uk
+Dr. Jody Phelan, London School of Hygiene & Tropical Medicine, UK; jody.phelan@lshtm.ac.uk
+Dr. Taj ali Khan, Institute of Basic medical Science Khyber Medical University Peshawar KP Pakistan; tajalikhan.ibms@kmu.edu.pk
 
 
 
-## Introduction
+
+## ABSTRACT
+
+\newpage
 
 
-Pakistan is a high-burden TB country, being one of eight countries accounting for two-thirds of the global total TB instance (5.7%). In 2019 it had a  total TB incidence of 570,000 and 43,900 deaths [@WHO_2020]. Furthermore, HIV prevalence in the country is increasing (0.1 prevalence 2019), which compounds the problem of TB infections and treatment [@UNAIDS_2020] (5,100 cases and 1,900 HIV-positive mortality cases in 2019). There is also a high burden for multidrug-resistance (MDR-TB, resistance to isoniazid and rifampicin treatments), with 25,000 cases in the latest WHO estimates. 
+## INTRODUCTION
+
+
+Tuberculosis disease (TB), caused by bacteria in the Mycobacterium tuberculosis (Mtb) complex, is a major global public health problem. Pakistan is a high-burden TB country, being one of eight countries accounting for two-thirds of the global total TB instance (5.7%). In 2019 it had a  total TB incidence of 570,000 and 43,900 deaths [@WHO_2020]. Furthermore, HIV prevalence in the country is increasing (0.1 prevalence 2019), which compounds the problem of TB infections and treatment [@UNAIDS_2020] (5,100 cases and 1,900 HIV-positive mortality cases in 2019). There is also a high burden for multidrug-resistance (MDR-TB, resistance to isoniazid and rifampicin treatments), with 25,000 cases in the latest WHO estimates. 
 
 <!--
 **Estimates of TB burden, 2019** 
@@ -479,7 +517,7 @@ Pakistan is a high-burden TB country, being one of eight countries accounting fo
 Within such a context, it is crucial to monitor transmission patterns and ensure that patients are being treated with optimal drug regimens. Here, we analyse `r n_samps_total` whole genome sequences (WGS) of Pakistan *Mycobacterium tuberculosis* (*Mtb*) samples dating from `r first_year` to `r last_year`, using `r fmt(n_snps_total)` SNPs to infer a timed phylogenetic tree and to predict resistance to `r n_drugs_total` drugs. While our data included phenotypic tests of resistance for `r n_pheno_tests` drugs (`r pheno_test_names`), we also applied genotypic tests of drug resistance using TBprofiler [@Coll2015] to predict drug resistance from a database of ~17,000 WGS samples. 
 
 
-## Results and Discussion
+## RESULTS
 
 ### Clinical isolates and phylogeny
 
@@ -503,8 +541,10 @@ We identified DSTs that disagreed with the genotypic drug resistance predictions
 
 For FN samples (n=`r n_FN_samps`), **Table \@ref(tab:FNresultstable)** shows variants found in drug resistance-associated genes for `r n_FN_drugs` (`r FN_drugs`), that were previously unknown to be associated with each respective drug, potentially explaining discrepancies between DST and genotypic predictions. 
 
+## DISCUSSION
 
-## Methods
+
+## METHODS
 
 <!--
 ```{r methods, echo=FALSE, out.width = "1500px"}
@@ -513,6 +553,8 @@ kable(methods_table)
 
 ```
 -->
+
+### Sequence data and processing
 
 Sequences were downloaded from the European Nucleotide Archive (ENA www.ebi.ac.uk/ena/) and quality inspection of reads assessed in fastQC (version 0.11.9, www.bioinformatics.babraham.ac.uk/projects/fastqc/). Reads were trimmed to remove low-quality sequences in Trimmomatic v0.39 [@Bolger2014] and aligned to the H37Rv reference genome (AL123456) with BWA mem v0.7.17 [@Li2013], [@Cole1998]. 
 
