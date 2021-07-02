@@ -34,14 +34,14 @@ output_path <- "~/Documents/pakistan/metadata/"
 # tb_profiler_file <- "metadata/tbprofiler_results.pakistan.txt"
 
 metadata_file <- args[1]
-pakistan_data_file <- args[2]
-tb_profiler_file <- args[3]
-pakistan_data_outfile <- args[4]
+# pakistan_data_file <- args[2]
+tb_profiler_file <- args[2]
+pakistan_data_outfile <- args[3]
 
 # Read in data ----
 
 metadata <- read.csv(metadata_file)
-pakistan_data <- read.csv(pakistan_data_file)
+# pakistan_data <- read.csv(pakistan_data_file)
 tb_profiler_data <- read.delim(tb_profiler_file)
 
 # Subset ----
@@ -51,16 +51,16 @@ metadata <- subset(metadata, country_code == "pk")
 # Merge in Pakistan unpublished data ---- 
 
 # Rename cols
-pakistan_data <- dplyr::rename(pakistan_data, genotypic_drtype = drtype)
+# pakistan_data <- dplyr::rename(pakistan_data, genotypic_drtype = drtype)
 metadata <- dplyr::rename(metadata, para_aminosalicylic_acid = para.aminosalicylic_acid)
 tb_profiler_data <- dplyr::rename(tb_profiler_data, para_aminosalicylic_acid = para.aminosalicylic_acid)
 
 # Add in country code and country columns:
-pakistan_data$country_code <- rep("pk", nrow(pakistan_data))
-pakistan_data$country <- rep("Pakistan", nrow(pakistan_data))
+# pakistan_data$country_code <- rep("pk", nrow(pakistan_data))
+# pakistan_data$country <- rep("Pakistan", nrow(pakistan_data))
 
 # rbind together both datasets - n.b. plyr::rbind.fill function
-metadata <- plyr::rbind.fill(metadata, pakistan_data)
+# metadata <- plyr::rbind.fill(metadata, pakistan_data)
 
 # Study accession codes ----
 
