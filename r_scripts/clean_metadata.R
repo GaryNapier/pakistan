@@ -52,7 +52,7 @@ metadata <- subset(metadata, country_code == "pk")
 
 # Rename cols
 # pakistan_data <- dplyr::rename(pakistan_data, genotypic_drtype = drtype)
-metadata <- dplyr::rename(metadata, para_aminosalicylic_acid = para.aminosalicylic_acid)
+# metadata <- dplyr::rename(metadata, para_aminosalicylic_acid = para.aminosalicylic_acid)
 tb_profiler_data <- dplyr::rename(tb_profiler_data, para_aminosalicylic_acid = para.aminosalicylic_acid)
 
 # Add in country code and country columns:
