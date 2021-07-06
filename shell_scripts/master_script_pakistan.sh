@@ -26,7 +26,7 @@ printf "\n"
 cd ~/pakistan
 
 # Variables
-date_change=false
+reset_all=false
 study_accession=PAKISTAN_ALL
 gvcf_file_suffix=.g.vcf.gz
 date_column=year
@@ -52,49 +52,14 @@ beast_results_dir=beast_results/
 beast_xml_dir=beast_xml/
 transphylo_results_dir=transphylo_results/
 
-# Make directories if not exist
-if [ ! -d ${local_metadata_dir} ]; then
-    mkdir ${local_metadata_dir}
-fi
 
-if [ ! -d ${dist_and_pca_dir} ]; then
-    mkdir ${dist_and_pca_dir}
-fi
-
-if [ ! -d ${fasta_dir} ]; then
-    mkdir ${fasta_dir}
-fi
-
-if [ ! -d ${newick_output_dir} ]; then
-    mkdir ${newick_output_dir}
-fi
-
-if [ ! -d ${itol_dir} ]; then
-    mkdir ${itol_dir}
-fi
-
-if [ ! -d ${tmp_dir} ]; then
-    mkdir ${tmp_dir}
-fi
-
-if [ ! -d ${beast_results_dir} ]; then
-    mkdir ${beast_results_dir}
-fi
-
-if [ ! -d ${beast_xml_dir} ]; then
-    mkdir ${beast_xml_dir}
-fi
-
-if [ ! -d ${transphylo_results_dir} ]; then
-    mkdir ${transphylo_results_dir}
-fi
 
 
 # Files
 
 # Existing files
 main_metadata_file=${main_metadata_dir}tb_data_18_02_2021.csv
-pakistan_unpublished_metadata=${main_metadata_dir}pakistan_data_non_mixed.csv
+# pakistan_unpublished_metadata=${main_metadata_dir}pakistan_data_non_mixed.csv
 ref_fasta_file=${ref_dir}MTB-h37rv_asm19595v2-eg18.fa
 ex_loci_file=${ref_dir}excluded_loci_rep_regions_dr_regions.bed
 
@@ -147,30 +112,92 @@ tbprofiler_variants_file=${local_metadata_dir}${study_accession}.other_variants.
 
 # ------------------------------------------------------------------------------
 
-# Remove files that change if the dates change
+# RESET!!!!!!
 
-#  set date_change=true in variables section
+#  set reset_all=true in variables section
 
-if [ ${date_change} = true ] ; then
+if [ ${reset_all} = true ] ; then
     echo "-------------------------------------------------"
-    echo "Removing files that change when the dates change"
+    echo "Removing files - RESET ALL"
     echo "-------------------------------------------------"
     set -x
-    rm -f ${pakistan_metadata_file} \
-     ${dated_samps_vcf} \
-     ${dated_samps_vcf_unzip} \
-     ${fasta_dated_samples_file} \
-     ${fasta_file_annotated_with_dates} \
-     ${xml_file} \
-     ${xml_file_plus_const} \
-     ${new_beast_log_file} \
-     ${new_beast_trees_file} \
-     ${new_beast_state_file} \
-     ${mcc_tree} \
-     ${transphylo_results_dir}*
+    # Remove directories
+    rm -rf ${tmp_dir}
+    rm -rf genomicsDB
+    # metadata
+    rm -f ${pakistan_metadata_file}
+    rm -f ${pakistan_metadata_file_dated}
+    # vcf
+    rm -f ${vcf_dir}${study_accession}*
+    # dist
+    rm -f ${dist_file}
+    rm -f ${dist_id_file}
+    # fasta
+    rm -f ${unfilt_fasta_file}
+    # iqtree
+    rm -f ${iqtree_file}
+    rm -f ${treefile}
+    # itol
+    rm -f ${itol_dir}*
+    # fasta with dates
+    rm -f ${fasta_dated_samples_file}
+    rm -f ${fasta_file_annotated_with_dates}
+    # Beast
+    rm -f ${xml_file}
+    rm -f ${xml_file_plus_const}
+    rm -f ${new_beast_log_file}
+    rm -f ${new_beast_trees_file}
+    rm -f ${new_beast_state_file}
+    rm -f ${mcc_tree}
+    rm -f ${beast_clusters_file}
+    # variants
+    rm -f ${tbprofiler_variants_file}
+
     set +x
     printf "\n"
 fi
+
+
+# ------------------------------------------------------------------------------
+
+# Make directories if not exist
+if [ ! -d ${local_metadata_dir} ]; then
+    mkdir ${local_metadata_dir}
+fi
+
+if [ ! -d ${dist_and_pca_dir} ]; then
+    mkdir ${dist_and_pca_dir}
+fi
+
+if [ ! -d ${fasta_dir} ]; then
+    mkdir ${fasta_dir}
+fi
+
+if [ ! -d ${newick_output_dir} ]; then
+    mkdir ${newick_output_dir}
+fi
+
+if [ ! -d ${itol_dir} ]; then
+    mkdir ${itol_dir}
+fi
+
+if [ ! -d ${tmp_dir} ]; then
+    mkdir ${tmp_dir}
+fi
+
+if [ ! -d ${beast_results_dir} ]; then
+    mkdir ${beast_results_dir}
+fi
+
+if [ ! -d ${beast_xml_dir} ]; then
+    mkdir ${beast_xml_dir}
+fi
+
+if [ ! -d ${transphylo_results_dir} ]; then
+    mkdir ${transphylo_results_dir}
+fi
+
+
 
 # ------------------------------------------------------------------------------
 
@@ -185,8 +212,8 @@ if [ ! -f ${pakistan_metadata_file} ]; then
     echo "Running r_scripts/clean_metadata.R - outputs ${pakistan_metadata_file}"
     printf "\n"
     set -x
-    # Rscript r_scripts/clean_metadata.R    <main_metadata_file>   <other_metadata_file>            <tbprofiler_results.pakistan.txt> <outfile>
-    Rscript r_scripts/clean_metadata.R      ${main_metadata_file}  ${pakistan_unpublished_metadata} ${tbprofiler_file}                ${pakistan_metadata_file}
+    # Rscript r_scripts/clean_metadata.R    <main_metadata_file>    <tbprofiler_results.pakistan.txt> <outfile>
+    Rscript r_scripts/clean_metadata.R      ${main_metadata_file}   ${tbprofiler_file}                ${pakistan_metadata_file}
     set +x
     echo "------------------------------------------------------------------------------"
     printf "\n"
