@@ -12,6 +12,7 @@ args <- commandArgs(trailingOnly=TRUE)
 library(plyr)
 library(dplyr)
 library(stringr)
+library(lubridate)
 
 heaD <- function(x, ...){
   head(x, ...)
@@ -253,6 +254,11 @@ metadata$collection_date <- ifelse((is.na(metadata$collection_date) | metadata$c
 
 # Add year column
 metadata$year <- stringr::str_extract(metadata$collection_date, pattern = "\\d{4}")
+
+# Add decimal of year to year col
+options(digits = 6)
+month_dec <- unlist(lapply(str_split(metadata$collection_date, "\\/"), function(x) {as.numeric(x[2])/12 }))
+as.numeric(metadata$year)+month_dec
 
 # Add id/year col
 metadata$id_year <- paste0(metadata$wgs_id, "_", metadata$year)
