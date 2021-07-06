@@ -1,7 +1,7 @@
 ---
 title: "Characterisation of drug-resistant Mycobacterium tuberculosis mutations and transmission in Pakistan"
 output: 
-  bookdown::html_document2: 
+  bookdown::word_document2: 
     fig_caption: yes
     table_caption: yes
     number_sections: no
@@ -81,7 +81,7 @@ drugs <- c("rifampicin", "isoniazid", "ethambutol", "pyrazinamide", "streptomyci
              "clarithromycin", "clofazimine", "bedaquiline", "linezolid", "rifabutin", "delamanid")
 align <- c("l", "r", "r")
 col <- "cornflowerblue"
-threshold <- 50
+threshold <- 10
 plot_text_sz <- 0.5
 main_cex <- 1.5
 
@@ -119,7 +119,7 @@ tree_all_samps_newick_file <- paste0(newick_path, "PAKISTAN_ALL.filt.val.gt.g.sn
 # Beast
 beauti_params_file <- paste0(methods_path, "beauti_parameters.csv")
 mcc_tree_file <- paste0(beast_results_path, "PAKISTAN_ALL.mcc.tree")
-beast_log_file <- paste0(beast_results_path, "PAKISTAN_ALL.log")
+beast_log_file <- paste0(beast_results_path, "PAKISTAN_ALL.dated.log")
 beast_clusters_file <- paste0(metadata_path, "PAKISTAN_ALL.clusters.csv")
 # Drug resistance
 other_variants_file <- paste0(metadata_path, "PAKISTAN_ALL.other_variants.txt")
@@ -211,8 +211,24 @@ row.names(dist) <- dist_id[, 1]
 dist <- dist/2
 # Get lower only
 lower_dist <- dist[lower.tri(dist)]
-
 dist_dated <- dist[dated_samps, dated_samps]
+
+
+
+
+# colnames(dist) %in% dated_samps
+# 
+# 
+# dated_samps %in% colnames(dist)
+# 
+# 
+# "ERR5897118" %in% colnames(dist)
+# 
+# 
+# sort(colnames(dist))
+
+
+
 # Convert to 'distance matrix' (extract lower triangle)
 dist_dated[upper.tri(dist_dated, diag = T)] <- 0
 lower_dist_dated <- dist_dated[lower.tri(dist_dated)]
@@ -264,10 +280,26 @@ pc_lin_4 <- lin_tab[lin_tab["Lineages"] == 4, "pc"]
 lin_conv <- merge(metadata[c("main_lineage", "sub_lineage")], lineage_conversions, 
                   by.x = "sub_lineage", by.y = "mtbc_lineage", 
                   all.x = T, sort = F)
-lin_conv_tab <- reshape2::dcast(lin_conv, main_lineage + sub_lineage + lsp_lineage + spoligotype_family + rd_number ~ "N",
+lin_conv_tab <- reshape2::dcast(lin_conv, sub_lineage + lsp_lineage + spoligotype_family + rd_number ~ "N",
                                 value.var = "sub_lineage", fun.aggregate = length)
-names(lin_conv_tab) <- c("Main lineage", "Sub lineage", "LSP lineage", "Spoligotype family", "RD number", "N")
+lin_conv_tab$pc <- (lin_conv_tab$N / sum(lin_conv_tab$N)) * 100
+names(lin_conv_tab) <- c("Lineage", "LSP lineage", "Spoligotype family", "Region of difference no.", "N", "%")
+lin_conv_tab <- lin_conv_tab[order(lin_conv_tab$N, decreasing = T),]
 
+
+```
+
+```{r wrangle-years, echo=F}
+
+year_tab <- reshape2::dcast(metadata, year ~ "N", value.var = id_col, fun.aggregate = length)
+year_tab$pc <- round((year_tab$N/sum(year_tab$N)) * 100, rnd)
+
+```
+
+```{r wrangle-location, echo=F}
+
+location_tab <- reshape2::dcast(metadata, location ~ "N", value.var = id_col, fun.aggregate = length)
+location_tab$pc <- round((location_tab$N/sum(location_tab$N)) * 100, rnd)
 
 ```
 
@@ -317,8 +349,6 @@ dr_tab <- merge(dr_tab, tbp_data, by = "drug", all = T, sort = F)
 names(dr_tab) <- c("Drug", "N DST resistant", "%", "N genotypic resistant", "%")
 
 
-
-
 # DR status
 # Desired order of DR cols
 dr_vals <- c("Sensitive", "Pre-MDR", "MDR", "Pre-XDR", "XDR", "Other") 
@@ -354,6 +384,17 @@ FP <- "pheno_sens; geno_res"
 discrepancy_data <- metadata[, grep("_test", names(metadata), value = T)]
 FN_res <- apply(discrepancy_data, 2, function(x){sum(x == FN)})
 FP_res <- apply(discrepancy_data, 2, function(x){sum(x == FP)})
+
+
+
+# dd <- metadata[metadata$wgs_id == "ERR3335799", grep("_test", names(metadata), value = T)]
+# apply(dd, 2, function(x){sum(x == FN)})
+
+
+
+
+
+
 discrepancy_data$wgs_id <- metadata$wgs_id # Add ids in for the other variants stuff
 n_FN_samps <- sum(FN_res)
 n_FP_samps <- sum(FP_res)
@@ -445,6 +486,32 @@ row.names(FP_results_table) <- NULL
 
 ```
 
+```{r wrangle-loc-lin-dr-dates, echo = F}
+
+# "Table 1 – locations, lineages, drug resistance, dates of collection…"
+
+table_1 <- data.frame()
+table_1 <- rbind(table_1, 
+                 setNames(lin_tab, names(table_1)), 
+                 setNames(dr_status_tab, names(table_1)), 
+                 setNames(dr_tab[, c("Drug", "N genotypic resistant", "%")], names(table_1)), 
+                 setNames(year_tab, names(table_1)), 
+                 setNames(location_tab, names(table_1)))
+
+names(table_1) <- c("Characteristic", "N", "%")
+
+table_1$Category <- c(rep("Lineage", nrow(lin_tab)), 
+                      rep("DR status", nrow(dr_status_tab)), 
+                      rep("Predicted drug resistance", nrow(dr_tab)), 
+                      rep("Collection year", nrow(year_tab)),
+                      rep("Region", nrow(location_tab)))
+
+table_1 <- table_1[, c( "Category", "Characteristic", "N", "%")]
+
+table_1 <- table_1[complete.cases(table_1), ]
+
+```
+
 
 | | |
 | ----------- | ----------- |
@@ -514,14 +581,14 @@ Tuberculosis disease (TB), caused by bacteria in the Mycobacterium tuberculosis 
 | Previously treated cases |	7.3% (6.8-7.8) |
 -->
 
-Within such a context, it is crucial to monitor transmission patterns and ensure that patients are being treated with optimal drug regimens. Here, we analyse `r n_samps_total` whole genome sequences (WGS) of Pakistan *Mycobacterium tuberculosis* (*Mtb*) samples dating from `r first_year` to `r last_year`, using `r fmt(n_snps_total)` SNPs to infer a timed phylogenetic tree and to predict resistance to `r n_drugs_total` drugs. While our data included phenotypic tests of resistance for `r n_pheno_tests` drugs (`r pheno_test_names`), we also applied genotypic tests of drug resistance using TBprofiler [@Coll2015] to predict drug resistance from a database of ~17,000 WGS samples. 
+Whole genome sequencing is revolutionizing our understanding of drug resistance and clinical management, as well as transmission patterns, thereby can assist disease control. Within such a context, it is crucial to monitor transmission patterns and ensure that patients are being treated with optimal drug regimens. Here, we analyse `r n_samps_total` whole genome sequences (WGS) of Pakistan *Mycobacterium tuberculosis* (*Mtb*) samples dating from `r first_year` to `r last_year`, using `r fmt(n_snps_total)` SNPs to infer a timed phylogenetic tree and to predict resistance to `r n_drugs_total` drugs. While our data included phenotypic tests of resistance for `r n_pheno_tests` drugs (`r pheno_test_names`), we also applied genotypic tests of drug resistance using TBprofiler [@Coll2015] to predict drug resistance from a database of ~34,000 WGS samples. 
 
 
 ## RESULTS
 
 ### Clinical isolates and phylogeny
 
-A total of `r n_samps_total` *M. tuberculosis* WGS isolates from Pakistan were downloaded from the European Nucleotide Archive (ENA). The samples were cultured, whole-genome sequenced, and drug susceptibility testing (DST) was applied for `r n_pheno_tests` drugs. Combining the results of the DST and the genotypic prediction tests (see Methods), `r n_sens` (`r pc_sens`%) samples were pan-sensitive, `r n_mdr` (`r pc_mdr`%) classed as MDR (resistant to both rifampicin and isoniazid), and `r n_xdr` (`r pc_xdr`%) were XDR (resistant to isoniazid and rifampicin, plus any fluoroquinolone and at least one of three injectable second-line drugs). See **Table \@ref(tab:drTableLin)** for Pre-MDR, Pre-XDR figures and drug resistance categories by lineage. 
+A total of `r n_samps_total` *M. tuberculosis* WGS isolates from Pakistan were downloaded from the European Nucleotide Archive (ENA). The samples were cultured, whole-genome sequenced, and drug susceptibility testing (DST) was applied for `r n_pheno_tests` drugs. Combining the results of the DST and the genotypic prediction tests (see **Methods**), `r n_sens` (`r pc_sens`%) samples were pan-sensitive, `r n_mdr` (`r pc_mdr`%) classed as MDR-TB (resistant to both rifampicin and isoniazid), and `r n_xdr` (`r pc_xdr`%) were XDR (resistant to isoniazid and rifampicin, plus any fluoroquinolone and at least one of three injectable second-line drugs). See **Table \@ref(tab:drTableLin)** for Pre-MDR, Pre-XDR figures and drug resistance categories by lineage. 
 
 Upon mapping the sequences, high average coverage was observed across the samples: XXX. A total of `r fmt(n_snps_total)` SNPs were identified, with XXX% found in single isolates. 
 
@@ -529,7 +596,7 @@ Historically, *Mtb* samples from Pakistan belong predominantly to the CAS1-Delhi
 
 ### Evidence of transmission
 
-Median pairwise SNP distances was `r round(median(lower_dist), rnd)` for all `r n_samps_total` samples (**Figure \@ref(fig:boxdistance)**). For all dated samples (n=`r n_dated_samps`), the median SNP distance was `r round(median(lower_dist_dated), rnd)` (**Figure \@ref(fig:boxdistance)**). With a threshold of `r threshold` SNPs for the dated samples, `r n_clusters_cut_tree` clusters formed, where a cluster contains at least two samples (**Figure \@ref(fig:clusterstreedated)**). **Figure \@ref(fig:distancedatedqgraph)** shows a graph of SNP distance connections among all dated samples within the `r threshold`-threshold SNP distance.  
+Median (range) pairwise SNP distances was `r round(median(lower_dist), rnd)` (`r min(lower_dist)`-`r max(lower_dist)`) for all `r n_samps_total` samples (**Figure \@ref(fig:boxdistance)**). For all dated samples (n=`r n_dated_samps`), the median SNP distance was `r round(median(lower_dist_dated), rnd)` (**Figure \@ref(fig:boxdistance)**). With a threshold of `r threshold` SNPs for the dated samples, `r n_clusters_cut_tree` clusters formed, where a cluster contains at least two samples (**Figure \@ref(fig:clusterstreedated)**). **Figure \@ref(fig:distancedatedqgraph)** shows a graph of SNP distance connections among all dated samples within the `r threshold`-threshold SNP distance.  
 
 Date of collection was recorded between the years `r first_year` and `r last_year` (`r last_year - first_year` years; **Figure \@ref(fig:dates)**) for `r n_dated_samps` samples, which represent probable closely-related, if not potiential transmission cases. A dated phylogenetic tree was constructed with these samples (**Figures \@ref(fig:beasttrees)**), and when cut at `r cutoff_year` years before the last sample date, `r n_beast_clusters` clusters (n=`r n_beast_cluster_samps`) were inferred (**Figures \@ref(fig:beasttreeszoom)**). 
 
@@ -570,6 +637,12 @@ BEAST v2.6.3 [@Bouckaert2019] was used to infer timed phylogenetic trees (see **
 
 ### Tables
 
+```{r table-1, echo=FALSE, out.width = "2000px"}
+
+knitr::kable(table_1, row.names = NA, rownames.print = F, caption = sprintf("*Mycobacterium tuberculosis* samples (N = %s)", n_samps_total))
+
+```
+
 ```{r drTableLin, echo=FALSE, out.width = "2000px"}
 
 knitr::kable(dr_lin_tab, row.names = NA, rownames.print = F, caption = "Drug resistance categories by lineage. See *Methods* section for criteria of categories.")
@@ -585,7 +658,9 @@ knitr::kable(dr_tab, caption = "Numbers and percentages of drug-resistant sample
 ```{r lintable, echo=FALSE, out.width = "2000px"}
 
 # knitr::kable(lin_tab, align = align)
-knitr::kable(lin_conv_tab, caption = "Table of main sublineages as proposed by Comas et al (2010) [@Comas2010] and Stucki et al (2016) [@Stucki2016] and predicted by Napier (2020) [@Napier2020], and their equivalents in 'Large Sequence Polymorphism' lineages[@GagneuxDeRiemer2006] and spoligotype families[@Demay2012].")
+# cap <- "Table of main sublineages as proposed by Comas et al (2010) [@Comas2010] and Stucki et al (2016) [@Stucki2016] and predicted by Napier (2020) [@Napier2020], and their equivalents in 'Large Sequence Polymorphism' lineages[@GagneuxDeRiemer2006] and spoligotype families[@Demay2012]."
+cap <- "Strain-types"
+knitr::kable(lin_conv_tab, caption = cap)
 
 ```
 ***
@@ -741,6 +816,7 @@ rownames(metadata) <- metadata$id_year
 # Subset metadata
 lin_data <- metadata[, "main_lineage", drop = F]
 dr_status_data <- metadata[, "dr_status", drop = F]
+loc_data <- metadata[, "location", drop = F]
 dr_data <- dplyr::select(metadata, rifampicin:delamanid)
 dr_tbp_data <- dplyr::select(metadata, rifampicin_tbp:delamanid_tbp)
 drug_discrepancy_data <- dplyr::select(metadata, rifampicin_test:delamanid_test)
@@ -758,6 +834,7 @@ lin_data <- data.frame(apply(lin_data, 2, as.factor))
 # Change col names
 colnames(dr_status_data) <- "DR status"
 colnames(lin_data) <- "Lineage"
+colnames(loc_data) <- "Location"
 
 # Define cols for each dataset
 alpha <- 0.9
@@ -1092,26 +1169,29 @@ gheatmap(dr_status_hm, drug_discrepancy_data,
 
 ```
 
+***
 
-```{r fulltree-FN-other-variants, echo=FALSE, out.width = "1500px", warning = F, message = F, cache=F, fig.show="hold", fig.cap=""}
-
-
-
+```{r ggtree-all-samps, echo=FALSE, out.width = "1500px", warning = F, message = F, cache=F, fig.show="hold", fig.cap=""}
 
 # Tree setup
 line_sz <- 0.25
 n <- length(tree_all_samps$tip.label)
+width <- 0.1
 
 # Remove years from lineage data
 row.names(lin_data) <- unlist(lapply(strsplit(row.names(lin_data), "_"), function(x){ paste0(x[1:(length(x)-1)], collapse = "_") }))
 
-FN_ov_tree <- ggtree(tree_all_samps, size = line_sz)+
-  theme_tree2()+
-  coord_cartesian(ylim = c(0, n+(n*0.05))) +
-  scale_x_continuous(limits = c(0, 0.1))
+# Remove years from DR data 
+row.names(dr_status_data) <- unlist(lapply(strsplit(row.names(dr_status_data), "_"), function(x){ paste0(x[1:(length(x)-1)], collapse = "_") }))
 
-gheatmap(FN_ov_tree, lin_data,
-         width = 0.1,
+ggtree_all_samps <- ggtree(tree_all_samps, size = line_sz, layout="circular") 
+  # theme_tree2() +
+  # coord_cartesian(ylim = c(0, n+(n*0.05))) +
+  # scale_x_continuous(limits = c(0, 0.1))
+
+# Add lin data
+lin_hm <- gheatmap(ggtree_all_samps, lin_data,
+         width = width,
          # offset = offset,
          color = NULL,
          colnames_position = "top",
@@ -1123,11 +1203,29 @@ gheatmap(FN_ov_tree, lin_data,
   labs(fill = "Lineage")+
   legend_spec
 
+# Do this to add new gheatmap for some reason
+# See "7.3.1 Visualize tree with multiple associated matrix" https://yulab-smu.top/treedata-book/chapter7.html
+lin_hm <- lin_hm + ggnewscale::new_scale_fill()
 
-FN_results[order(FN_results$wgs_id), ]
+# Add DR status
+dr_status_hm <- gheatmap(lin_hm, dr_status_data,
+                   width = width,
+                   offset = 0.001 * 2,
+                   color = NULL,
+                   colnames_position = "top",
+                   colnames_angle = angle, colnames_offset_y = 1,
+                   hjust = 0,
+                   font.size = 2) +
+  scale_fill_manual(values = dr_status_colours, breaks = names(dr_status_colours) )+
+  labs(fill = "DR status")+
+  legend_spec
+
+dr_status_hm <- lin_hm + ggnewscale::new_scale_fill()
 
 
 
+
+# FN_results[order(FN_results$wgs_id), ]
 
 ```
 

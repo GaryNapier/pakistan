@@ -28,10 +28,10 @@ output_path <- "~/Documents/pakistan/metadata/"
 
 # Files ----
 
-# metadata_file <- paste0(metadata_path, "tb_data_18_02_2021.csv")
-# pakistan_data_file <- paste0(metadata_path, "pakistan_data_non_mixed.csv")
-# pakistan_data_outfile <- paste0(output_path, "pakistan_metadata.csv")
-# tb_profiler_file <- "metadata/tbprofiler_results.pakistan.txt"
+metadata_file <- paste0(metadata_path, "tb_data_18_02_2021.csv")
+pakistan_data_file <- paste0(metadata_path, "pakistan_data_non_mixed.csv")
+pakistan_data_outfile <- paste0(output_path, "pakistan_metadata.csv")
+tb_profiler_file <- "metadata/tbprofiler_results.pakistan.txt"
 
 metadata_file <- args[1]
 # pakistan_data_file <- args[2]
@@ -48,12 +48,17 @@ tb_profiler_data <- read.delim(tb_profiler_file)
 
 metadata <- subset(metadata, country_code == "pk")
 
-# Merge in Pakistan unpublished data ---- 
+# Clean ---- 
 
 # Rename cols
 # pakistan_data <- dplyr::rename(pakistan_data, genotypic_drtype = drtype)
 # metadata <- dplyr::rename(metadata, para_aminosalicylic_acid = para.aminosalicylic_acid)
 tb_profiler_data <- dplyr::rename(tb_profiler_data, para_aminosalicylic_acid = para.aminosalicylic_acid)
+
+# Sort out the sample names with a conditional lookup
+for(id in 1:nrow(tb_profiler_data)){
+  tb_profiler_data$sample[tb_profiler_data$sample %in% metadata$sample_alias[id]] <- metadata$wgs_id[id]
+}
 
 # Add in country code and country columns:
 # pakistan_data$country_code <- rep("pk", nrow(pakistan_data))
@@ -146,7 +151,6 @@ metadata$dr_status <- dr_status
 # Clean DR status - bring across genotypic if na in the clinical data
 metadata$dr_status <- ifelse(is.na(metadata$dr_status), metadata$genotypic_drtype, metadata$dr_status)
 
-
 # Individual drugs ----
 
 # Get discrepancies between phenotypic tests (from original metadata) and genotypic (tbprofiler)
@@ -155,9 +159,11 @@ metadata$dr_status <- ifelse(is.na(metadata$dr_status), metadata$genotypic_drtyp
 drugs_intersect <- intersect(intersect(names(tb_profiler_data), names(metadata)), drugs)
 x <- metadata[, c("wgs_id", drugs_intersect)] 
 y <- tb_profiler_data[, c("sample", drugs_intersect)]
+
 # Merge on id
-drug_df <- merge(x, y, by.x = "wgs_id", by.y = "sample", 
+drug_df <- merge(x, y, by.x = "wgs_id", by.y = "sample",
                  all.x = T, sort = F)
+
 drug_names_df <- names(drug_df)[names(drug_df) != "wgs_id"]
 
 # Loop through drugs in common (cols), find pairs and do tests of agreement between phenotyic and genotypic drug resistance
