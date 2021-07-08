@@ -1,7 +1,7 @@
 ---
 title: "Characterisation of drug-resistant Mycobacterium tuberculosis mutations and transmission in Pakistan"
 output: 
-  bookdown::word_document2: 
+  bookdown::html_document2: 
     fig_caption: yes
     table_caption: yes
     number_sections: no
@@ -10,6 +10,8 @@ csl: biomed-central.csl
 ---
 
 ```{r setup, include=FALSE}
+
+# SETUP ----
 
 knitr::opts_chunk$set(echo = F)
 library(knitr)
@@ -26,6 +28,8 @@ library(treeio)
 library(scales)
 library(gplots)
 library(RColorBrewer)
+library(randomcoloR)
+library(usedist)
 knitr::opts_chunk$set(echo = F)
 # options(scipen=1, digits=2)
 options(scipen=999, digits = 3)
@@ -35,7 +39,7 @@ table_font_sz <- 8
 
 ```{r functions, echo = F}
 
-# Functions ----
+# FUNCTIONS ----
 
 heaD <- function(x,...){
   head(x, ...)
@@ -72,7 +76,10 @@ log10_ceiling <- function(x) {
 
 ```{r variables, echo = F}
 
-# Variables ----
+
+# VARIABLES ----
+
+
 id_col <- "wgs_id"
 rnd <- 2
 drugs <- c("rifampicin", "isoniazid", "ethambutol", "pyrazinamide", "streptomycin", 
@@ -89,7 +96,9 @@ main_cex <- 1.5
 
 ```{r paths, echo = F}
 
-# Paths ----
+
+# PATHS ----
+
 
 methods_path <- "../methods/"
 metadata_path <- "../metadata/"
@@ -103,7 +112,9 @@ beast_results_path <- "../beast_results/"
 
 ```{r files, echo = F}
 
-# Files ----
+
+# FILES ----
+
 
 # Metadata
 metadata_file <- paste0(metadata_path, "pakistan_metadata.csv")
@@ -132,9 +143,11 @@ methods_file <- paste0(methods_path, "pakistan_methods.tsv")
 
 ```
 
-```{r read_in_data, echo = F}
+```{r read_in_data, echo = F, warning=F}
 
-# Read in data ----
+
+# READ IN DATA ----
+
 
 # Metadata
 metadata <- read.csv(metadata_file)
@@ -160,9 +173,11 @@ methods_table <- read.table(file = methods_file, sep = '\t', header = TRUE)
 
 ```
 
-```{r basic_numbers, echo = F}
+```{r basic-wrangling, echo = F}
 
-# Basic numbers, basic wrangling, setup for plots ----
+
+# BASIC WRANGLING ----
+
 
 n_samps_total <- length(metadata$wgs_id)
 n_snps_total <- 37970
@@ -194,15 +209,13 @@ pheno_test_names <- gsub('.$', '', paste0(pheno_test_names, ",", collapse = " ")
 # Dated samps
 n_dated_samps <- sum(!(is.na(metadata$year)))
 
-# ----
 
-# Clusters
+```
 
-# SNP dist clusters
+```{r wrangle-distance, echo=F}
 
-# clusterstreedated SECTION
- 
-# dist_dated <- as.dist(dist_dated)
+
+# DISTANCE ----
 
 # Add row and col names to distance matrix
 colnames(dist) <- dist_id[, 1]
@@ -210,32 +223,19 @@ row.names(dist) <- dist_id[, 1]
 # Divide dist matrix by 2 
 dist <- dist/2
 # Get lower only
-lower_dist <- dist[lower.tri(dist)]
-dist_dated <- dist[dated_samps, dated_samps]
-
-
-
-
-# colnames(dist) %in% dated_samps
-# 
-# 
-# dated_samps %in% colnames(dist)
-# 
-# 
-# "ERR5897118" %in% colnames(dist)
-# 
-# 
-# sort(colnames(dist))
-
-
+# lower_dist <- dist[lower.tri(dist)]
+# dist_dated <- dist[dated_samps, dated_samps]
 
 # Convert to 'distance matrix' (extract lower triangle)
-dist_dated[upper.tri(dist_dated, diag = T)] <- 0
-lower_dist_dated <- dist_dated[lower.tri(dist_dated)]
+# dist_dated[upper.tri(dist_dated, diag = T)] <- 0
+# lower_dist_dated <- dist_dated[lower.tri(dist_dated)]
+dist[upper.tri(dist, diag = T)] <- 0
+lower_dist <- dist[lower.tri(dist)]
 
 # Cluster using 'single' method.
 # Clusters all samples within distance of threshold
-clust <- hclust(as.dist(dist_dated), method = "single")
+# clust <- hclust(as.dist(dist_dated), method = "single")
+clust <- hclust(as.dist(dist), method = "single")
 
 # Cut tree at threshold to find samples within threshold
 clusters <- sort(cutree(clust, h = threshold))
@@ -243,23 +243,24 @@ clusters <- sort(cutree(clust, h = threshold))
 # Filter for clusters (take out the samples with their own number, i.e., those not in a group)
 # Gets samples below the threshold
 clusters <- clusters[clusters %in% names(which(table(clusters) > 1)) ]
-
 n_clusters_cut_tree <- length(unique(clusters))
 
 # Subset
-dist_dated_thresh <- as.dist(dist_dated[sort(names(clusters)), sort(names(clusters))])
-dist_dated_thresh <- dist_dated_thresh+1 # Add 1 because 1/x later.
+# dist_dated_thresh <- as.dist(dist_dated[sort(names(clusters)), sort(names(clusters))])
+dist_thresh <- as.dist(dist[sort(names(clusters)), sort(names(clusters))])
+# dist_dated_thresh <- dist_dated_thresh+1 # Add 1 because 1/x later.
+dist_thresh <- dist_thresh+1 # Add 1 because 1/x later.
 
-
-# Beast clusters
-n_beast_clusters <- length(unique(beast_clusters$cluster))
-n_beast_cluster_samps <- nrow(beast_clusters)
 
 ```
 
+
+
 ```{r wrangle-lineages, echo=F}
 
-# Lineages ----
+
+# LINEAGES ----
+
 
 lin_tab <- reshape2::dcast(metadata, main_lineage ~ "N", value.var = id_col, fun.aggregate = length)
 names(lin_tab) <- c("Lineages", names(lin_tab)[length(names(lin_tab))])
@@ -291,12 +292,20 @@ lin_conv_tab <- lin_conv_tab[order(lin_conv_tab$N, decreasing = T),]
 
 ```{r wrangle-years, echo=F}
 
+
+# YEARS ----
+
+
 year_tab <- reshape2::dcast(metadata, year ~ "N", value.var = id_col, fun.aggregate = length)
 year_tab$pc <- round((year_tab$N/sum(year_tab$N)) * 100, rnd)
 
 ```
 
 ```{r wrangle-location, echo=F}
+
+
+# LOCATION ----
+
 
 location_tab <- reshape2::dcast(metadata, location ~ "N", value.var = id_col, fun.aggregate = length)
 location_tab$pc <- round((location_tab$N/sum(location_tab$N)) * 100, rnd)
@@ -305,16 +314,25 @@ location_tab$pc <- round((location_tab$N/sum(location_tab$N)) * 100, rnd)
 
 ```{r wrangle-tree, echo=F}
 
-# Midpoint root the tree
+
+# TREE ----
+
+
 tree_all_samps <- midpoint.root(tree_all_samps)
 
 ```
 
 ```{r wrangle-beast, echo=F}
 
+
 # BEAST ----
 
+
 names(beauti_params) <- c("Beauti tab", "Selection", "Parameter values [min, max]")
+
+# Beast clusters
+n_beast_clusters <- length(unique(beast_clusters$cluster))
+n_beast_cluster_samps <- nrow(beast_clusters)
 
 ```
 
@@ -322,6 +340,7 @@ names(beauti_params) <- c("Beauti tab", "Selection", "Parameter values [min, max
 
 
 # DR ----
+
 
 # Specific drugs - phenotypic tests (DST)
 drugs_data <- apply(metadata[drugs], 2, as.numeric)
@@ -378,12 +397,30 @@ row.names(dr_lin_tab) <- NULL
 
 ```{r wrangle-discrepancies-other-variants, echo=F}
 
-# Discrepancies
+
+# DISCREPANCIES ----
+
+
 FN <- "pheno_res; geno_sens"
 FP <- "pheno_sens; geno_res"
 discrepancy_data <- metadata[, grep("_test", names(metadata), value = T)]
-FN_res <- apply(discrepancy_data, 2, function(x){sum(x == FN)})
-FP_res <- apply(discrepancy_data, 2, function(x){sum(x == FP)})
+
+
+
+# REMOVE na.rm = T !!!!!!!!!
+# REMOVE na.rm = T !!!!!!!!!
+# REMOVE na.rm = T !!!!!!!!!
+# REMOVE na.rm = T !!!!!!!!!
+
+
+FN_res <- apply(discrepancy_data, 2, function(x){sum(x == FN, na.rm = T)})
+FP_res <- apply(discrepancy_data, 2, function(x){sum(x == FP, na.rm = T)})
+
+
+# REMOVE na.rm = T !!!!!!!!!
+# REMOVE na.rm = T !!!!!!!!!
+# REMOVE na.rm = T !!!!!!!!!
+# REMOVE na.rm = T !!!!!!!!!
 
 
 
@@ -392,10 +429,8 @@ FP_res <- apply(discrepancy_data, 2, function(x){sum(x == FP)})
 
 
 
-
-
-
 discrepancy_data$wgs_id <- metadata$wgs_id # Add ids in for the other variants stuff
+# REMOVE na.rm = T !!!!!!!!!
 n_FN_samps <- sum(FN_res)
 n_FP_samps <- sum(FP_res)
 FN_drugs_split <- names(FN_res[FN_res > 0])
@@ -422,7 +457,6 @@ dr_genes <- dr_genes[order(dr_genes$drugs), ]
 # # Join id_year col onto other_variants data
 # other_variants <- merge(other_variants, metadata[, c("wgs_id")], 
 #                         by = "wgs_id", sort = F)
-
 
 
 # FN
@@ -488,6 +522,10 @@ row.names(FP_results_table) <- NULL
 
 ```{r wrangle-loc-lin-dr-dates, echo = F}
 
+
+# TABLE 1 ----
+
+
 # "Table 1 – locations, lineages, drug resistance, dates of collection…"
 
 table_1 <- data.frame()
@@ -512,6 +550,78 @@ table_1 <- table_1[complete.cases(table_1), ]
 
 ```
 
+```{r ggtree-setup, echo = F}
+
+
+# GGTREE SETUP ----
+
+
+# Prep data for heatmaps (strips)
+
+legend_spec <- theme(legend.title = element_text(size = 7),
+                     legend.text = element_text(size = 5),
+                     legend.key.size = unit(0.3, "cm"))
+
+# Add id/year hybrid col
+metadata$id_year <- paste0(metadata$wgs_id, "_", metadata$year)
+rownames(metadata) <- metadata$id_year
+# heatmap_data <- metadata[metadata$id_year %in% mcc_tree_ape$tip.label,
+#                          c("main_lineage", "dr_status"), drop = F]
+# Subset metadata
+lin_data <- metadata[, "main_lineage", drop = F]
+dr_status_data <- metadata[, "dr_status", drop = F]
+loc_data <- metadata[, "location", drop = F]
+dr_data <- dplyr::select(metadata, rifampicin:delamanid)
+dr_tbp_data <- dplyr::select(metadata, rifampicin_tbp:delamanid_tbp)
+drug_discrepancy_data <- dplyr::select(metadata, rifampicin_test:delamanid_test)
+
+# Clean location data
+loc_data[loc_data == ""] <- NA
+
+# Clean dr_tbp_data
+dr_tbp_data[dr_tbp_data != "-"] <- 1
+dr_tbp_data[dr_tbp_data == "-"] <- 0
+
+# Convert lin and DR data to factors
+dr_data <- data.frame(apply(dr_data, 2, as.factor))
+dr_tbp_data <- data.frame(apply(dr_tbp_data, 2, as.factor))
+lin_data <- data.frame(apply(lin_data, 2, as.factor))
+# drug_discrepancy_data <- data.frame(apply(drug_discrepancy_data, 2, as.factor))
+
+# Change col names
+colnames(dr_status_data) <- "DR status"
+colnames(lin_data) <- "Lineage"
+colnames(loc_data) <- "Location"
+
+# Define cols for each dataset
+alpha <- 0.9
+lin_colours <- rainbow(length(unique(metadata$main_lineage)), alpha = alpha)
+dr_status_colours <- scales::alpha(gplots::col2hex(c("green1", "yellow2", "orange1", "red1", "black", "grey")), alpha = alpha)
+
+
+n <- length(unique(loc_data$Location))
+qual_col_pals <- brewer.pal.info[brewer.pal.info$category == 'qual',]
+col_vector <- unlist(mapply(brewer.pal, qual_col_pals$maxcolors, rownames(qual_col_pals)))
+set.seed(2)
+loc_cols <- sample(col_vector, n)
+names(loc_cols) <- unique(loc_data$Location)
+loc_cols[is.na(names(loc_cols))] <- "#FFFFFF"
+loc_cols <- c(loc_cols[sort(names(loc_cols))], loc_cols[is.na(names(loc_cols))])
+
+# loc_cols <- randomcoloR::distinctColorPalette(length(unique(loc_data$Location)))
+# names(loc_cols) <- unique(loc_data$Location)
+# loc_cols[is.na(names(loc_cols))] <- "#FFFFFF"
+# loc_cols <- c(loc_cols[sort(names(loc_cols))], loc_cols[is.na(names(loc_cols))])
+
+drug_discrepancy_vals <- sort(unique(as.vector(as.matrix(drug_discrepancy_data))))
+drug_discrepancy_cols <- brewer.pal(length(drug_discrepancy_vals), "Paired")
+
+# Add names (unique vals for each dataset) to dataframes. Don't need to do this for the binary data (DR individual status)
+names(lin_colours) <- c(sort(unique(metadata$main_lineage)))
+names(dr_status_colours) <- c("Sensitive", "Pre-MDR", "MDR", "Pre-XDR", "XDR", "Other")
+names(drug_discrepancy_cols) <- drug_discrepancy_vals
+
+```
 
 | | |
 | ----------- | ----------- |
@@ -554,7 +664,6 @@ Dr. Taj ali Khan, Institute of Basic medical Science Khyber Medical University P
 
 ## ABSTRACT
 
-\newpage
 
 
 ## INTRODUCTION
@@ -596,7 +705,7 @@ Historically, *Mtb* samples from Pakistan belong predominantly to the CAS1-Delhi
 
 ### Evidence of transmission
 
-Median (range) pairwise SNP distances was `r round(median(lower_dist), rnd)` (`r min(lower_dist)`-`r max(lower_dist)`) for all `r n_samps_total` samples (**Figure \@ref(fig:boxdistance)**). For all dated samples (n=`r n_dated_samps`), the median SNP distance was `r round(median(lower_dist_dated), rnd)` (**Figure \@ref(fig:boxdistance)**). With a threshold of `r threshold` SNPs for the dated samples, `r n_clusters_cut_tree` clusters formed, where a cluster contains at least two samples (**Figure \@ref(fig:clusterstreedated)**). **Figure \@ref(fig:distancedatedqgraph)** shows a graph of SNP distance connections among all dated samples within the `r threshold`-threshold SNP distance.  
+Median (range) pairwise SNP distances was `r round(median(lower_dist), rnd)` (`r min(lower_dist)`-`r max(lower_dist)`) for all `r n_samps_total` samples (**Figure \@ref(fig:boxdistance)**). For all dated samples (n=`r n_dated_samps`), the median SNP distance was `r round(median(lower_dist), rnd)` (**Figure \@ref(fig:boxdistance)**). With a threshold of `r threshold` SNPs for the dated samples, `r n_clusters_cut_tree` clusters formed, where a cluster contains at least two samples (**Figure \@ref(fig:clusterstreedated)**). **Figure \@ref(fig:distanceqgraph)** shows a graph of SNP distance connections among all dated samples within the `r threshold`-threshold SNP distance.  
 
 Date of collection was recorded between the years `r first_year` and `r last_year` (`r last_year - first_year` years; **Figure \@ref(fig:dates)**) for `r n_dated_samps` samples, which represent probable closely-related, if not potiential transmission cases. A dated phylogenetic tree was constructed with these samples (**Figures \@ref(fig:beasttrees)**), and when cut at `r cutoff_year` years before the last sample date, `r n_beast_clusters` clusters (n=`r n_beast_cluster_samps`) were inferred (**Figures \@ref(fig:beasttreeszoom)**). 
 
@@ -642,7 +751,7 @@ BEAST v2.6.3 [@Bouckaert2019] was used to infer timed phylogenetic trees (see **
 knitr::kable(table_1, row.names = NA, rownames.print = F, caption = sprintf("*Mycobacterium tuberculosis* samples (N = %s)", n_samps_total))
 
 ```
-
+***
 ```{r drTableLin, echo=FALSE, out.width = "2000px"}
 
 knitr::kable(dr_lin_tab, row.names = NA, rownames.print = F, caption = "Drug resistance categories by lineage. See *Methods* section for criteria of categories.")
@@ -714,12 +823,84 @@ barplot(table(historical_metadata$Clade), las=2, main = "", col = col, cex.axis 
 ```
  
 ***
-
-```{r treeAllSamps, echo=FALSE, out.width = "2000px", fig.cap=sprintf("The %s *M. tuberculosis* isolates: A phylogenetic tree constructed using %s SNPs", n_samps_total, fmt(n_snps_total))}
+<!--
+```{r treeAllSamps, echo=FALSE, out.width = "2000px", fig.cap=sprintf("The %s *M. tuberculosis* isolates: A phylogenetic tree constructed using %s SNPs", n_samps_total, fmt(n_snps_total)) }
 
 cap <- sprintf("The %s *M. tuberculosis* isolates: A phylogenetic tree constructed using %s SNPs", n_samps_total, fmt(n_snps_total))
 
 knitr::include_graphics(tree_all_samps_file)
+
+```
+-->
+***
+
+```{r ggtree-all-samps, echo=FALSE, out.width = "1500px", warning = F, message = F, cache=F, fig.show="hold", fig.cap=sprintf("The %s *M. tuberculosis* isolates: A phylogenetic tree constructed using %s SNPs", n_samps_total, fmt(n_snps_total))}
+
+# Tree setup
+line_sz <- 0.25
+n <- length(tree_all_samps$tip.label)
+width <- 0.1
+angle <- 45
+
+# Remove years from lineage data
+row.names(lin_data) <- unlist(lapply(strsplit(row.names(lin_data), "_"), function(x){ paste0(x[1:(length(x)-1)], collapse = "_") }))
+
+# Remove years from DR data 
+row.names(dr_status_data) <- unlist(lapply(strsplit(row.names(dr_status_data), "_"), function(x){ paste0(x[1:(length(x)-1)], collapse = "_") }))
+
+# Remove years from location data
+row.names(loc_data) <- unlist(lapply(strsplit(row.names(loc_data), "_"), function(x){ paste0(x[1:(length(x)-1)], collapse = "_") }))
+
+
+ggtree_all_samps <- ggtree(tree_all_samps, size = line_sz, layout="circular")
+
+# Add lin data
+lin_hm <- gheatmap(ggtree_all_samps, lin_data,
+         width = width,
+         # offset = offset,
+         color = NULL,
+         colnames_position = "top",
+         colnames_angle = angle, 
+         colnames_offset_y = 1,
+         hjust = 0,
+         font.size = 2) +
+  scale_fill_manual(values = lin_colours, breaks = names(lin_colours) ) +
+  labs(fill = "Lineage")+
+  legend_spec
+
+# Do this to add new gheatmap for some reason
+# See "7.3.1 Visualize tree with multiple associated matrix" https://yulab-smu.top/treedata-book/chapter7.html
+lin_hm <- lin_hm + ggnewscale::new_scale_fill()
+
+# Add DR status
+dr_status_hm <- gheatmap(lin_hm, dr_status_data,
+                   width = width,
+                   offset = width * 0.025,
+                   color = NULL,
+                   colnames_position = "top",
+                   colnames_angle = angle, colnames_offset_y = 1,
+                   hjust = 0,
+                   font.size = 2) +
+  scale_fill_manual(values = dr_status_colours, breaks = names(dr_status_colours) )+
+  labs(fill = "DR status")+
+  legend_spec
+
+dr_status_hm
+
+# dr_status_hm <- dr_status_hm + ggnewscale::new_scale_fill()
+# 
+# gheatmap(dr_status_hm, loc_data,
+#                    width = width,
+#                    offset = width * (0.025*2),
+#                    color = NULL,
+#                    colnames_position = "top",
+#                    colnames_angle = angle, colnames_offset_y = 1,
+#                    hjust = 0,
+#                    font.size = 2) +
+#   scale_fill_manual(values = loc_cols, breaks = names(loc_cols), na.value="white")+
+#   labs(fill = "Location")+
+#   legend_spec
+
 
 ```
 
@@ -738,7 +919,7 @@ axis(side = 1, at = yr_hist$mids, labels = years)
 
 ***
 
-```{r boxdistance, echo=FALSE, fig.show="hold", out.width="50%", fig.cap = sprintf("Boxplot of pairwise SNP distances (excluding DR sites), all samples (left; n = %s) and dated samples (right; n = %s)", nrow(dist), nrow(dist_dated))}
+```{r boxdistance, echo=FALSE, fig.show="hold", out.width="50%", fig.cap = sprintf("Boxplot of pairwise SNP distances (excluding DR sites), all samples (left; n = %s), samples within %s SNP distance (right; n = %s).", nrow(dist), threshold, nrow(as.matrix(dist_thresh)))}
 
 # Summary of distances for all samples
 # lower_dist <- dist[lower.tri(dist)]
@@ -748,19 +929,19 @@ boxplot(lower_dist,
     cex.main = main_cex, 
     ylab="SNP distance")
 
-# Summary of dists for dated samples
+# Summary of dists for threshold (clustered) samples
 # dist_dated <- dist[dated_samps, dated_samps]
 # lower_dist_dated <- dist_dated[lower.tri(dist_dated)]
-boxplot(lower_dist_dated, col = col,
-        main = sprintf("mean = %s; median = %s", round(mean(lower_dist_dated), rnd), round(median(lower_dist_dated), rnd) ), 
-        cex.main = main_cex, 
+boxplot(dist_thresh, col = col,
+        main = sprintf("mean = %s; median = %s", round(mean(dist_thresh), rnd), round(median(dist_thresh), rnd) ),
+        cex.main = main_cex,
         ylab="SNP distance")
 
 ```
 
 ***
 
-```{r clusterstreedated, echo = F, out.width = "2000px", fig.cap = sprintf("Single linkage tree of SNP distances, dated samples. Line shown at a SNP distance of %s; n = %s; n clusters = %s", threshold, nrow(dist_dated), n_clusters_cut_tree)}
+```{r clusterstree, echo = F, out.width = "2000px", fig.cap = sprintf("Single linkage tree of SNP distances, dated samples. Line shown at a SNP distance of %s; n = %s; n clusters = %s", threshold, nrow(dist), n_clusters_cut_tree)}
 
 # # dist_dated <- as.dist(dist_dated)
 # 
@@ -789,9 +970,101 @@ abline(a = threshold, b = 0)
 
 ***
 
-```{r distancedatedqgraph, echo=FALSE, out.width = "2000px", fig.cap = sprintf("Graph of dated samples. Connections among samples with <= %s SNP distance; n = %s. Thicker lines indicate smaller SNP distance.", threshold, length(attributes(dist_dated_thresh)$Labels)) }
+```{r distanceqgraph, echo=FALSE, out.width = "2000px", fig.cap = sprintf("Graph of samples. Connections among samples with <= %s SNP distance; n = %s. Thicker lines indicate smaller SNP distance.", threshold, length(attributes(dist_thresh)$Labels)), fig.show="hold"}
 
-qgraph(1/dist_dated_thresh, layout='spring', vsize=5)
+# qgraph::qgraph(1/dist_dated_thresh, layout='spring', vsize=5)
+
+# Subset
+# lin_data_qgraph <- lin_data[row.names(lin_data) %in% attributes(dist_dated_thresh)$Labels, "Lineage", drop = F]
+lin_data_qgraph <- lin_data[row.names(lin_data) %in% attributes(dist_thresh)$Labels, "Lineage", drop = F]
+# Add sample names to df
+lin_data_qgraph$samp <- row.names(lin_data_qgraph)
+# Convert to DM for easy access to row and col names
+# dist_mat <- as.matrix(dist_dated_thresh)
+dist_mat <- as.matrix(dist_thresh)
+# Get the row index for each samp in the DM
+dist_samp_ind <- data.frame(samp = row.names(dist_mat), row = seq(row.names(dist_mat)))
+# Merge with lin data
+lin_data_qgraph <- merge(dist_samp_ind, lin_data_qgraph,
+                         by = "samp", 
+                         sort = F)
+# Split by lin
+lin_data_split <- split(lin_data_qgraph, lin_data_qgraph$Lineage)
+# Loop over split df and replace lists with row nums
+for(i in seq(lin_data_split)){
+  lin_data_split[[i]] <- lin_data_split[[i]]$row
+}
+
+# Edge thickness
+cut_val <- 0.5
+# Node size
+vsize_val <- 2
+
+qgraph::qgraph(1/dist_thresh, 
+               layout='spring',
+               minimum = 1/threshold,
+               vsize=vsize_val,
+               cut = cut_val,
+               borders = T, 
+               groups = lin_data_split, 
+               legend = TRUE, 
+               color = lin_colours)
+
+
+# Same for DR data
+dr_status_data_qgraph <- dr_status_data[row.names(dr_status_data) %in% attributes(dist_thresh)$Labels, "DR status", drop = F]
+dr_status_data_qgraph$samp <- row.names(dr_status_data_qgraph)
+dr_data_qgraph <- merge(dist_samp_ind, dr_status_data_qgraph,
+                         by = "samp", 
+                         sort = F)
+dr_data_split <- split(dr_data_qgraph, dr_data_qgraph["DR status"])
+# Re-arrange order to match col vector
+dr_data_split <- dr_data_split[names(dr_status_colours)]
+
+for(i in seq(dr_data_split)){
+  dr_data_split[[i]] <- dr_data_split[[i]]$row
+}
+
+qgraph::qgraph(1/dist_thresh, 
+               layout='spring',
+               minimum = 1/threshold,
+               vsize=vsize_val,
+               cut = cut_val,
+               borders = T, 
+               groups = dr_data_split, 
+               legend = TRUE, 
+               color = dr_status_colours)
+
+# Location
+loc_data_qgraph <- loc_data[row.names(loc_data) %in% attributes(dist_thresh)$Labels, "Location", drop = F]
+loc_data_qgraph$samp <- row.names(loc_data_qgraph)
+loc_data_qgraph <- merge(dist_samp_ind, loc_data_qgraph,
+                         by = "samp", 
+                         sort = F)
+# Convert NA to something else
+loc_data_qgraph[is.na(loc_data_qgraph$Location), "Location"] <- "N/A"
+# Do the same for col
+names(loc_cols)[is.na(names(loc_cols))] <- "N/A"
+loc_data_split <- split(loc_data_qgraph, loc_data_qgraph["Location"], drop = T)
+
+# Subset so that next line does not contain NAs (does for some reason if don't match)
+loc_cols_qgraph <- loc_cols[names(loc_cols) %in% names(loc_data_split)]
+# Re-order split-df to same order as loc vector
+loc_data_split <- loc_data_split[names(loc_cols_qgraph)]
+
+for(i in seq(loc_data_split)){
+  loc_data_split[[i]] <- loc_data_split[[i]]$row
+}
+
+qgraph::qgraph(1/dist_thresh, 
+               layout='spring',
+               minimum = 1/threshold,
+               vsize=vsize_val,
+               cut = cut_val,
+               borders = T, 
+               groups = loc_data_split, 
+               legend = TRUE, 
+               color = loc_cols_qgraph)
 
 
 ```
@@ -806,47 +1079,6 @@ last_date <- as.numeric(max(unlist(lapply(strsplit(mcc_tree_ape$tip.label, "_"),
 last_date_chr <- paste0(as.character(last_date), "-12-31")
 n_samps <- length(mcc_tree_ape$tip.label)
 
-# Prep data for heatmaps (strips)
-
-# Add id/year hybrid col
-metadata$id_year <- paste0(metadata$wgs_id, "_", metadata$year)
-rownames(metadata) <- metadata$id_year
-# heatmap_data <- metadata[metadata$id_year %in% mcc_tree_ape$tip.label,
-#                          c("main_lineage", "dr_status"), drop = F]
-# Subset metadata
-lin_data <- metadata[, "main_lineage", drop = F]
-dr_status_data <- metadata[, "dr_status", drop = F]
-loc_data <- metadata[, "location", drop = F]
-dr_data <- dplyr::select(metadata, rifampicin:delamanid)
-dr_tbp_data <- dplyr::select(metadata, rifampicin_tbp:delamanid_tbp)
-drug_discrepancy_data <- dplyr::select(metadata, rifampicin_test:delamanid_test)
-
-# Clean dr_tbp_data
-dr_tbp_data[dr_tbp_data != "-"] <- 1
-dr_tbp_data[dr_tbp_data == "-"] <- 0
-
-# Convert lin and DR data to factors
-dr_data <- data.frame(apply(dr_data, 2, as.factor))
-dr_tbp_data <- data.frame(apply(dr_tbp_data, 2, as.factor))
-lin_data <- data.frame(apply(lin_data, 2, as.factor))
-# drug_discrepancy_data <- data.frame(apply(drug_discrepancy_data, 2, as.factor))
-
-# Change col names
-colnames(dr_status_data) <- "DR status"
-colnames(lin_data) <- "Lineage"
-colnames(loc_data) <- "Location"
-
-# Define cols for each dataset
-alpha <- 0.9
-lin_colours <- rainbow(length(unique(metadata$main_lineage)), alpha = alpha)
-dr_status_colours <- scales::alpha(gplots::col2hex(c("green1", "yellow2", "orange1", "red1", "black", "grey")), alpha = alpha)
-drug_discrepancy_vals <- sort(unique(as.vector(as.matrix(drug_discrepancy_data))))
-drug_discrepancy_cols <- brewer.pal(length(drug_discrepancy_vals), "Paired")
-
-# Add names (unique vals for each dataset) to dataframes. Don't need to do this for the binary data (DR individual status)
-names(lin_colours) <- c(sort(unique(metadata$main_lineage)))
-names(dr_status_colours) <- c("Sensitive", "Pre-MDR", "MDR", "Pre-XDR", "XDR", "Other")
-names(drug_discrepancy_cols) <- drug_discrepancy_vals
 
 # Tree setup
 x_lim <- c(first_date-10, last_date+(last_date*0.8))
@@ -858,9 +1090,6 @@ offset <- 50
 width <- 0.05
 angle <- 45
 line_sz <- 0.2
-legend_spec <- theme(legend.title = element_text(size = 7),
-                     legend.text = element_text(size = 5),
-                     legend.key.size = unit(0.3, "cm"))
 
 # Draw basic tree
 gg_mcmc_tree <- ggtree(mcc_tree, mrsd = last_date_chr, size = line_sz) %<+% metadata +
@@ -1171,66 +1400,6 @@ gheatmap(dr_status_hm, drug_discrepancy_data,
 
 ***
 
-```{r ggtree-all-samps, echo=FALSE, out.width = "1500px", warning = F, message = F, cache=F, fig.show="hold", fig.cap=""}
-
-# Tree setup
-line_sz <- 0.25
-n <- length(tree_all_samps$tip.label)
-width <- 0.1
-
-# Remove years from lineage data
-row.names(lin_data) <- unlist(lapply(strsplit(row.names(lin_data), "_"), function(x){ paste0(x[1:(length(x)-1)], collapse = "_") }))
-
-# Remove years from DR data 
-row.names(dr_status_data) <- unlist(lapply(strsplit(row.names(dr_status_data), "_"), function(x){ paste0(x[1:(length(x)-1)], collapse = "_") }))
-
-ggtree_all_samps <- ggtree(tree_all_samps, size = line_sz, layout="circular") 
-  # theme_tree2() +
-  # coord_cartesian(ylim = c(0, n+(n*0.05))) +
-  # scale_x_continuous(limits = c(0, 0.1))
-
-# Add lin data
-lin_hm <- gheatmap(ggtree_all_samps, lin_data,
-         width = width,
-         # offset = offset,
-         color = NULL,
-         colnames_position = "top",
-         colnames_angle = angle, 
-         colnames_offset_y = 1,
-         hjust = 0,
-         font.size = 2) +
-  scale_fill_manual(values = lin_colours, breaks = names(lin_colours) ) +
-  labs(fill = "Lineage")+
-  legend_spec
-
-# Do this to add new gheatmap for some reason
-# See "7.3.1 Visualize tree with multiple associated matrix" https://yulab-smu.top/treedata-book/chapter7.html
-lin_hm <- lin_hm + ggnewscale::new_scale_fill()
-
-# Add DR status
-dr_status_hm <- gheatmap(lin_hm, dr_status_data,
-                   width = width,
-                   offset = 0.001 * 2,
-                   color = NULL,
-                   colnames_position = "top",
-                   colnames_angle = angle, colnames_offset_y = 1,
-                   hjust = 0,
-                   font.size = 2) +
-  scale_fill_manual(values = dr_status_colours, breaks = names(dr_status_colours) )+
-  labs(fill = "DR status")+
-  legend_spec
-
-dr_status_hm <- lin_hm + ggnewscale::new_scale_fill()
-
-
-
-
-# FN_results[order(FN_results$wgs_id), ]
-
-```
-
-***
-
 ```{r beastlogplots, echo=FALSE, out.width = "1500px", fig.cap = "Trace plots of BEAST MCMC iterations across posterior, likelihood, prior and MRCA parameters. The plots show no upward or downward trend, hence imply convergence."}
 
 par(mfrow = c(2, 2))
@@ -1238,7 +1407,7 @@ par(mfrow = c(2, 2))
 plot(beast_log$posterior, main = "posterior", type= 'l', ylab = "posterior")
 plot(beast_log$likelihood, main = "likelihood", type= 'l', ylab = "likelihood")
 plot(beast_log$prior, main = "prior", type= 'l', ylab = "prior")
-plot(beast_log$mrca.date.TreePrior., main = "MRCA", type= 'l', ylab = "MRCA")
+plot(beast_log$mrca.date.forward.TreePrior., main = "MRCA", type= 'l', ylab = "MRCA")
 
 par(mfrow=c(1,1))
 
