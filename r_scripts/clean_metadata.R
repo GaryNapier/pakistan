@@ -32,7 +32,7 @@ output_path <- "~/Documents/pakistan/metadata/"
 metadata_file <- paste0(metadata_path, "tb_data_18_02_2021.csv")
 pakistan_data_file <- paste0(metadata_path, "pakistan_data_non_mixed.csv")
 pakistan_data_outfile <- paste0(output_path, "pakistan_metadata.csv")
-tb_profiler_file <- "metadata/tbprofiler_results.pakistan.txt"
+tb_profiler_file <- "~/Documents/pakistan/metadata/tbprofiler_results.pakistan.txt"
 
 metadata_file <- args[1]
 # pakistan_data_file <- args[2]
@@ -83,6 +83,7 @@ metadata$study_accession_word <- rep("PAKISTAN_ALL", nrow(metadata))
 fl <- c("rifampicin", "isoniazid", "ethambutol", "pyrazinamide", "streptomycin")
 # Second Line Injectable
 sli <- c("amikacin", "kanamycin", "capreomycin")
+
 # Fluoroquinolones (second line)
 flq <- c("ofloxacin", "moxifloxacin", "levofloxacin", "ciprofloxacin")
 # Other second line
@@ -255,10 +256,12 @@ metadata$collection_date <- ifelse((is.na(metadata$collection_date) | metadata$c
 # Add year column
 metadata$year <- stringr::str_extract(metadata$collection_date, pattern = "\\d{4}")
 
+# Add a rounded year column before the decimal calc
+metadata$year_round <- metadata$year
+
 # Add decimal of year to year col
-options(digits = 6)
-month_dec <- unlist(lapply(str_split(metadata$collection_date, "\\/"), function(x) {as.numeric(x[2])/12 }))
-as.numeric(metadata$year)+month_dec
+month_dec <- unlist(lapply(str_split(metadata$collection_date, "\\/"), function(x) {round(as.numeric(x[2])/12, 2) }))
+metadata$year <- as.numeric(metadata$year)+month_dec
 
 # Add id/year col
 metadata$id_year <- paste0(metadata$wgs_id, "_", metadata$year)
