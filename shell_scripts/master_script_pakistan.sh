@@ -152,7 +152,7 @@ tbprofiler_variants_file=${local_metadata_dir}${study_accession}.variants
 # rm -f ${mcc_tree}
 # rm -f ${beast_clusters_file}
 # variants
-# rm -f ${tbprofiler_variants_file}*
+rm -f ${tbprofiler_variants_file}*
 
     # set +x
     # printf "\n"
@@ -414,7 +414,7 @@ fi
 
 itol_out_files=${itol_dir}$(basename ${pakistan_metadata_file%.csv})*
 
-if compgen -G ! ${itol_out_files} > /dev/null; then
+if ! compgen -G ${itol_out_files} > /dev/null; then
     echo "------------------------------------------------------------------------------"
     echo "Running itol_annotation.R"
     printf "\n"
@@ -606,7 +606,7 @@ fi
 
 # TBprofiler
 
-if compgen -G ! "${tbprofiler_variants_file}*" > /dev/null; then
+if ! compgen -G "${tbprofiler_variants_file}*" > /dev/null; then
     echo "------------------------------------------------------------------------------"
     echo "Running tbprofiler_filter.py - outputs ${tbprofiler_variants_file}"
     set -x
