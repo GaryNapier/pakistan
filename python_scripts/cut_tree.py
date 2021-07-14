@@ -30,7 +30,7 @@ def main(args):
         samp_split = samp.split("_")
         years.append(samp_split[-1])
     # Get max date
-    max_date = int(max(years))
+    max_date = float(max(years))
 
     # Add node names if none:
     for i, node in enumerate(t.traverse("preorder")):
