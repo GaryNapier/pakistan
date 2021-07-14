@@ -75,7 +75,7 @@ def main(args):
             json_file = tbprofiler_results_location + json_file
             tbp_result = json.load(open(json_file))
             # Loop over the other_variants dictionaries
-            for variant in tbp_result['other_variants']:
+            for variant in tbp_result['dr_variants']:
                 # print("VARIANT: ", variant['sample'])
                 # Exclude synonymous
                 if variant['type'] != 'synonymous':
