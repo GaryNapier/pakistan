@@ -26,7 +26,7 @@ printf "\n"
 cd ~/pakistan
 
 # Variables
-reset_all=false
+# reset_all=false
 study_accession=PAKISTAN_ALL
 gvcf_file_suffix=.g.vcf.gz
 date_column=year
@@ -105,9 +105,7 @@ mcc_tree=${beast_results_dir}${study_accession}.mcc.tree
 # TransPhylo
 transphylo_es_table_file=${transphylo_results_dir}${study_accession}.es_table.csv
 # tbprofiler / variant results
-tbprofiler_variants_file=${local_metadata_dir}${study_accession}.other_variants.txt
-
-
+tbprofiler_variants_file=${local_metadata_dir}${study_accession}.variants
 
 
 # ------------------------------------------------------------------------------
@@ -116,46 +114,49 @@ tbprofiler_variants_file=${local_metadata_dir}${study_accession}.other_variants.
 
 #  set reset_all=true in variables section
 
-if [ ${reset_all} = true ] ; then
-    echo "-------------------------------------------------"
-    echo "Removing files - RESET ALL"
-    echo "-------------------------------------------------"
-    set -x
-    # Remove directories
-    rm -rf ${tmp_dir}
-    rm -rf genomicsDB
-    # metadata
-    rm -f ${pakistan_metadata_file}
-    rm -f ${pakistan_metadata_file_dated}
-    # vcf
-    rm -f ${vcf_dir}${study_accession}*
-    # dist
-    rm -f ${dist_file}
-    rm -f ${dist_id_file}
-    # fasta
-    rm -f ${unfilt_fasta_file}
-    # iqtree
-    rm -f ${iqtree_file}
-    rm -f ${treefile}
-    # itol
-    rm -f ${itol_dir}*
-    # fasta with dates
-    rm -f ${fasta_dated_samples_file}
-    rm -f ${fasta_file_annotated_with_dates}
-    # Beast
-    rm -f ${xml_file}
-    rm -f ${xml_file_plus_const}
-    rm -f ${new_beast_log_file}
-    rm -f ${new_beast_trees_file}
-    rm -f ${new_beast_state_file}
-    rm -f ${mcc_tree}
-    rm -f ${beast_clusters_file}
-    # variants
-    rm -f ${tbprofiler_variants_file}
+# if [ ${reset_all} = true ] ; then
 
-    set +x
-    printf "\n"
-fi
+# echo "-------------------------------------------------"
+# echo "Removing files - RESET ALL"
+# echo "-------------------------------------------------"
+# set -x
+# Remove directories
+# rm -rf ${tmp_dir}
+# rm -rf genomicsDB
+# metadata
+# rm -f ${pakistan_metadata_file}
+# rm -f ${pakistan_metadata_file_dated}
+# rm -f ${dated_samples_file}
+# vcf
+# rm -f ${vcf_dir}${study_accession}*
+# rm -f ${dated_samps_vcf}
+# dist
+# rm -f ${dist_file}
+# rm -f ${dist_id_file}
+# fasta
+# rm -f ${unfilt_fasta_file}
+# iqtree
+# rm -f ${iqtree_file}
+# rm -f ${treefile}
+# itol
+# rm -f ${itol_dir}*
+# fasta with dates
+# rm -f ${fasta_dated_samples_file}
+# rm -f ${fasta_file_annotated_with_dates}
+# Beast
+# rm -f ${xml_file}
+# rm -f ${xml_file_plus_const}
+# rm -f ${new_beast_log_file}
+# rm -f ${new_beast_trees_file}
+# rm -f ${new_beast_state_file}
+# rm -f ${mcc_tree}
+# rm -f ${beast_clusters_file}
+# variants
+# rm -f ${tbprofiler_variants_file}*
+
+    # set +x
+    # printf "\n"
+# fi
 
 
 # ------------------------------------------------------------------------------
@@ -498,7 +499,7 @@ if [ ! -f ${xml_file} ]; then
     echo "------------------------------------------------------------------------------"
     echo "Creating XML file r_scripts/pakistan_babette.R - outputs ${xml_file}"
     set -x
-    Rscript r_scripts/pakistan_babette.R -s ${study_accession} -f ${fasta_file_annotated_with_dates} -i ${local_metadata_dir} -o ${xml_file}
+    Rscript r_scripts/pakistan_babette.R -s ${study_accession} -f ${fasta_file_annotated_with_dates} -i ${local_metadata_dir} -o ${xml_file} --chain_length 1e+06
     set +x
     echo "------------------------------------------------------------------------------"
     printf "\n"
@@ -546,7 +547,7 @@ if [ ! -f ${new_beast_log_file} ] || [ ! -f ${new_beast_trees_file} ] || [ ! -f 
     echo "Running BEAST - outputs ${original_beast_log_file}, ${original_beast_trees_file} and ${original_beast_state_file}"
     set -x
     # Run Beast and clean up - put in right folder
-    beast -threads 20 ${xml_file_plus_const}
+    beast -overwrite -threads 20 ${xml_file_plus_const}
     mv ${original_beast_log_file} ${beast_results_dir}
     mv ${original_beast_trees_file} ${beast_results_dir}
     mv ${original_beast_state_file} ${beast_results_dir}
@@ -605,12 +606,12 @@ fi
 
 # TBprofiler
 
-if [ ! -f ${tbprofiler_variants_file} ]; then
+if compgen -G ! "${tbprofiler_variants_file}*" > /dev/null; then
     echo "------------------------------------------------------------------------------"
     echo "Running tbprofiler_filter.py - outputs ${tbprofiler_variants_file}"
     set -x
     # tbprofiler_filter.py --metadata <metadata file> --clusters-file <clusters file> --tbp-results <tbprofiler results directory> --outfile <outfile>
-    python python_scripts/tbprofiler_filter.py --db tbdb --tbp-results ${tbprofiler_results_dir} --outfile ${tbprofiler_variants_file}
+    python python_scripts/tbprofiler_filter.py --metadata-file ${pakistan_metadata_file} --id-key ${id_column} --db tbdb --tbp-results ${tbprofiler_results_dir} --outfile ${tbprofiler_variants_file}
     set +x
     echo "------------------------------------------------------------------------------"
     printf "\n"
@@ -620,29 +621,3 @@ else
     echo "------------------------------------------------------------------------------"
     printf "\n"
 fi
-
-
-# ------------------------------------------------------------------------------
-
-# Transphylo
-
-# if [ ! -f ${transphylo_es_table_file} ]; then
-#     echo "------------------------------------------------------------------------------"
-#     echo "Running TransPhylo on clusters output from cut_tree.py - outputs ${transphylo_es_table_file} and pdfs in ${transphylo_results_dir}"
-#     set -x
-#     transphylo.R -s ${study_accession} -t ${mcc_tree} -o ${transphylo_results_dir} -c ${beast_clusters_file} -m 1000000
-#     set +x
-#     echo "------------------------------------------------------------------------------"
-#     printf "\n"
-# else
-#     echo "------------------------------------------------------------------------------"
-#     echo "Files ${transphylo_es_table_file} exists, skipping transphylo.R"
-#     echo "------------------------------------------------------------------------------"
-#     printf "\n"
-# fi
-
-# Clean up
-# rm -r ${tmp_dir}
-
-
-# TEST
