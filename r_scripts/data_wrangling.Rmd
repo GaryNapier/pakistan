@@ -1030,28 +1030,73 @@ https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0117771#sec002
 - Investigated 40 genes associated with drug resistance
 - Rifampicin resistance was attributable to SNPs in the rpoB hot-spot region
 - Isoniazid resistance was most commonly associated with the katG codon 315 (92%) mutation followed by inhA S94A (8%) 
-- however, one strain did not have SNPs in katG, inhA or oxyR-ahpC
+- However, one strain did not have SNPs in katG, inhA or oxyR-ahpC
 - All strains were pyrazimamide resistant but only 43% had pncA SNPs
+- Ethambutol resistant strains predominantly had embB codon 306 (62%) mutations, but additional SNPs at embB codons 406, 378 and 328 were also present
+- Fluoroquinolone resistance was associated with gyrA 91–94 codons in 81% of strains; four strains had only gyrB mutations, while others did not have SNPs in either gyrA or gyrB
+- Streptomycin resistant strains had mutations in ribosomal RNA genes; rpsL codon 43 (42%); rrs 500 region (16%), and gidB (34%) while six strains did not have mutations in any of these genes.
+- Amikacin/kanamycin/capreomycin resistance was associated with SNPs in rrs at nt1401 (78%) and nt1484 (3%), except in seven (19%) strains.
+- We estimate that if only the common hot-spot region targets of current commercial assays were used, the concordance between phenotypic and genotypic testing for these XDR strains would vary between rifampicin (100%), isoniazid (92%), flouroquinolones (81%), aminoglycoside (78%) and ethambutol (62%); while pncA sequencing would provide genotypic resistance in less than half the isolates. 
+- This work highlights the importance of expanded targets for drug resistance detection in MTB isolates.
 
-
-"Whole genome sequencing-based characterization of extensively drug resistant (XDR) strains of Mycobacterium tuberculosis from Pakistan"
-https://www.sciencedirect.com/science/article/pii/S2212553114001721
-[@Hasan2015]
+---
 
 "Characterizing Mycobacterium tuberculosis isolates from Karachi, Pakistan: drug resistance and genotypes"
 sciencedirect.com/science/article/pii/S1201971212000276
 [@Ayaz2012]
 
+- Resistance rates – new and previously treated:
+- MDR-TB: 2.4% and 13.9%
+- RIF monoresistance, 0.1% and 0.6%
+- Any INH resistance, 8.9% and 28.5%
+- INH monoresistance, 3.0% and 6.3%
+
+- Risk factors:
+- Prior TB treatment - MDR-TB and INH monoresistance
+- Low socioeconomic status - INH monoresistance
+- Balouchi, Sindhi or Pakhtun ethnicity for MDR-TB.
+- Central Asian strain (55.6%) was the most prevalent genotype
+- MDR-TB was significantly associated with Haarlem (H) genogroup
+
+- Conclusions
+- An MDR-TB rate of 2.4% is reported in new patients. 
+- Low RIF monoresistance supports the use of RIF as a marker for MDR-TB in this population.
+- The need to strengthen TB care in the identified at-risk groups is emphasized.
+- Based on INH resistance rates, a review of national treatment/prevention regimens relying on INH is suggested.
+
+---
+
 "Whole genome sequencing of drug resistant Mycobacterium tuberculosis isolates from a high burden tuberculosis region of North West Pakistan"
 https://www.nature.com/articles/s41598-019-51562-6
 [@Jabbar2019]
+
+- Khyber Pakhtunkhwa province (North West Pakistan), n = 81
+- WGS & DST 
+- 11 anti-TB drugs. 
+- majority CAS/Delhi strain-type (lineage 3; 70.4%) 
+- MDR 76.5%)
+- Most freq: katG / rpoB - isoniazid / rifampicin
+- pncA (pyrazinamide), embB (ethambutol), gyrA (fluoroquinolones), rrs (aminoglycosides), rpsL, rrs and giB (streptomycin) 
+- Describe unreported markers: katG, ethA (ethionamide), gyrA and gyrB (fluoroquinolones), and pncA. 
+- Analysis of the mutations: acquisition of rifampicin resistance often preceded isoniazid in our isolates.
+- High proportion (17.6%) of pre-MDR isolates with fluoroquinolone resistance markers, potentially due to unregulated anti-TB drug use. 
+- Our isolates were compared to previously sequenced strains from Pakistan in a combined phylogenetic tree analysis. 
+- The presence of lineage 2 was only observed in our isolates. 
+- Using a cut-off of less than 10 SNP diffs, a transmission analysis revealed 18 isolates clustering within eight networks, thereby providing evidence of drug-resistant TB transmission in the Khyber Pakhtunkhwa province. 
+- Overall: DR TB isolates are circulating and transmitted in North West Pakistan. 
+- Further, we have shown the usefulness of whole genome sequencing as a diagnostic tool for characterizing M. tuberculosis isolates, which will assist future epidemiological studies and disease control activities in Pakistan.
+
+---
 
 "Insight into the drug resistance whole genome of Mycobacterium tuberculosis isolates from Khyber Pakhtunkhwa, Pakistan"
 https://www.sciencedirect.com/science/article/abs/pii/S1567134821001581
 [@Khan2021]
 
+- Aimed to find genomic variations in the first-line drugs targets, along with other virulence and evolutionary factors among the circulating isolates in Khyber Pakhtunkhwa, Pakistan. 
+- Some novel mutations have been detected in drugs targets. 
+- Similarly, numerous novel variants have also been detected in virulency and evolutionary factors, PE, PPE, and secretory system of MTB isolates. 
 
-
+---
 
 
 ## RESULTS
