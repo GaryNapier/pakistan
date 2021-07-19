@@ -13,6 +13,8 @@ csl: biomed-central.csl
 
 # SETUP ----
 
+rm(list = ls())
+
 knitr::opts_chunk$set(echo = F)
 library(knitr)
 library(dplyr)
@@ -72,6 +74,12 @@ to_table <- function(x, pc_dir = "row"){
 
 log10_ceiling <- function(x) {
   10^(ceiling(log10(x)))
+}
+
+tab2df <- function(tab){
+  df <- data.frame(x = matrix(tab, ncol = length(tab)))
+  names(df) <- names(tab)
+  df
 }
 
 plot.phylo.to.map <- function (x, type = c("phylogram", "direct"), ...) 
@@ -315,6 +323,7 @@ threshold <- 10
 threshold_vect <- c(0, 1, seq(5, 50, 5))
 plot_text_sz <- 0.5
 main_cex <- 1.5
+dr_status_vect <- c("Sensitive", "Pre-MDR", "MDR", "Pre-XDR", "XDR", "Other")
 
 ```
 
@@ -441,6 +450,11 @@ pheno_test_names <- gsub('.$', '', paste0(pheno_test_names, ",", collapse = " ")
 # Dated samps
 n_dated_samps <- sum(!(is.na(metadata$year)))
 
+# ----
+
+# Publication years
+pub_years <- as.numeric(gsub(".*?([0-9]+).*", "\\1", metadata$study_name))
+
 
 ```
 
@@ -485,8 +499,26 @@ dist_thresh <- dist_thresh+1 # Add 1 because 1/x later.
 
 ```
 
+```{r in-transmission-stats, echo=F}
+
+# Take the samples from the above "clusters" variable - these samples are "in transmission"
+# Find their metadata and put into a table
+in_trans_metadata <- metadata[metadata[,"wgs_id"] %in% names(clusters), ]
+
+lin <- tab2df(table(in_trans_metadata$main_lineage))
+dr <- tab2df(table(in_trans_metadata$dr_status))
+dr <- dr[, dr_status_vect]
+loc <- tab2df(table(in_trans_metadata$location))
+
+in_trans_df <- data.frame(t(cbind(lin, dr, loc)))
+names(in_trans_df) <- "N"
+in_trans_df$pc <- (in_trans_df$N/length(clusters))*100
+
+```
+
 ```{r dist-sensitivity, echo=F}
 
+# Loop over the SNP dist threshold vector and do the clustering
 clusters_list <- list()
 for(i in seq(threshold_vect)){
   # Cut tree at threshold to find samples within threshold
@@ -494,8 +526,38 @@ for(i in seq(threshold_vect)){
   clusters_list[[i]] <- clusters_list[[i]][clusters_list[[i]] %in% names(which(table(clusters_list[[i]]) > 1)) ]
 }
 
+# Get the numbers about the clusters
 n_clusts_vect <- unlist(lapply(clusters_list, function(x) length(unique(x))))
 n_samps_per_cluster_vect <- unlist(lapply(clusters_list, function(x) length(x)))
+med_samps_clusts <- unlist(lapply(clusters_list, function(x) median(table(x))))
+min_samps_clusts <- unlist(lapply(clusters_list, function(x) min(table(x))))
+max_samps_clusts <- unlist(lapply(clusters_list, function(x) max(table(x))))
+
+# Take the samples that are in the clusters and get all the metadata
+metadata_clust_list <- lapply(clusters_list, function(x){
+  metadata[metadata[,"wgs_id"] %in% names(x), ]
+  })
+
+# Get the lineage stats for the clusters
+n_lin_clusts <- data.frame(do.call("rbind", lapply(metadata_clust_list, function(x){
+  table(x$main_lineage)
+  })))
+names(n_lin_clusts) <- paste0("Lin_", 1:ncol(n_lin_clusts))
+
+# Same for dr status
+n_dr_clusts <- plyr::rbind.fill(lapply(metadata_clust_list, function(x){
+  tab2df(table(x$dr_status))
+  }))
+n_dr_clusts <- n_dr_clusts[, dr_status_vect] # Re-arrange
+
+dist_sensitivity_table <- data.frame(SNP_dist = threshold_vect, 
+                                     N_clusters = n_clusts_vect, 
+                                     N = n_samps_per_cluster_vect, 
+                                     Median = med_samps_clusts, 
+                                     Min = min_samps_clusts, 
+                                     Max = max_samps_clusts, 
+                                     n_lin_clusts,
+                                     n_dr_clusts)
 
 ```
 
@@ -718,13 +780,10 @@ dr_genes <- dr_genes[order(dr_genes$drugs), ]
 
 # Other variants ---- 
 
-# # Join id_year col onto other_variants data
-# other_variants <- merge(other_variants, metadata[, c("wgs_id")], 
-#                         by = "wgs_id", sort = F)
-
+# Remove Rv3457c locus
+other_variants <- other_variants[!(other_variants$locus_tag == "Rv3457c"), ]
 
 # FN
-
 FN_results <- data.frame()
 for(i in seq(FN_drugs_split)){
   # Get drug and remove "_test"
@@ -743,14 +802,12 @@ for(i in seq(FN_drugs_split)){
   FN_results <- rbind(ov_sub, FN_results)
 }
 
-# other_variants[other_variants[,"id_year"] == "ERR2510452_NA", ]
-
-
 # TABLE - SUMMARY OF NUMERS - HOW MANY SAMPS 
-FN_results_table_pivot <- reshape2::dcast(FN_results,  drug ~ gene, value.var = "wgs_id", fun.aggregate = length)
+# FN_results_table_pivot <- reshape2::dcast(FN_results,  drug ~ gene, value.var = "wgs_id", fun.aggregate = length)
+FN_results_table_pivot <- reshape2::dcast(FN_results, change ~ ., value.var = "wgs_id", fun.aggregate = length)
 
 # Neaten table 
-FN_results_table <- unique(FN_results[, !(names(FN_results) %in% c("locus_tag_drugs", "wgs_id", "id_year"))])
+FN_results_table <- unique(FN_results[, !(names(FN_results) %in% c("locus_tag_drugs", "wgs_id", "id_year", "nucleotide_change"))])
 FN_results_table <- FN_results_table[order(FN_results_table$drug, FN_results_table$gene, FN_results_table$genome_pos), ]
 row.names(FN_results_table) <- NULL
 
@@ -788,16 +845,21 @@ row.names(FP_results_table) <- NULL
 
 ```
 
+```{r wrangle-dr-variants, echo=F}
 
-```{r wrangle-discrepancies-dr-variants, echo=F}
-
-dr_variants_pivot <- reshape2::dcast(dr_variants,  locus_tag_drugs ~ gene, value.var = "wgs_id", fun.aggregate = length)
-dr_variants_results_table <- unique(dr_variants[, !(names(dr_variants) %in% c("wgs_id", "id_year"))])
-dr_variants_results_table <- dr_variants_results_table[order(dr_variants_results_table$gene), ]
-
+dr_variants$locus_tag_drugs <- gsub(c("\\[|\\]|\\'"), "", dr_variants$locus_tag_drugs)
+dr_variants$drug <- dr_variants$locus_tag_drugs
+dr_variants <- dr_variants[ ,!(names(dr_variants) %in% "locus_tag_drugs")]
+# dr_variants_pivot <- reshape2::dcast(dr_variants,  drug ~ gene, value.var = "wgs_id", fun.aggregate = length)
+dr_variants_pivot <- reshape2::dcast(dr_variants, change ~ ., value.var = "wgs_id", fun.aggregate = length)
+names(dr_variants_pivot) <- c("Change", "Freq")
+dr_variants_results_table <- unique(dr_variants[, !(names(dr_variants) %in% c("wgs_id", "id_year", "nucleotide_change"))])
+dr_variants_results_table <- dr_variants_results_table[order(dr_variants_results_table$drug, 
+                                                             dr_variants_results_table$gene, 
+                                                             dr_variants_results_table$genome_pos), ]
+row.names(dr_variants_results_table) <- NULL
 
 ```
-
 
 ```{r wrangle-loc-lin-dr-dates, echo = F}
 
@@ -944,37 +1006,52 @@ Dr. Jody Phelan, London School of Hygiene & Tropical Medicine, UK; jody.phelan@l
 Dr. Taj ali Khan, Institute of Basic medical Science Khyber Medical University Peshawar KP Pakistan; tajalikhan.ibms@kmu.edu.pk
 
 
-
-
 ## ABSTRACT
 
 
 
 ## INTRODUCTION
 
-
 Tuberculosis disease (TB), caused by bacteria in the Mycobacterium tuberculosis (Mtb) complex, is a major global public health problem. Pakistan is a high-burden TB country, being one of eight countries accounting for two-thirds of the global total TB instance (5.7%). In 2019 it had a  total TB incidence of 570,000 and 43,900 deaths [@WHO_2020]. Furthermore, HIV prevalence in the country is increasing (0.1 prevalence 2019), which compounds the problem of TB infections and treatment [@UNAIDS_2020] (5,100 cases and 1,900 HIV-positive mortality cases in 2019). There is also a high burden for multidrug-resistance (MDR-TB, resistance to isoniazid and rifampicin treatments), with 25,000 cases in the latest WHO estimates. 
 
-<!--
-**Estimates of TB burden, 2019** 
-
-| | Number | (Rate per 100,000 population) |
-|-----------|-----------|-----------|
-| Total TB incidence | 570,000 (404,000-764,000)	| 263 (187-353) |
-| HIV-positive TB incidence |	5,100 (3,400-7,200)	| 2.4 (1.6-3.3) |
-| MDR/RR-TB incidence | 25,000 (16,000-36,000) | 12 (7.3-17) |
-| HIV-negative TB mortality |	42,000 (34,000-51,000) | 19 (16-24) | 
-| HIV-positive TB mortality	| 1,900 (1,300-2,800)	| 0.9 (0.58-1.3) |
-
-**Estimated proportion of TB cases with MDR/RR-TB, 2019**
-
-|  |  |
-|-----------|-----------|
-| New cases |	4.2% (3.2-5.3) |
-| Previously treated cases |	7.3% (6.8-7.8) |
--->
-
 Whole genome sequencing is revolutionizing our understanding of drug resistance and clinical management, as well as transmission patterns, thereby can assist disease control. Within such a context, it is crucial to monitor transmission patterns and ensure that patients are being treated with optimal drug regimens. Here, we analyse `r n_samps_total` whole genome sequences (WGS) of Pakistan *Mycobacterium tuberculosis* (*Mtb*) samples dating from `r first_year` to `r last_year`, using `r fmt(n_snps_total)` SNPs to infer a timed phylogenetic tree and to predict resistance to `r n_drugs_total` drugs. While our data included phenotypic tests of resistance for `r n_pheno_tests` drugs (`r pheno_test_names`), we also applied genotypic tests of drug resistance using TBprofiler [@Coll2015] to predict drug resistance from a database of ~34,000 WGS samples. 
+
+The `r n_samps_total` samples were previously published between `r min(pub_years)` and `r max(pub_years)` in `r length(unique(metadata$study_name))` different studies. 
+
+
+
+Lit rev:
+
+"Whole Genome Sequencing Based Characterization of Extensively Drug-Resistant Mycobacterium tuberculosis Isolates from Pakistan"
+https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0117771#sec002
+[@Ali2015]
+
+- [DR] SNPs can vary between MTB lineages therefore local data is required to describe different strain populations.
+- Investigated 40 genes associated with drug resistance
+- Rifampicin resistance was attributable to SNPs in the rpoB hot-spot region
+- Isoniazid resistance was most commonly associated with the katG codon 315 (92%) mutation followed by inhA S94A (8%) 
+- however, one strain did not have SNPs in katG, inhA or oxyR-ahpC
+- All strains were pyrazimamide resistant but only 43% had pncA SNPs
+
+
+"Whole genome sequencing-based characterization of extensively drug resistant (XDR) strains of Mycobacterium tuberculosis from Pakistan"
+https://www.sciencedirect.com/science/article/pii/S2212553114001721
+[@Hasan2015]
+
+"Characterizing Mycobacterium tuberculosis isolates from Karachi, Pakistan: drug resistance and genotypes"
+sciencedirect.com/science/article/pii/S1201971212000276
+[@Ayaz2012]
+
+"Whole genome sequencing of drug resistant Mycobacterium tuberculosis isolates from a high burden tuberculosis region of North West Pakistan"
+https://www.nature.com/articles/s41598-019-51562-6
+[@Jabbar2019]
+
+"Insight into the drug resistance whole genome of Mycobacterium tuberculosis isolates from Khyber Pakhtunkhwa, Pakistan"
+https://www.sciencedirect.com/science/article/abs/pii/S1567134821001581
+[@Khan2021]
+
+
+
 
 
 ## RESULTS
@@ -985,17 +1062,17 @@ A total of `r n_samps_total` *M. tuberculosis* WGS isolates from Pakistan were d
 
 Upon mapping the sequences, high average coverage was observed across the samples: XXX. A total of `r fmt(n_snps_total)` SNPs were identified, with XXX% found in single isolates. 
 
-Historically, *Mtb* samples from Pakistan belong predominantly to the CAS1-Delhi spoligotype family [@Demay2012] (see **Figure \@ref(fig:historical)**), which belongs to Lineage 3 [@Napier2020]. In our samples, Lineage 3 comprises `r lin_tab[lin_tab["Lineages"] == 3, "pc"]`% of the total samples, followed by Lineage 4 (n=`r n_lin_4`, `r pc_lin_4`%), Lineage 2 (n=`r n_lin_2`, `r pc_lin_2`%) and Lineage 1 (n=`r n_lin_1`, `r pc_lin_1`%) (see **Table \@ref(tab:lintable)** for a breakdown of samples by lineage and sublineage and see **Figure \@ref(fig:treeAllSamps)** for a full phylogenetic tree). 
+Historically, *Mtb* samples from Pakistan belong predominantly to the CAS1-Delhi spoligotype family [@Demay2012] (see **Figure \@ref(fig:historical)**), which belongs to Lineage 3 [@Napier2020]. In our samples, Lineage 3 comprises `r lin_tab[lin_tab["Lineages"] == 3, "pc"]`% of the total samples, followed by Lineage 4 (n=`r n_lin_4`, `r pc_lin_4`%), Lineage 2 (n=`r n_lin_2`, `r pc_lin_2`%) and Lineage 1 (n=`r n_lin_1`, `r pc_lin_1`%) (see **Table \@ref(tab:lintable)** for a breakdown of samples by lineage and sublineage and see **Figure \@ref(fig:ggtree-all-samps)** for a full phylogenetic tree). 
 
 ### Evidence of transmission
 
-Median (range) pairwise SNP distances was `r round(median(lower_dist), rnd)` (`r min(lower_dist)`-`r max(lower_dist)`) for all `r n_samps_total` samples (**Figure \@ref(fig:boxdistance)**). For all dated samples (n=`r n_dated_samps`), the median SNP distance was `r round(median(lower_dist), rnd)` (**Figure \@ref(fig:boxdistance)**). With a threshold of `r threshold` SNPs for the dated samples, `r n_clusters_cut_tree` clusters formed, where a cluster contains at least two samples (**Figure \@ref(fig:clusterstreedated)**). **Figure \@ref(fig:distanceqgraph)** shows a graph of SNP distance connections among all dated samples within the `r threshold`-threshold SNP distance.  
+Median (range) pairwise SNP distances was `r round(median(lower_dist), rnd)` (`r min(lower_dist)`-`r max(lower_dist)`) for all `r n_samps_total` samples (**Figure \@ref(fig:boxdistance)**). For all dated samples (n=`r n_dated_samps`), the median SNP distance was `r round(median(lower_dist), rnd)` (**Figure \@ref(fig:boxdistance)**). With a threshold of `r threshold` SNPs for the dated samples, `r n_clusters_cut_tree` clusters formed, where a cluster contains at least two samples (**Figure \@ref(fig:clusterstree)**). **Figure \@ref(fig:distanceqgraph)** shows a graph of SNP distance connections among all dated samples within the `r threshold`-threshold SNP distance.  
 
-Date of collection was recorded between the years `r first_year` and `r last_year` (`r last_year - first_year` years; **Figure \@ref(fig:dates)**) for `r n_dated_samps` samples, which represent probable closely-related, if not potiential transmission cases. A dated phylogenetic tree was constructed with these samples (**Figures \@ref(fig:beasttrees)**), and when cut at `r cutoff_year` years before the last sample date, `r n_beast_clusters` clusters (n=`r n_beast_cluster_samps`) were inferred (**Figures \@ref(fig:beasttreeszoom)**). 
+Date of collection was recorded between the years `r first_year` and `r last_year` (`r last_year - first_year` years) for `r n_dated_samps` samples, which represent probable closely-related, if not potiential transmission cases. A dated phylogenetic tree was constructed with these samples (**Figures \@ref(fig:beasttrees)**), and when cut at `r cutoff_year` years before the last sample date, `r n_beast_clusters` clusters (n=`r n_beast_cluster_samps`) were inferred. 
 
 ### Drug susceptibility discrepancies
 
-We identified DSTs that disagreed with the genotypic drug resistance predictions for all samples (n=`r n_samps_total`). These discrepancies were classified into two kinds (relevant to novel mutations) - where the phenotypic test showed resistance and the genotypic test predicted sensitivity ("false negative" (FN)), and where the phenotypic test result was sensitive but the genotypic test predicted resistance ("false positive" (FP)). Within the clusters defined above, `r n_FN_samps` samples were FN for `r n_FN_drugs` (`r FN_drugs`) and `r n_FP_samps` samples were FP for `r n_FN_drugs` (`r FP_drugs`) (**Figure \@ref(fig:beasttreeszoom)(C)**).
+We identified DSTs that disagreed with the genotypic drug resistance predictions for all samples (n=`r n_samps_total`). These discrepancies were classified into two kinds (relevant to novel mutations) - where the phenotypic test showed resistance and the genotypic test predicted sensitivity ("false negative" (FN)), and where the phenotypic test result was sensitive but the genotypic test predicted resistance ("false positive" (FP)). Within the clusters defined above, `r n_FN_samps` samples were FN for `r n_FN_drugs` (`r FN_drugs`) and `r n_FP_samps` samples were FP for `r n_FN_drugs` (`r FP_drugs`).
 
 ### Mutations underlying drug-resistance
 
@@ -1057,7 +1134,31 @@ knitr::kable(lin_conv_tab, caption = cap)
 
 ```
 ***
+```{r in-trans-table, echo=FALSE, out.width = "2000px"}
+
+knitr::kable(in_trans_df, 
+             caption = sprintf("Lineages, drug-resistance status and locations of samples 'in transmission' - i.e. a SNP distance of %s (n=%s)", threshold, length(clusters)))
+
+```
+***
+```{r in-trans-table, echo=FALSE, out.width = "2000px"}
+
+knitr::kable(dist_sensitivity_table, caption = "Sensitivity analysis of clustering by SNP distance, summary statistics")
+
+```
+***
+```{r dr-variants-table, echo=FALSE, out.width = "2500px"}
+
+knitr::kable(dr_variants_pivot, 
+             caption = sprintf("Number of samples with known drug resistance-associated mutations by gene and drug (n=%s)", n_samps_total))
+
+knitr::kable(dr_variants_results_table, caption = sprintf("Known drug resistance-associated mutations by gene and drug (n=%s)", n_samps_total))
+
+```
+***
 ```{r FNresultstable, echo=FALSE, out.width = "2500px"}
+
+knitr::kable(FN_results_table_pivot, caption = sprintf("Number of samples with variants previously unknown to be associated with drug resistance (for each respective drug) among 'FN' drug susceptibility test samples (n=%s)", n_FN_samps) )
 
 knitr::kable(FN_results_table, caption = sprintf("Table of variants previously unknown to be associated with drug resistance (for each respective drug) among 'FN' drug susceptibility test samples (n=%s)", n_FN_samps))
 
@@ -1199,18 +1300,18 @@ legend("bottomright", legend = regions_uniq, fill = regions_cols, cex = 0.75)
 ```
 
 ***
-
+<!--
 ```{r dates, echo=FALSE, out.width = "2000px", fig.cap=sprintf("Histogram of sample collection year; n = %s", n_dated_samps)}
 
-year <- round(as.numeric(metadata$year[!is.na(metadata$year)], 1))
-years <- sort(unique(year))
-breaks <- (min(year)-0.5):(max(year)+0.5)
-yr_hist <- hist(year, freq = T, xaxt="n", xlab= "year",
-                breaks = breaks, col = col, main = "")
-axis(side = 1, at = yr_hist$mids, labels = years)
+# year <- round(as.numeric(metadata$year[!is.na(metadata$year)], 1))
+# years <- sort(unique(year))
+# breaks <- (min(year)-0.5):(max(year)+0.5)
+# yr_hist <- hist(year, freq = T, xaxt="n", xlab= "year",
+#                 breaks = breaks, col = col, main = "")
+# axis(side = 1, at = yr_hist$mids, labels = years)
 
 ```
-
+-->
 ***
 
 ```{r boxdistance, echo=FALSE, fig.show="hold", out.width="50%", fig.cap = sprintf("Boxplot of pairwise SNP distances (excluding DR sites), all samples (left; n = %s), samples within %s SNP distance (right; n = %s).", nrow(dist), threshold, nrow(as.matrix(dist_thresh)))}
@@ -1381,8 +1482,14 @@ axis(1, at = threshold_vect, las = 2)
 
 # Get last date from tree
 first_date <- mcc_tree_ape$root.edge
+
+
+
+
+
+
 last_date <- as.numeric(max(unlist(lapply(strsplit(mcc_tree_ape$tip.label, "_"), function(x){x[length(x)]}))))
-last_date_chr <- paste0(as.character(last_date), "-12-31")
+last_date_chr <- paste0(as.character(ceiling(last_date)), "-12-31")
 n_samps <- length(mcc_tree_ape$tip.label)
 
 
@@ -1401,12 +1508,12 @@ line_sz <- 0.2
 gg_mcmc_tree <- ggtree(mcc_tree, mrsd = last_date_chr, size = line_sz) +
   theme_tree2() +
   # geom_tiplab(align=TRUE, linetype='dashed', linesize=.3, size = 2) +
-  geom_range("length_0.95_HPD", color='red', size=2, alpha=.5) +
-  geom_text2(aes(label=round(as.numeric(posterior), 2),
-                 subset=as.numeric(posterior)> 0.9,
-                 x=branch), vjust=0) +
+  # geom_range("length_0.95_HPD", color='red', size=2, alpha=.5) +
+  # geom_text2(aes(label=round(as.numeric(posterior), 2),
+  #                subset=as.numeric(posterior)> 0.9,
+  #                x=branch), vjust=0) +
   coord_cartesian(ylim = y_lim) +
-  scale_x_continuous(breaks = x_labs_full, labels = x_labs_full, limits = x_lim)+
+  scale_x_continuous(breaks = x_labs_full, labels = x_labs_full, limits = x_lim) +
   theme(axis.text.x = element_text(face = "bold", size = 8, angle = 45, hjust = 1))
 
 # Add lin data
@@ -1720,8 +1827,6 @@ plot(beast_log$mrca.date.forward.TreePrior., main = "MRCA", type= 'l', ylab = "M
 par(mfrow=c(1,1))
 
 ```
-
-
 
 
 ### References
