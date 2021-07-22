@@ -322,6 +322,8 @@ drugs <- c("rifampicin", "isoniazid", "ethambutol", "pyrazinamide", "streptomyci
              "ofloxacin", "moxifloxacin", "levofloxacin", "amikacin", "kanamycin", "capreomycin", "ciprofloxacin", "prothionamide", 
              "ethionamide", "para_aminosalicylic_acid", "cycloserine",
              "clarithromycin", "clofazimine", "bedaquiline", "linezolid", "rifabutin", "delamanid")
+fq <- "fluoroquinolones, ofloxacin, levofloxacin, ciprofloxacin, moxifloxacin"
+agc <- "capreomycin, streptomycin, amikacin, kanamycin, aminoglycosides"
 align <- c("l", "r", "r")
 col <- "cornflowerblue"
 threshold <- 10
@@ -915,8 +917,30 @@ dr_variants$locus_tag_drugs <- gsub(c("\\[|\\]|\\'"), "", dr_variants$locus_tag_
 dr_variants$drug <- dr_variants$locus_tag_drugs
 dr_variants <- dr_variants[ ,!(names(dr_variants) %in% "locus_tag_drugs")]
 # dr_variants_pivot <- reshape2::dcast(dr_variants,  drug ~ gene, value.var = "wgs_id", fun.aggregate = length)
-dr_variants_pivot <- reshape2::dcast(dr_variants, change ~ ., value.var = "wgs_id", fun.aggregate = length)
-names(dr_variants_pivot) <- c("Change", "Freq")
+
+# Tidy up drug col
+dr_variants$drug <- ifelse(dr_variants$drug == fq, "fluoroquinolones", 
+       ifelse(dr_variants$drug == agc, "aminoglycosides", dr_variants$drug))
+
+# Make pivot table
+dr_variants_pivot <- reshape2::dcast(dr_variants, drug + gene + change ~ "N",
+                                     value.var = "wgs_id", 
+                                     fun.aggregate = function(x){length(unique(x))})
+
+# Merge with totals for each drug
+
+# DST
+dr_variants_pivot <- merge(dr_variants_pivot, dr_tab_easy[, c("drug", "N_dst")], 
+                           by = "drug", all.x = T, sort = F)
+dr_variants_pivot$pc_dst <- (dr_variants_pivot$N/dr_variants_pivot$N_dst)*100
+dr_variants_pivot$pc_dst <- ifelse(is.infinite(dr_variants_pivot$pc_dst), NA, dr_variants_pivot$pc_dst)
+
+# Genotype - n.b. this has to be merged from itself because the dr_tab_easy doesn't match the known variants table. 
+dr_variants_n <- reshape2::dcast(dr_variants, drug ~ "N_gen", value.var = "wgs_id", 
+                                     fun.aggregate = function(x){length(unique(x))})
+dr_variants_pivot <- merge(dr_variants_pivot, dr_variants_n, by = "drug", all.x = T, sort = F)
+dr_variants_pivot$pc_gen <- (dr_variants_pivot$N/dr_variants_pivot$N_gen)*100
+
 dr_variants_results_table <- unique(dr_variants[, !(names(dr_variants) %in% c("wgs_id", "id_year", "nucleotide_change"))])
 dr_variants_results_table <- dr_variants_results_table[order(dr_variants_results_table$drug, 
                                                              dr_variants_results_table$gene, 
@@ -1283,7 +1307,7 @@ knitr::kable(dr_tab, caption = "Numbers and percentages of drug-resistant sample
 knitr::kable(dr_variants_pivot, 
              caption = sprintf("Number of samples with known drug resistance-associated mutations by gene and drug (n=%s)", n_samps_total))
 
-knitr::kable(dr_variants_results_table, caption = sprintf("Known drug resistance-associated mutations by gene and drug (n=%s)", n_samps_total))
+# knitr::kable(dr_variants_results_table, caption = sprintf("Known drug resistance-associated mutations by gene and drug (n=%s)", n_samps_total))
 
 ```
 ***
@@ -1291,7 +1315,7 @@ knitr::kable(dr_variants_results_table, caption = sprintf("Known drug resistance
 
 knitr::kable(FN_results_table_pivot, caption = sprintf("Number of samples with variants previously unknown to be associated with drug resistance (for each respective drug) among 'FN' drug susceptibility test samples (n=%s)", n_FN_samps) )
 
-knitr::kable(FN_results_table, caption = sprintf("Table of variants previously unknown to be associated with drug resistance (for each respective drug) among 'FN' drug susceptibility test samples (n=%s)", n_FN_samps))
+# knitr::kable(FN_results_table, caption = sprintf("Table of variants previously unknown to be associated with drug resistance (for each respective drug) among 'FN' drug susceptibility test samples (n=%s)", n_FN_samps))
 
 ```
 ***
@@ -1639,17 +1663,19 @@ line_sz <- 0.2
 
 
 
-# 
-# x <- mcc_tree
-# x <- as.phylo(x)
-# x <- phyclust::rescale.rooted.tree(x, scale.height = 1)
-# ggtree(x, mrsd = last_date_chr, size = line_sz) +
-#   theme_tree2() +
-#   scale_x_continuous(breaks = x_labs_full, labels = x_labs_full, limits = x_lim)
-# 
-# 
-# 
-# 
+
+x <- 
+
+x <- mcc_tree
+x <- as.phylo(x)
+x <- phyclust::rescale.rooted.tree(x, scale.height = 1)
+ggtree(x, mrsd = last_date_chr, size = line_sz) +
+  theme_tree2() +
+  scale_x_continuous(breaks = x_labs_full, labels = x_labs_full, limits = x_lim)
+
+
+
+
 
 
 
