@@ -34,6 +34,7 @@ library(randomcoloR)
 library(usedist)
 library(phytools)
 library(sp)
+library(english)
 knitr::opts_chunk$set(echo = F)
 # options(scipen=1, digits=2)
 options(scipen=999, digits = 3)
@@ -80,6 +81,10 @@ tab2df <- function(tab){
   df <- data.frame(x = matrix(tab, ncol = length(tab)))
   names(df) <- names(tab)
   df
+}
+
+print_vect <- function(x){
+  gsub(".{1}$", "", paste0(x, sep = ",", collapse = " "))
 }
 
 plot.phylo.to.map <- function (x, type = c("phylogram", "direct"), ...) 
@@ -693,15 +698,18 @@ n_beast_cluster_samps <- nrow(beast_clusters)
 # Specific drugs - phenotypic tests (DST)
 drugs_data <- apply(metadata[drugs], 2, as.numeric)
 dr_tab <- as.data.frame(t(t(apply(drugs_data[, drugs], 2, sum, na.rm = T))))
+dst_by_row_vect <- apply(drugs_data[, drugs], 1, sum, na.rm = T)
+n_samps_dst_res <- n_samps_total - sum(dst_by_row_vect == 0)
 dr_tab$drug_resistance <- row.names(dr_tab)
 names(dr_tab) <- c("N", "drug")
 dr_tab <- dr_tab[c("drug", "N")]
 row.names(dr_tab) <- NULL
 dr_tab$pc <- round((dr_tab$N/n_samps_total) * 100, rnd)
 
+
 # Genotypic DR - TBprofiler
 tbp_drug_tests <- grep("_tbp", names(metadata), value = T)
-n_tbp_drug_tests <- length(tbp_drug_tests)
+n_tbp_drug_tests <- length(tbp_drug_tests)-2
 tbp_data <- ifelse(metadata[tbp_drug_tests] == "-", 0, 1)
 tbp_data <- as.data.frame(t(t(apply(tbp_data, 2, sum, na.rm = T))))
 tbp_data$drug <- row.names(tbp_data)
@@ -713,6 +721,8 @@ tbp_data$drug <- gsub("_tbp", "", tbp_data$drug)
 
 # Put DST and TBprofiler results together
 dr_tab <- merge(dr_tab, tbp_data, by = "drug", all = T, sort = F)
+dr_tab_easy <- dr_tab
+names(dr_tab_easy) <- c("drug", "N_dst", "pc_dst", "N_gen", "pc_gen")
 names(dr_tab) <- c("Drug", "N DST resistant", "% DST resistant", "N genotypic resistant", "% genotypic resistant")
 
 
@@ -753,18 +763,34 @@ FN <- "pheno_res; geno_sens"
 FP <- "pheno_sens; geno_res"
 discrepancy_data <- metadata[, grep("_test", names(metadata), value = T)]
 
+# How many SAMPLES are FP or FN?
+n_FN_samps <- sum(apply(discrepancy_data == FN, 1, sum) > 0) 
+n_FP_samps <- sum(apply(discrepancy_data == FP, 1, sum) > 0)
+
+# write.csv(discrepancy_data, file = "../discrepancy_data.csv", row.names = F)
+
+# 177	pheno_res; geno_sens	pheno_res; geno_sens
+# 178	match_res	match_res
+# 179	match_res	match_res
+# 180	match_res	match_res
+# 181	match_res	pheno_res; geno_sens
+
+# x <- data.frame(id = LETTERS[1:5], 
+#                 rif = c("pheno_res; geno_sens", rep("match_res", 4)), 
+#                 iso = c("pheno_res; geno_sens", rep("match_res", 3), "pheno_res; geno_sens"))
+
+# # How many SAMPLES are FP in x? TWO. The answer should be TWO
+# sum(apply(x == FN, 1, sum) > 0)
+# sum(apply(x, 2, function(x){sum(x == FN)}))
+
 FN_res <- apply(discrepancy_data, 2, function(x){sum(x == FN)})
 FP_res <- apply(discrepancy_data, 2, function(x){sum(x == FP)})
 
 discrepancy_data$wgs_id <- metadata$wgs_id # Add ids in for the other variants stuff
-n_FN_samps <- sum(FN_res)
-n_FP_samps <- sum(FP_res)
+# n_FN_samps <- sum(FN_res)
+# n_FP_samps <- sum(FP_res)
 FN_drugs_split <- names(FN_res[FN_res > 0])
 FP_drugs_split <- names(FP_res[FP_res > 0])
-n_FN_drugs <- length(FN_drugs_split)
-n_FP_drugs <- length(FP_drugs_split)
-FN_drugs <- gsub("_test", "", paste0(FN_drugs_split, collapse = ", ") )
-FP_drugs <- gsub("_test", "", paste0(FP_drugs_split, collapse = ", ") )
 
 # Drug resistance genes lookup table ----
 
@@ -803,8 +829,25 @@ for(i in seq(FN_drugs_split)){
 }
 
 # TABLE - SUMMARY OF NUMERS - HOW MANY SAMPS 
-# FN_results_table_pivot <- reshape2::dcast(FN_results,  drug ~ gene, value.var = "wgs_id", fun.aggregate = length)
-FN_results_table_pivot <- reshape2::dcast(FN_results, change ~ ., value.var = "wgs_id", fun.aggregate = length)
+FN_results_table_pivot <- reshape2::dcast(FN_results, drug + gene + change ~ "N", value.var = "wgs_id", 
+                                          fun.aggregate = function(x){length(unique(x))})
+
+# Join in total n samps resistant to each drug 
+FN_results_table_pivot <- merge(FN_results_table_pivot, dr_tab_easy[, c("drug", "N_dst", "N_gen")], 
+                                by = "drug", all.x = T, sort = F)
+
+# Calc percentages
+FN_results_table_pivot$pc_dst <- (FN_results_table_pivot$N/FN_results_table_pivot$N_dst)*100
+FN_results_table_pivot$pc_gen <- (FN_results_table_pivot$N/FN_results_table_pivot$N_gen)*100
+# Re-order cols
+FN_results_table_pivot <- FN_results_table_pivot[,  c("drug", "gene", "change", "N", "N_dst", "pc_dst", "N_gen", "pc_gen")]
+
+# Other pivots, for easy wrangling:
+FN_results_drug_pivot <- reshape2::dcast(FN_results, drug ~ "N", value.var = "wgs_id", 
+                                          fun.aggregate = function(x){length(unique(x))})
+
+FN_results_gene_pivot <- reshape2::dcast(FN_results, gene ~ "N", value.var = "wgs_id", 
+                                          fun.aggregate = function(x){length(unique(x))})
 
 # Neaten table 
 FN_results_table <- unique(FN_results[, !(names(FN_results) %in% c("locus_tag_drugs", "wgs_id", "id_year", "nucleotide_change"))])
@@ -842,6 +885,27 @@ for(i in seq(FP_drugs_split)){
 FP_results_table <- unique(FP_results[, !(names(FP_results) %in% c("locus_tag_drugs", "wgs_id", "id_year"))])
 FP_results_table <- FP_results_table[order(FP_results_table$drug, FP_results_table$gene, FP_results_table$genome_pos), ]
 row.names(FP_results_table) <- NULL
+
+
+# Get stats
+
+n_FN_drugs <- length(unique(FN_results_table$drug))
+n_FP_drugs <- length(unique(FP_results_table$drug))
+FN_drugs <- gsub(".{1}$", "", paste0(unique(FN_results_table$drug), sep = ",", collapse = " "))
+FP_drugs <- gsub(".{1}$", "", paste0(unique(FP_results_table$drug), sep = ",", collapse = " "))
+
+# Rifampicin
+rif_mutations <- subset(FN_results_table, drug == "rifampicin")$change
+n_rpob_mutaion_samps <- subset(FN_results_gene_pivot, gene == "rpoB")
+
+# Isoniazid
+iso_data <- subset(FN_results_table, drug == "isoniazid")
+iso_mutations <- unique(iso_data$change)
+iso_genes <- print_vect(unique(iso_data$gene))
+n_iso_samps <- length(unique(FN_results[FN_results$drug == "isoniazid", "wgs_id"]))
+
+
+
 
 ```
 
@@ -1018,7 +1082,7 @@ Whole genome sequencing is revolutionizing our understanding of drug resistance 
 
 The `r n_samps_total` samples were previously published between `r min(pub_years)` and `r max(pub_years)` in `r length(unique(metadata$study_name))` different studies. 
 
-
+---
 
 Lit rev:
 
@@ -1119,9 +1183,27 @@ Date of collection was recorded between the years `r first_year` and `r last_yea
 
 We identified DSTs that disagreed with the genotypic drug resistance predictions for all samples (n=`r n_samps_total`). These discrepancies were classified into two kinds (relevant to novel mutations) - where the phenotypic test showed resistance and the genotypic test predicted sensitivity ("false negative" (FN)), and where the phenotypic test result was sensitive but the genotypic test predicted resistance ("false positive" (FP)). Within the clusters defined above, `r n_FN_samps` samples were FN for `r n_FN_drugs` (`r FN_drugs`) and `r n_FP_samps` samples were FP for `r n_FN_drugs` (`r FP_drugs`).
 
-### Mutations underlying drug-resistance
+For phenotypic DST, there were `r n_samps_dst_res` total samples (`r (n_samps_dst_res/n_samps_total)*100`%) resistant to at least one drug (median = `r median(dst_by_row_vect)`, max = `r max(dst_by_row_vect)`). Among the phenotypic DST results, a high percentage were resistant to four drugs: rifampicin (n=`r dr_tab_easy[dr_tab_easy$drug == "rifampicin", "N_dst"]`, `r dr_tab_easy[dr_tab_easy$drug == "rifampicin", "pc_dst"]`%), isoniazid (n=`r dr_tab_easy[dr_tab_easy$drug == "isoniazid", "N_dst"]`, `r dr_tab_easy[dr_tab_easy$drug == "isoniazid", "pc_dst"]`%), ethambutol (n=`r dr_tab_easy[dr_tab_easy$drug == "ethambutol", "N_dst"]`, `r dr_tab_easy[dr_tab_easy$drug == "ethambutol", "pc_dst"]`%), and pyrazinamide (n=`r dr_tab_easy[dr_tab_easy$drug == "pyrazinamide", "N_dst"]`, `r dr_tab_easy[dr_tab_easy$drug == "pyrazinamide", "pc_dst"]`%)
 
-For FN samples (n=`r n_FN_samps`), **Table \@ref(tab:FNresultstable)** shows variants found in drug resistance-associated genes for `r n_FN_drugs` (`r FN_drugs`), that were previously unknown to be associated with each respective drug, potentially explaining discrepancies between DST and genotypic predictions. 
+Known drug-resistance mutations were predicted in TB-profiler [@Phelan2019] and compared to the phenotypic DST results for `r n_tbp_drug_tests` distinct drugs (plus fluoroquinolones and aminoglycosides generically). We identified a total of `r sum(discrepancy_data == FP | discrepancy_data == FN)` individual DSTs that disagreed with the genotypic drug resistance predictions in `r n_FN_samps+n_FP_samps` samples (**Table \@ref(tab:dr_tab)**; the other discrepancies here are explained by the unavailability of phenotypic DST data). Of these samples, `r n_FN_samps` were phenotypically resistant but predicted to be genotypically resistant ("False Negative", FN), and `r n_FP_samps` vice versa ("False positive", FP).
+
+### Mutations potentially exlpaining drug-resistance
+
+For FN samples, **Table \@ref(tab:FNresultstable)** shows all variants found in drug resistance-associated genes for `r n_FN_drugs` drugs (`r FN_drugs`), that were previously unknown to be associated with each respective drug, potentially explaining discrepancies between phenotypic DST results and genotypic predictions. 
+
+#### Rifampicin
+
+`r tools::toTitleCase(as.character(as.english(length(rif_mutations))))` mutations were associated with changes to the *rpoB* gene/Rv0667 locus: one in a non-coding region, one insertion and two deletions (n=`r n_rpob_mutaion_samps`). 
+
+#### Isoniazid 
+
+Among isoniazid-associated genes, `r length(unique(iso_mutations))` previously-unknown mutations were found among `r as.english(length(unique(iso_data$gene)))` genes (`r iso_genes`) (n=`r n_iso_samps`). 
+
+
+
+
+
+
 
 ## DISCUSSION
 
@@ -1152,24 +1234,14 @@ BEAST v2.6.3 [@Bouckaert2019] was used to infer timed phylogenetic trees (see **
 
 ### Tables
 
+#### General
 ```{r table-1, echo=FALSE, out.width = "2000px"}
 
 knitr::kable(table_1, row.names = NA, rownames.print = F, caption = sprintf("*Mycobacterium tuberculosis* samples (N = %s)", n_samps_total))
 
 ```
 ***
-```{r drTableLin, echo=FALSE, out.width = "2000px"}
-
-knitr::kable(dr_lin_tab, row.names = NA, rownames.print = F, caption = "Drug resistance categories by lineage. See *Methods* section for criteria of categories.")
-
-```
-***
-```{r drtable, echo=FALSE, out.width = "2000px"}
-
-knitr::kable(dr_tab, caption = "Numbers and percentages of drug-resistant samples accourding to DST and genotypic predictions (TBprofiler)")
-
-```
-***
+#### Lineages
 ```{r lintable, echo=FALSE, out.width = "2000px"}
 
 # knitr::kable(lin_tab, align = align)
@@ -1179,6 +1251,7 @@ knitr::kable(lin_conv_tab, caption = cap)
 
 ```
 ***
+#### Transmission
 ```{r in-trans-table, echo=FALSE, out.width = "2000px"}
 
 knitr::kable(in_trans_df, 
@@ -1186,9 +1259,22 @@ knitr::kable(in_trans_df,
 
 ```
 ***
-```{r in-trans-table, echo=FALSE, out.width = "2000px"}
+```{r dist-sens-table, echo=FALSE, out.width = "2000px"}
 
 knitr::kable(dist_sensitivity_table, caption = "Sensitivity analysis of clustering by SNP distance, summary statistics")
+
+```
+***
+#### Drug resistance
+```{r drTableLin, echo=FALSE, out.width = "2000px"}
+
+knitr::kable(dr_lin_tab, row.names = NA, rownames.print = F, caption = "Drug resistance categories by lineage. See *Methods* section for criteria of categories.")
+
+```
+***
+```{r drtable, echo=FALSE, out.width = "2000px"}
+
+knitr::kable(dr_tab, caption = "Numbers and percentages of drug-resistant samples accourding to DST and genotypic predictions (TBprofiler)")
 
 ```
 ***
@@ -1209,6 +1295,7 @@ knitr::kable(FN_results_table, caption = sprintf("Table of variants previously u
 
 ```
 ***
+#### Beast
 ```{r beautiparams, echo=FALSE, out.width = "2000px"}
 
 knitr::kable(beauti_params, caption = "Settings in Beauti for BEAST analysis. Parameters & priors are based on Xu (2020) [@Xu2020]")
@@ -1244,6 +1331,7 @@ knitr::kable(log_table, caption = "Mean and effective sample size (ESS) outputs 
 
 ### Figures
 
+<!--
 ```{r historical, fig.cap = sprintf("Number of samples by spoligotype family \n in historical Mtb data from Pakistan [@Demay2012], n = %s", n_samps_historical) , echo=FALSE, out.width = "2000px"} 
 
 n_samps_historical <- length(historical_metadata$IsoNumber)
@@ -1251,7 +1339,7 @@ n_samps_historical <- length(historical_metadata$IsoNumber)
 barplot(table(historical_metadata$Clade), las=2, main = "", col = col, cex.axis = 0.5, cex.names=0.75)
 
 ```
- 
+-->
 ***
 <!--
 ```{r treeAllSamps, echo=FALSE, out.width = "2000px", fig.cap=sprintf("The %s *M. tuberculosis* isolates: A phylogenetic tree constructed using %s SNPs", n_samps_total, fmt(n_snps_total)) }
@@ -1525,18 +1613,18 @@ axis(1, at = threshold_vect, las = 2)
 ```{r beasttrees, echo=FALSE, out.width = "1500px", warning = F, message = F, cache=F, fig.show="hold", fig.cap="Timed phylogenetic trees of all dated samples (n = n_dated_samps), inferred from BEAST. A - Timed phylogenetic tree annotated with drug resistance statuses from phylogenetic tests (DST); B - The same tree annotated with drug resistance statuses from genotypic profiling (TBprofiler); C - Annotated with the discrepancies between the phenotypic and genotypic tests."}
 
 
-# Get last date from tree
-first_date <- mcc_tree_ape$root.edge
+# Get first date from tree (i.e. date of the root)
+# first_date <- mcc_tree_ape$root.edge
+first_date <- log_table[grep("mrca.date", row.names(log_table))]
+first_date <- plyr::round_any(first_date, 10)
 
 
+first_date <- 0
 
-
-
-
+# Get last date from the samples
 last_date <- as.numeric(max(unlist(lapply(strsplit(mcc_tree_ape$tip.label, "_"), function(x){x[length(x)]}))))
 last_date_chr <- paste0(as.character(ceiling(last_date)), "-12-31")
 n_samps <- length(mcc_tree_ape$tip.label)
-
 
 # Tree setup
 x_lim <- c(first_date-10, last_date+(last_date*0.8))
@@ -1548,6 +1636,23 @@ offset <- 50
 width <- 0.05
 angle <- 45
 line_sz <- 0.2
+
+
+
+# 
+# x <- mcc_tree
+# x <- as.phylo(x)
+# x <- phyclust::rescale.rooted.tree(x, scale.height = 1)
+# ggtree(x, mrsd = last_date_chr, size = line_sz) +
+#   theme_tree2() +
+#   scale_x_continuous(breaks = x_labs_full, labels = x_labs_full, limits = x_lim)
+# 
+# 
+# 
+# 
+
+
+
 
 # Draw basic tree
 gg_mcmc_tree <- ggtree(mcc_tree, mrsd = last_date_chr, size = line_sz) +
