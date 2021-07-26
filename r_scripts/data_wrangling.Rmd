@@ -35,6 +35,7 @@ library(usedist)
 library(phytools)
 library(sp)
 library(english)
+library(corrplot)
 knitr::opts_chunk$set(echo = F)
 # options(scipen=1, digits=2)
 options(scipen=999, digits = 3)
@@ -485,6 +486,13 @@ dist <- dist/2
 dist[upper.tri(dist, diag = T)] <- 0
 lower_dist <- dist[lower.tri(dist)]
 
+# Do density plot of distance matrix for all samples
+lower_dist_df <- data.frame(lower_dist)
+dist_dens_all_samples <- ggplot()+
+  geom_density(data = lower_dist_df, aes(x = lower_dist))+
+  theme_classic()+
+  xlab(label = "SNP distance")
+
 # Cluster using 'single' method.
 # Clusters all samples within distance of threshold
 # clust <- hclust(as.dist(dist_dated), method = "single")
@@ -506,20 +514,90 @@ dist_thresh <- dist_thresh+1 # Add 1 because 1/x later.
 
 ```
 
-```{r in-transmission-stats, echo=F}
+```{r in-transmission-stats, echo=F, warning = F}
 
 # Take the samples from the above "clusters" variable - these samples are "in transmission"
 # Find their metadata and put into a table
 in_trans_metadata <- metadata[metadata[,"wgs_id"] %in% names(clusters), ]
 
+# Linrage
 lin <- tab2df(table(in_trans_metadata$main_lineage))
+# DR
 dr <- tab2df(table(in_trans_metadata$dr_status))
 dr <- dr[, dr_status_vect]
-loc <- tab2df(table(in_trans_metadata$location))
+
+# Loc - 
+# n.b. have to do all this messy wrangling because not all locs are represented in transmission, 
+# so need a pivot table that includes all the 0s
+# loc <- tab2df(table(in_trans_metadata$location))
+loc_data <- metadata[, c("wgs_id", "location")]
+loc_data$trans_status <- ifelse(loc_data$wgs_id %in% names(clusters), 1, 0)
+loc_piviot <- reshape2::dcast(loc_data, trans_status ~ location, value.var = "trans_status",
+                              fun.aggregate = length)
+loc <- loc_piviot[loc_piviot[, "trans_status"] == 1, !(names(loc_piviot) %in% "trans_status")]
+
+# Put all together
 
 in_trans_df <- data.frame(t(cbind(lin, dr, loc)))
 names(in_trans_df) <- "N"
 in_trans_df$pc <- (in_trans_df$N/length(clusters))*100
+in_trans_df$X <- row.names(in_trans_df)
+in_trans_df$Y <- c(rep("Lineage", length(lin)), rep("DR status", length(dr)), rep("Location", length(loc)))
+row.names(in_trans_df) <- NULL
+in_trans_df <- in_trans_df[, c("Y", "X", "N", "pc")]
+names(in_trans_df) <- c("", "", "N", "pc")
+row.names(in_trans_df) <- NULL
+
+# -----
+
+# Tests and plots - chi sq etc
+
+# Lineage
+
+# Row-bind the samples that are 'in transmission' vs non-in-transmission, by lineage
+lin_contingency_tab <- rbind(lin, tab2df(table(metadata[!(metadata[,"wgs_id"] %in% names(clusters)), ]$main_lineage)))
+row.names(lin_contingency_tab) <- c("yes", "no")
+
+# Convert the data as a table
+lin_contingency_tab <- as.table(as.matrix(lin_contingency_tab))
+
+trans_lin_chi_sq <- chisq.test(lin_contingency_tab)
+
+# Plot
+# See - trans-category-plots
+
+
+# DR status
+
+# Row-bind the samples that are 'in transmission' vs non-in-transmission, by DR
+dr_contingency_tab <- rbind(dr, tab2df(table(metadata[!(metadata[,"wgs_id"] %in% names(clusters)), ]$dr_status)))
+row.names(dr_contingency_tab) <- c("yes", "no")
+
+# Convert the data as a table
+dr_contingency_tab <- as.table(as.matrix(dr_contingency_tab))
+
+trans_dr_chi_sq <- chisq.test(dr_contingency_tab, simulate.p.value = T)
+
+
+# Location
+
+# Row-bind the samples that are 'in transmission' vs non-in-transmission, by loc
+loc_contingency_tab <- loc_piviot[, !(names(loc_piviot) %in% "trans_status")]
+# Swap the rows
+loc_contingency_tab <- loc_contingency_tab[c(2, 1), ]
+row.names(loc_contingency_tab) <- c("yes", "no")
+
+# Convert the data as a table
+loc_contingency_tab <- as.table(as.matrix(loc_contingency_tab))
+
+trans_loc_chi_sq <- chisq.test(loc_contingency_tab, simulate.p.value = T)
+
+
+# Plot
+
+
+
+
 
 ```
 
@@ -565,6 +643,12 @@ dist_sensitivity_table <- data.frame(SNP_dist = threshold_vect,
                                      Max = max_samps_clusts, 
                                      n_lin_clusts,
                                      n_dr_clusts)
+
+
+# Threshold stats
+med_clust_threshold <- dist_sensitivity_table[dist_sensitivity_table["SNP_dist"] == threshold, "Median"]
+min_clust_threshold <- dist_sensitivity_table[dist_sensitivity_table["SNP_dist"] == threshold, "Min"]
+max_clust_threshold <- dist_sensitivity_table[dist_sensitivity_table["SNP_dist"] == threshold, "Max"]
 
 ```
 
@@ -1238,7 +1322,13 @@ Historically, *Mtb* samples from Pakistan belong predominantly to the CAS1-Delhi
 
 ### Evidence of transmission
 
-Median (range) pairwise SNP distances was `r round(median(lower_dist), rnd)` (min=`r min(lower_dist)`, max=`r max(lower_dist)`) for all `r n_samps_total` samples (**Figure \@ref(fig:boxdistance)**). For all dated samples (n=`r n_dated_samps`), the median SNP distance was `r round(median(lower_dist), rnd)` (**Figure \@ref(fig:boxdistance)**). With a threshold of `r threshold` SNPs for the dated samples, `r n_clusters_cut_tree` clusters formed, where a cluster contains at least two samples (**Figure \@ref(fig:clusterstree)**). **Figure \@ref(fig:distanceqgraph)** shows a graph of SNP distance connections among all dated samples within the `r threshold`-threshold SNP distance.  
+Median (range) pairwise SNP distances was `r round(median(lower_dist), rnd)` (min=`r min(lower_dist)`, max=`r max(lower_dist)`) for all `r n_samps_total` samples. 
+
+With a threshold of `r threshold` SNPs, `r n_clusters_cut_tree` clusters formed, where the median cluster size was `r med_clust_threshold` (range: `r min_clust_threshold`-`r max_clust_threshold`). **Figure \@ref(fig:distanceqgraph)** shows a graph of SNP distance connections among these samples (n = `r length(attributes(dist_thresh)$Labels)`. 
+
+Chi-square tests for proportions of samples within the `r threshold`-SNP distance threshold for lineage, drug resistance status and location were all significant (X-sq=`r trans_lin_chi_sq$statistic`, p=`r scientific(trans_lin_chi_sq$p.value, digits = 2)`, X-sq=`r trans_dr_chi_sq$statistic`, p=`r scientific(trans_dr_chi_sq$p.value, digits = 2)`, X-sq=`r trans_loc_chi_sq$statistic`, p=`r scientific(trans_loc_chi_sq$p.value, digits = 2)`, respectively). **Figure \@ref(fig:trans-category-plots)** shows that lineages 2 and 4 have significantly more samples within `r threshold` SNPs than expected, as did Pre-XDR and XDR samples. Among locations, Peshawar showed a much higher proportion of potential transmission samples than expected. 
+
+**Figure \@ref(fig:n-clusters-plot)** and **Table \@ref(tab:dist-sens-table)** show a sensitivity analysis of different SNP-distance thresholds. 
 
 
 <!--
@@ -1268,9 +1358,6 @@ For FN samples, **Table \@ref(tab:FNresultstable)** shows all variants found in 
 Among isoniazid-associated genes, `r length(unique(iso_mutations))` previously-unknown mutations were found among `r as.english(length(unique(iso_data$gene)))` genes (`r iso_genes`) (n=`r n_iso_samps`). 
 -->
 
-
-
-
 ## DISCUSSION
 
 
@@ -1286,7 +1373,7 @@ kable(methods_table)
 
 ### Sequence data and processing
 
-WGS were sourced across `r as.english(length(unique(metadata$study_name)))` studies [@Stucki2016] [@Phelan2016a] [Cryptic2018] [Coll2018][@Jabbar2019][@Khan2021](ENA accessions: PRJEB7798, PRJEB10385, PRJEB25972, PRJEB32684, PRJEB43284). 
+WGS were sourced across `r as.english(length(unique(metadata$study_name)))` studies [@Stucki2016] [@Phelan2016a] [@Cryptic2018] [@Coll2018][@Jabbar2019][@Khan2021](ENA accessions: PRJEB7798, PRJEB10385, PRJEB25972, PRJEB32684, PRJEB43284). 
 
 Sequences were downloaded from the European Nucleotide Archive (ENA www.ebi.ac.uk/ena/) and quality inspection of reads assessed in fastQC (version 0.11.9, www.bioinformatics.babraham.ac.uk/projects/fastqc/). Raw reads were trimmed to remove low-quality sequences in Trimmomatic v0.39 [@Bolger2014] and aligned to the H37Rv reference genome (AL123456) with BWA mem v0.7.17 [@Li2013], [@Cole1998]. 
 
@@ -1621,9 +1708,7 @@ gheatmap(lin_dr_loc_hm, drug_discrepancy_data,
 
 
 ```
-
 ***
-
 ```{r map, echo=FALSE, out.width = "2000px", fig.cap=sprintf("Locations of samples; n = %s", length(obj$tree$tip.label))}
 
 plot(obj, lty = 1, fsize = 0.01, direction = "rightwards", colors = map_cols, pch=20)
@@ -1645,7 +1730,7 @@ legend("bottomright", legend = regions_uniq, fill = regions_cols, cex = 0.75)
 ```
 -->
 ***
-
+<!--
 ```{r boxdistance, echo=FALSE, fig.show="hold", out.width="50%", fig.cap = sprintf("Boxplot of pairwise SNP distances (excluding DR sites), all samples (left; n = %s), samples within %s SNP distance (right; n = %s).", nrow(dist), threshold, nrow(as.matrix(dist_thresh)))}
 
 # Summary of distances for all samples
@@ -1665,9 +1750,15 @@ boxplot(dist_thresh, col = col,
         ylab="SNP distance")
 
 ```
+-->
+```{r dist-dens-all-samples, echo=FALSE, fig.show="hold", out.width="50%", fig.cap = sprintf("Density of pairwise SNP distances for all samples (n=%s)", n_samps_total)}
+
+dist_dens_all_samples
+
+```
 
 ***
-
+<!--
 ```{r clusterstree, echo = F, out.width = "2000px", fig.cap = sprintf("Single linkage tree of SNP distances, dated samples. Line shown at a SNP distance of %s; n = %s; n clusters = %s", threshold, nrow(dist), n_clusters_cut_tree)}
 
 # # dist_dated <- as.dist(dist_dated)
@@ -1694,10 +1785,10 @@ abline(a = threshold, b = 0)
 # dist_dated_thresh <- dist_dated_thresh+1 # Add 1 because 1/x later.
 
 ```
-
+-->
 ***
 
-```{r distanceqgraph, echo=FALSE, out.width = "2000px", fig.cap = sprintf("Graph of samples. Connections among samples with <= %s SNP distance; n = %s. Thicker lines indicate smaller SNP distance.", threshold, length(attributes(dist_thresh)$Labels)), fig.show="hold"}
+```{r distanceqgraph, echo=FALSE, out.width = "2000px", fig.cap = sprintf("Connections among samples with <= %s SNP distance; n = %s. Thicker lines indicate smaller SNP distance.", threshold, length(attributes(dist_thresh)$Labels)), fig.show="hold"}
 
 # qgraph::qgraph(1/dist_dated_thresh, layout='spring', vsize=5)
 
@@ -1735,7 +1826,8 @@ qgraph::qgraph(1/dist_thresh,
                borders = T, 
                groups = lin_data_split, 
                legend = TRUE, 
-               color = lin_colours)
+               color = lin_colours, 
+               labels = F)
 
 
 # Same for DR data
@@ -1760,7 +1852,8 @@ qgraph::qgraph(1/dist_thresh,
                borders = T, 
                groups = dr_data_split, 
                legend = TRUE, 
-               color = dr_status_colours)
+               color = dr_status_colours, 
+               labels = F)
 
 # Location
 loc_data_qgraph <- loc_data[row.names(loc_data) %in% attributes(dist_thresh)$Labels, "Location", drop = F]
@@ -1791,9 +1884,40 @@ qgraph::qgraph(1/dist_thresh,
                borders = T, 
                groups = loc_data_split, 
                legend = TRUE, 
-               color = loc_cols_qgraph)
+               color = loc_cols_qgraph, 
+               labels = F)
 
   
+```
+
+***
+
+```{r trans-category-plots, echo=FALSE, out.width = "2000px", fig.cap = sprintf("Proportions of samples within %s SNPs (top) and size of residuals in chi-square tests for lineage, drug resistance status and location.", threshold), fig.show="hold"}
+
+# Lin
+
+balloonplot(t(lin_contingency_tab), 
+            main = sprintf("Samples within %s-SNP threshold, by lineage", threshold), 
+            xlab ="", ylab="",
+            label = T, show.margins = FALSE)
+corrplot(trans_lin_chi_sq$residuals, is.cor = FALSE)
+
+# DR
+
+balloonplot(t(dr_contingency_tab), 
+            main = sprintf("Samples within %s-SNP threshold, by DR status", threshold), 
+            xlab ="", ylab="",
+            label = T, show.margins = FALSE)
+corrplot(trans_dr_chi_sq$residuals, is.cor = FALSE)
+
+# Loc
+
+balloonplot(t(loc_contingency_tab), 
+            main = sprintf("Samples within %s-SNP threshold, by location", threshold), 
+            xlab ="", ylab="",
+            label = T, show.margins = FALSE, show.zeros = T, colsrt = 90)
+corrplot(trans_loc_chi_sq$residuals, is.cor = FALSE)
+
 ```
 
 ***
