@@ -12,14 +12,15 @@ def main(args):
     year = int(args.cut)
 
     tree_file = args.infile
-    tree_file_newick = tree_file + ".nwk"
+    # tree_file_newick = tree_file + ".nwk"
 
     # Convert and write Beast MCC nexus file to newick so ete can read
-    Phylo.convert(tree_file, "nexus", tree_file_newick, "newick")
+    # Phylo.convert(tree_file, "nexus", tree_file_newick, "newick")
 
     # Read in newick tree and parse as tree with ete
     # ETE - see http://etetoolkit.org/docs/latest/tutorial/tutorial_trees.html
-    t = Tree(tree_file_newick, format = 1)
+    # t = Tree(tree_file_newick, format = 1)
+    t = Tree(tree_file, format = 1)
 
     # Get all sample names
     samps = t.get_leaf_names()
