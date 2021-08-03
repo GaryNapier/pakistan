@@ -1,7 +1,7 @@
 #!/usr/bin/env Rscript
 
 # Finds samples from global metadata that belong to same sublineages as pakistan data. 
-# Removes countries with less than 20 samples and downsamples these.
+# Removes countries with less than n samples and downsamples these.
 # Have to read in a country code lookup file to clean the countries.
 # Outputs a list of samples to be passed to vcf to make fasta to make a tree.
 # Outputs the metadata of the global samples so that the later tree can be annotated.
@@ -21,7 +21,7 @@ option_list = list(
   make_option(c("-c", "--country_code_lookup_file"), type="character", default=NULL,
               help="input metadata file name", metavar="character"),
   make_option(c("-s", "--sample_list_outfile"), type="character", default=NULL,
-              help="input outfile name", metavar="character")),
+              help="input outfile name", metavar="character"),
   make_option(c("-g", "--global_metadata_outfile"), type="character", default=NULL,
               help="input outfile name", metavar="character"));
 
@@ -64,11 +64,11 @@ metadata_34k <- metadata_34k[, !(names(metadata_34k) %in% c("country.x", "countr
 global_samps <- metadata_34k[metadata_34k$sub_lineage %in% uniq_lins, ]
 
 # Remove the pakistan samples
-global_samps <- global_samps[!(global_samps$country_code == "pk"), ]
+# global_samps <- global_samps[!(global_samps$country_code == "pk"), ]
 
 # DO ANALYSIS
 
-n <- 20
+n <- 10
 
 # Remove countries that have less than 20 samples
 country_tab <- table(global_samps$country_code)
@@ -83,11 +83,11 @@ country_keep <- country_keep[!(country_keep == "N/A")]
 global_samps <- global_samps[global_samps$country_code %in% country_keep, ]
 
 # Loop over the split data and downsample to ten rows per sublin
-global_samps_split <- split(global_samps, global_samps$country)
+global_samps_split <- split(global_samps, global_samps$country_code)
 global_samps_downsamp <- list()
 for(i in seq(global_samps_split)){
   x <- global_samps_split[[i]]
-  if(length(x$country) < n){
+  if(length(x$country_code) < n){
     next
   }else{
     set.seed(1)
@@ -103,10 +103,13 @@ global_samps_downsamp <- do.call("rbind", global_samps_downsamp)
 # WRITE OUT
 
 # Write out metadata
-write.csv(global_samps_downsamp, global_metadata_outfile, row.names = F)
+# Put togehter with pakistan metadata
+global_samps_plus_pk <- rbind(global_samps_downsamp, pk_metadata)
+write.csv(global_samps_plus_pk, global_metadata_outfile, row.names = F)
 
 # Take the sample names
-write.table(global_samps_downsamp$wgs_id, sample_list_outfile, sep = "\t", row.names = F, col.names = F)
+# Put together with pakistan samples
+write.table(global_samps_plus_pk$wgs_id, sample_list_outfile, sep = "\t", row.names = F, col.names = F)
 
 
 
