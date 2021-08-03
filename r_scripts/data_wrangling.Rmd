@@ -383,6 +383,7 @@ dr_trees_pdf_file <- paste0(plots_path, "PAKISTAN_ALL.dr_trees.pdf")
 # Map
 pakistan_sp_file <- paste0(metadata_path, "pakistan_sp.rds")
 pakistan_lat_long_file <- paste0(metadata_path, "pakistan_lat_long.csv")
+pakistan_province_lookup_file <- paste0(metadata_path, "pakistan_province_lookup.csv")
 # Other
 methods_file <- paste0(methods_path, "pakistan_methods.tsv")
 
@@ -417,6 +418,7 @@ other_variants <- read.delim(other_variants_file, header = T)
 # Map
 pakistan_sp <- readRDS(pakistan_sp_file)
 pakistan_lat_long <- read.csv(pakistan_lat_long_file, header = T)
+pakistan_province_lookup <- read.csv(pakistan_province_lookup_file, header = T)
 # Other
 methods_table <- read.table(file = methods_file, sep = '\t', header = TRUE)
 
@@ -532,6 +534,7 @@ dr <- dr[, dr_status_vect]
 # loc <- tab2df(table(in_trans_metadata$location))
 loc_data <- metadata[, c("wgs_id", "location")]
 loc_data$trans_status <- ifelse(loc_data$wgs_id %in% names(clusters), 1, 0)
+loc_data$location <- ifelse(loc_data$location == "", NA, loc_data$location)
 loc_piviot <- reshape2::dcast(loc_data, trans_status ~ location, value.var = "trans_status",
                               fun.aggregate = length)
 loc <- loc_piviot[loc_piviot[, "trans_status"] == 1, !(names(loc_piviot) %in% "trans_status")]
@@ -685,6 +688,10 @@ lin_conv_tab <- lin_conv_tab[order(lin_conv_tab$N, decreasing = T),]
 row.names(lin_conv_tab) <- NULL
 
 
+# Get unique lineages
+uniq_lins <- unique(metadata$sub_lineage)
+
+
 ```
 
 ```{r wrangle-years, echo=F}
@@ -704,12 +711,27 @@ year_tab$pc <- round((year_tab$N/sum(year_tab$N)) * 100, rnd)
 
 # LOCATION ----
 
+# Clean blanks in location
 metadata$location <- ifelse(metadata$location == "", NA, metadata$location)
 
+# Add province and district
+metadata <- merge(metadata, pakistan_province_lookup, by = "location", all.x = T, sort = F)
+
+# Add province lat long
+province_lat_long_df <- merge(metadata["province"], pakistan_lat_long, by.x = "province", by.y = "location", all.x = T, sort = F)
+names(province_lat_long_df) <- c("province", "province_lat", "province_long")
+province_lat_long_df <- unique(province_lat_long_df)
+metadata <- merge(metadata, province_lat_long_df, by = "province", all.x = T, sort = F)
+
+# Pivot table of locations
 location_tab <- reshape2::dcast(metadata, location ~ "N", value.var = id_col, fun.aggregate = length)
 location_tab$pc <- round((location_tab$N/sum(location_tab$N)) * 100, rnd)
-
 location_tab <- location_tab[order(location_tab$N, decreasing =T),]
+
+
+
+
+
 
 ```
 
@@ -1181,7 +1203,7 @@ Dr. Taj ali Khan, Institute of Basic medical Science Khyber Medical University P
 
 ## INTRODUCTION
 
-Tuberculosis disease (TB), caused by bacteria in the Mycobacterium tuberculosis (Mtb) complex, is a major global public health problem. Pakistan is a high-burden TB country, being one of eight countries accounting for two-thirds of the global total TB instance (5.7%). In 2019 it had a  total TB incidence of 570,000 and 43,900 deaths [@WHO_2020]. Furthermore, HIV prevalence in the country is increasing (0.1 prevalence 2019), which compounds the problem of TB infections and treatment [@UNAIDS_2020] (5,100 cases and 1,900 HIV-positive mortality cases in 2019). There is also a high burden for multidrug-resistance (MDR-TB, resistance to isoniazid and rifampicin treatments), with 25,000 cases in the latest WHO estimates. 
+Tuberculosis disease (TB), caused by bacteria in the Mycobacterium tuberculosis (Mtb) complex, is a major global public health problem. Pakistan is a high-burden TB country, being one of eight countries accounting for two-thirds of the global total TB instance (5.7%). In 2019 it had a  total TB incidence of 570,000 and 43,900 deaths [@WHO_2020]. Furthermore, HIV prevalence in the country is increasing (0.1 prevalence 2019), which compounds the problem of TB infections and treatment [@UNAIDS_2020] (5,100 cases and 1,900 HIV-positive mortality cases in 2019). There is also a high burden for rifampacin resistant (RR-TB) and multidrug-resistance (MDR-TB, resistance to isoniazid and rifampicin treatments), with 25,000 cases of MDR/RR-TB in the latest WHO estimates. 
 
 Whole genome sequencing is revolutionizing our understanding of drug resistance and clinical management, as well as transmission patterns, thereby can assist disease control. Within such a context, it is crucial to monitor transmission patterns and ensure that patients are being treated with optimal drug regimens. Here, we analyse `r n_samps_total` whole genome sequences (WGS) of Pakistan *Mycobacterium tuberculosis* (*Mtb*) samples dating from `r round(first_year)` to `r round(last_year)`, using `r fmt(n_snps_total)` SNPs to infer a timed phylogenetic tree and to predict resistance to `r n_drugs_total` drugs. While our data included phenotypic tests of resistance for `r n_pheno_tests` drugs (`r pheno_test_names`), we also applied genotypic tests of drug resistance using TBprofiler [@Coll2015] to predict drug resistance from a database of ~34,000 WGS samples. The `r n_samps_total` samples were previously published between `r min(pub_years)` and `r max(pub_years)` in `r as.english(length(unique(metadata$study_name)))` different studies. 
 
@@ -1316,9 +1338,9 @@ Conclusion: Mutations in the RRDR region of rpoB is a major mechanism of RIF res
 
 A total of `r n_samps_total` *M. tuberculosis* WGS isolates from Pakistan were downloaded from the European Nucleotide Archive (ENA). The samples were cultured, whole-genome sequenced, and drug susceptibility testing (DST) was applied for `r n_pheno_tests` drugs. Combining the results of the DST and the genotypic prediction tests (see **Methods**), `r n_sens` (`r pc_sens`%) samples were pan-sensitive, `r n_mdr` (`r pc_mdr`%) classed as MDR-TB (resistant to both rifampicin and isoniazid), and `r n_xdr` (`r pc_xdr`%) were XDR (resistant to isoniazid and rifampicin, plus any fluoroquinolone and at least one of three injectable second-line drugs). See **Table \@ref(tab:drTableLin)** for Pre-MDR, Pre-XDR figures and drug resistance categories by lineage. 
 
-Upon mapping the sequences, high average coverage was observed across the samples: XXX. A total of `r fmt(n_snps_total)` SNPs were identified, with XXX% found in single isolates. 
-
 Historically, *Mtb* samples from Pakistan belong predominantly to the CAS1-Delhi spoligotype family [@Demay2012], which belongs to Lineage 3 [@Napier2020]. In our samples, Lineage 3 comprises `r lin_tab[lin_tab["Lineages"] == 3, "pc"]`% of the total samples, followed by Lineage 4 (n=`r n_lin_4`, `r pc_lin_4`%), Lineage 2 (n=`r n_lin_2`, `r pc_lin_2`%) and Lineage 1 (n=`r n_lin_1`, `r pc_lin_1`%) (see **Table \@ref(tab:lintable)** for a breakdown of samples by lineage and sublineage and see **Figure \@ref(fig:ggtree-all-samps)** for a full phylogenetic tree). 
+
+Upon mapping the sequences, high average coverage was observed across the samples: XXX. A total of `r fmt(n_snps_total)` SNPs were identified, with XXX% found in single isolates. 
 
 ### Evidence of transmission
 
@@ -1338,11 +1360,12 @@ Date of collection was recorded between the years `r first_year` and `r last_yea
 
 ### Drug susceptibility discrepancies
 
-We identified DSTs that disagreed with the genotypic drug resistance predictions for all samples (n=`r n_samps_total`). These discrepancies were classified into two kinds - where the phenotypic test showed resistance and the genotypic test predicted sensitivity ("false negative" (FN)), and where the phenotypic test result was sensitive but the genotypic test predicted resistance ("false positive" (FP)). Within the clusters defined above, `r n_FN_samps` samples were FN for `r as.english(n_FN_drugs)` drugs (`r FN_drugs`) and `r n_FP_samps` samples were FP for `r n_FN_drugs` (`r FP_drugs`).
+We identified DSTs that disagreed with the genotypic drug resistance predictions for all samples (n=`r n_samps_total`). These discrepancies were classified into two kinds - where the phenotypic test showed resistance and the genotypic test predicted sensitivity ("false negative" (FN)), and where the phenotypic test result was sensitive but the genotypic test predicted resistance ("false positive" (FP)). Within the clusters defined above, `r n_FN_samps` samples were FN for `r as.english(n_FN_drugs)` drugs (`r FN_drugs`) and `r n_FP_samps` samples were FP for `r as.english(n_FN_drugs)` drugs (`r FP_drugs`).
 
 For phenotypic DST, there were `r n_samps_dst_res` total samples (`r (n_samps_dst_res/n_samps_total)*100`%) resistant to at least one drug (median = `r median(dst_by_row_vect)`, max = `r max(dst_by_row_vect)`). Among the phenotypic DST results, a high percentage were resistant to four drugs: rifampicin (n=`r dr_tab_easy[dr_tab_easy$drug == "rifampicin", "N_dst"]`, `r dr_tab_easy[dr_tab_easy$drug == "rifampicin", "pc_dst"]`%), isoniazid (n=`r dr_tab_easy[dr_tab_easy$drug == "isoniazid", "N_dst"]`, `r dr_tab_easy[dr_tab_easy$drug == "isoniazid", "pc_dst"]`%), ethambutol (n=`r dr_tab_easy[dr_tab_easy$drug == "ethambutol", "N_dst"]`, `r dr_tab_easy[dr_tab_easy$drug == "ethambutol", "pc_dst"]`%), and pyrazinamide (n=`r dr_tab_easy[dr_tab_easy$drug == "pyrazinamide", "N_dst"]`, `r dr_tab_easy[dr_tab_easy$drug == "pyrazinamide", "pc_dst"]`%)
 
-Known drug-resistance mutations were predicted in TB-profiler [@Phelan2019] and compared to the phenotypic DST results for `r n_tbp_drug_tests` distinct drugs (plus fluoroquinolones and aminoglycosides generically). We identified a total of `r sum(discrepancy_data == FP | discrepancy_data == FN)` individual DSTs that disagreed with the genotypic drug resistance predictions in `r n_FN_samps+n_FP_samps` samples (**Table \@ref(tab:dr-tab)**; the other discrepancies here are explained by the unavailability of phenotypic DST data). Of these samples, `r n_FN_samps` were FN, and `r n_FP_samps` samples vice versa (FP).
+Known drug-resistance mutations were predicted in TB-profiler [@Phelan2019] and compared to the phenotypic DST results for `r n_tbp_drug_tests` distinct drugs (plus fluoroquinolones and aminoglycosides generically). We identified a total of `r sum(discrepancy_data == FP | discrepancy_data == FN)` individual DSTs that disagreed with the genotypic drug resistance predictions in `r n_FN_samps+n_FP_samps` samples (**Table \@ref(tab:dr-tab)**; the other discrepancies here are explained by the unavailability of phenotypic DST data). Of these samples, `r n_FN_samps` were FN, and `r n_FP_samps` samples FP.
+
 
 ### Mutations potentially exlpaining drug-resistance
 
@@ -1359,6 +1382,23 @@ Among isoniazid-associated genes, `r length(unique(iso_mutations))` previously-u
 -->
 
 ## DISCUSSION
+
+This study helps demonstrate the value of WGS in the context of a low-income, high-burden country. Our findings on potential transmission among lineages 2 and 4, Pre-XDR and XDR TB, and in Peshawar, as well as drug resistance mutations can inform better epidemiological, clinical, and control decisions in Pakistan and, more generally, provides insight into mutations relevant to drug design. WGS can potentially be particularly useful in countries similar to Pakistan where effective public health surveillance is inadequate due to socio-economic problems - genetic data can fill gaps in data collection, revealing salient connections and variation.
+
+
+
+
+
+
+
+- Evidence of transmission among
+  - lineages 2 and 4 
+  - Pre-MDR and MDR 
+  - Peshawar
+  
+- Previously unknown DR mutations for drugs XXX in genes XXX
+
+- 
 
 
 ## METHODS
@@ -1498,7 +1538,6 @@ barplot(table(historical_metadata$Clade), las=2, main = "", col = col, cex.axis 
 
 ```
 -->
-***
 <!--
 ```{r treeAllSamps, echo=FALSE, out.width = "2000px", fig.cap=sprintf("The %s *M. tuberculosis* isolates: A phylogenetic tree constructed using %s SNPs", n_samps_total, fmt(n_snps_total)) }
 
@@ -1508,6 +1547,7 @@ knitr::include_graphics(tree_all_samps_file)
 
 ```
 -->
+
 ***
 
 ```{r ggtree-all-samps, echo=FALSE, out.width = "1500px", warning = F, message = F, cache=F, fig.show="hold", fig.cap=sprintf("The %s *M. tuberculosis* isolates: A phylogenetic tree constructed using %s SNPs", n_samps_total, fmt(n_snps_total))}
@@ -1579,7 +1619,9 @@ gheatmap(dr_status_hm, loc_data,
   legend_spec
 
 ```
+
 ***
+
 ```{r dr-trees, echo=FALSE, out.width = "1500px", warning = F, message = F, cache=F, fig.show="hold", fig.cap=""}
 
 # -------------
@@ -1708,7 +1750,9 @@ gheatmap(lin_dr_loc_hm, drug_discrepancy_data,
 
 
 ```
+
 ***
+
 ```{r map, echo=FALSE, out.width = "2000px", fig.cap=sprintf("Locations of samples; n = %s", length(obj$tree$tip.label))}
 
 plot(obj, lty = 1, fsize = 0.01, direction = "rightwards", colors = map_cols, pch=20)
