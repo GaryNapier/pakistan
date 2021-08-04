@@ -17,46 +17,46 @@ library(optparse)
 
 # Arguments ----
 
-# option_list = list(
-#   make_option(c("-m", "--metadata_file"), type="character", default=NULL,
-#               help="input metadata file name", metavar="character"),
-#   make_option(c("-c", "--country_code_lookup_file"), type="character", default=NULL,
-#               help="input metadata file name", metavar="character"),
-#   make_option(c("-s", "--sample_list_outfile"), type="character", default=NULL,
-#               help="input outfile name", metavar="character"),
-#   make_option(c("-g", "--global_metadata_outfile"), type="character", default=NULL,
-#               help="input outfile name", metavar="character"));
-# 
-# opt_parser = OptionParser(option_list=option_list);
-# opt = parse_args(opt_parser);
-# 
-# print("ARGUMENTS:")
-# print(opt)
-# print("---")
-# print(str(opt))
-# 
-# # FILES
-# 
-# metadata_34k_file <- opt$metadata_file
-# country_code_lookup_file <- opt$country_code_lookup_file
-# sample_list_outfile <- opt$sample_list_outfile
-# global_metadata_outfile <- opt$global_metadata_outfile
+option_list = list(
+  make_option(c("-m", "--metadata_file"), type="character", default=NULL,
+              help="input metadata file name", metavar="character"),
+  make_option(c("-c", "--country_code_lookup_file"), type="character", default=NULL,
+              help="input metadata file name", metavar="character"),
+  make_option(c("-s", "--sample_list_outfile"), type="character", default=NULL,
+              help="input outfile name", metavar="character"),
+  make_option(c("-g", "--global_metadata_outfile"), type="character", default=NULL,
+              help="input outfile name", metavar="character"));
+
+opt_parser = OptionParser(option_list=option_list);
+opt = parse_args(opt_parser);
+
+print("ARGUMENTS:")
+print(opt)
+print("---")
+print(str(opt))
+
+# FILES
+
+metadata_34k_file <- opt$metadata_file
+country_code_lookup_file <- opt$country_code_lookup_file
+sample_list_outfile <- opt$sample_list_outfile
+global_metadata_outfile <- opt$global_metadata_outfile
 
 
-rm(list=ls())
-methods_path <- "../methods/"
-main_metadata_path <- "../../metadata/"
-metadata_path <- "../metadata/"
-newick_path <- "../newick/"
-plots_path <- "../plots/"
-db_path <- "../../pipeline/db/"
-dist_path <- "../dist_and_pca/"
-beast_results_path <- "../beast_results/"
-beast_test_path <- "../beast_test/"
-metadata_34k_file <- paste0(main_metadata_path, "tb_data_18_02_2021.csv")
-country_code_lookup_file <- paste0(main_metadata_path, "country_code_lookup.txt")
-sample_list_outfile <- "sample_list_outfile.txt"
-global_metadata_outfile <- "global_metadata_outfile.csv"
+# rm(list=ls())
+# methods_path <- "../methods/"
+# main_metadata_path <- "../../metadata/"
+# metadata_path <- "../metadata/"
+# newick_path <- "../newick/"
+# plots_path <- "../plots/"
+# db_path <- "../../pipeline/db/"
+# dist_path <- "../dist_and_pca/"
+# beast_results_path <- "../beast_results/"
+# beast_test_path <- "../beast_test/"
+# metadata_34k_file <- paste0(main_metadata_path, "tb_data_18_02_2021.csv")
+# country_code_lookup_file <- paste0(main_metadata_path, "country_code_lookup.txt")
+# sample_list_outfile <- "sample_list_outfile.txt"
+# global_metadata_outfile <- "global_metadata_outfile.csv"
 
 
 # READ IN FILES
