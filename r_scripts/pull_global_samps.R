@@ -42,6 +42,21 @@ country_code_lookup_file <- opt$country_code_lookup_file
 sample_list_outfile <- opt$sample_list_outfile
 global_metadata_outfile <- opt$global_metadata_outfile
 
+
+rm(list=ls())
+methods_path <- "../methods/"
+main_metadata_path <- "../../metadata/"
+metadata_path <- "../metadata/"
+newick_path <- "../newick/"
+plots_path <- "../plots/"
+db_path <- "../../pipeline/db/"
+dist_path <- "../dist_and_pca/"
+beast_results_path <- "../beast_results/"
+beast_test_path <- "../beast_test/"
+metadata_34k_file <- paste0(main_metadata_path, "tb_data_18_02_2021.csv")
+country_code_lookup_file <- paste0(main_metadata_path, "country_code_lookup.txt")
+
+
 # READ IN FILES
 
 metadata_34k <- read.csv(metadata_34k_file, header = T, stringsAsFactors = F)
@@ -52,8 +67,8 @@ country_code_lookup <- read.delim(country_code_lookup_file, na.strings = "")
 # Strip 'lineage' from sub_lineage col
 metadata_34k$sub_lineage <- gsub("lineage", "", metadata_34k$sub_lineage)
 
-# Clean up 
-metadata_34k <- metadata_34k[!(metadata_34k$geographic_source == "Momazbique"), ] # Some 'br' samps marked as Mozambique
+# Drop NA country codes
+metadata_34k <- metadata_34k[!(metadata_34k[, "country_code"] == "N/A"), ]
 
 # Merge in clean country names
 metadata_34k <- merge(metadata_34k, country_code_lookup, by.x = "country_code", by.y = "country_code_lower", all.x = T, sort = F)
