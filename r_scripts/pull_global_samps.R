@@ -43,18 +43,18 @@ sample_list_outfile <- opt$sample_list_outfile
 global_metadata_outfile <- opt$global_metadata_outfile
 
 
-rm(list=ls())
-methods_path <- "../methods/"
-main_metadata_path <- "../../metadata/"
-metadata_path <- "../metadata/"
-newick_path <- "../newick/"
-plots_path <- "../plots/"
-db_path <- "../../pipeline/db/"
-dist_path <- "../dist_and_pca/"
-beast_results_path <- "../beast_results/"
-beast_test_path <- "../beast_test/"
-metadata_34k_file <- paste0(main_metadata_path, "tb_data_18_02_2021.csv")
-country_code_lookup_file <- paste0(main_metadata_path, "country_code_lookup.txt")
+# rm(list=ls())
+# methods_path <- "../methods/"
+# main_metadata_path <- "../../metadata/"
+# metadata_path <- "../metadata/"
+# newick_path <- "../newick/"
+# plots_path <- "../plots/"
+# db_path <- "../../pipeline/db/"
+# dist_path <- "../dist_and_pca/"
+# beast_results_path <- "../beast_results/"
+# beast_test_path <- "../beast_test/"
+# metadata_34k_file <- paste0(main_metadata_path, "tb_data_18_02_2021.csv")
+# country_code_lookup_file <- paste0(main_metadata_path, "country_code_lookup.txt")
 
 
 # READ IN FILES
