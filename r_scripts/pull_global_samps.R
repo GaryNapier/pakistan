@@ -13,6 +13,8 @@
 
 rm(list=ls())
 
+library(optparse)
+
 # Arguments ----
 
 option_list = list(
@@ -59,6 +61,9 @@ metadata_34k <- merge(metadata_34k, country_code_lookup, by.x = "country_code", 
 metadata_34k$country <- metadata_34k$country.y 
 # Drop the two old country cols
 metadata_34k <- metadata_34k[, !(names(metadata_34k) %in% c("country.x", "country.y"))]
+
+# Get unique lineages from pakistan data
+uniq_lins <- unique(metadata_34k[metadata_34k["country_code"] == "pk", "sub_lineage"])
 
 # Get the global samples that are the same sublin as the pakisatan samples
 global_samps <- metadata_34k[metadata_34k$sub_lineage %in% uniq_lins, ]
