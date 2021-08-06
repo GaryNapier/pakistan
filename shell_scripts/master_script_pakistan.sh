@@ -38,6 +38,7 @@ cut_year=50
 # Existing directories
 main_metadata_dir=~/metadata/
 vcf_dir=~/vcf/
+jody_vcf_dir=/mnt/storage7/jody/tb_ena/per_sample/
 ref_dir=~/refgenome/
 tbprofiler_results_dir=tbprofiler_pakistan_results/
 
@@ -49,10 +50,9 @@ newick_output_dir=newick/
 itol_dir=itol/
 tmp_dir=tmp/
 beast_results_dir=beast_results/
+beast_results_BACKUP_dir=beast_results_BACKUP/
 beast_xml_dir=beast_xml/
 transphylo_results_dir=transphylo_results/
-
-
 
 
 # Files
@@ -62,6 +62,7 @@ main_metadata_file=${main_metadata_dir}tb_data_18_02_2021.csv
 # pakistan_unpublished_metadata=${main_metadata_dir}pakistan_data_non_mixed.csv
 ref_fasta_file=${ref_dir}MTB-h37rv_asm19595v2-eg18.fa
 ex_loci_file=${ref_dir}excluded_loci_rep_regions_dr_regions.bed
+country_code_lookup_file=${main_metadata_dir}country_code_lookup.txt
 
 # Out files
 
@@ -102,61 +103,30 @@ new_beast_trees_file=${beast_results_dir}${study_accession}*.trees
 new_beast_state_file=${beast_results_dir}${study_accession}*.xml.state
 # mcc
 mcc_tree=${beast_results_dir}${study_accession}.mcc.tree
+mcc_tree_newick=${mcc_tree}.nwk
 # TransPhylo
 transphylo_es_table_file=${transphylo_results_dir}${study_accession}.es_table.csv
 # tbprofiler / variant results
 tbprofiler_variants_file=${local_metadata_dir}${study_accession}.variants
 
+# Ancestral state
+global_sample_list_outfile=${local_metadata_dir}global_sample_list.txt
+global_metadata_outfile=${local_metadata_dir}global_metadata.csv
+global_val_multi_vcf_file=${vcf_dir}GLOBAL.val.gt${gvcf_file_suffix}
+global_filt_multi_vcf_file=${vcf_dir}GLOBAL.filt.val.gt${gvcf_file_suffix}
+global_fasta_file=${fasta_dir}GLOBAL.filt.val.gt.g.snps.fa
+global_fasta_file_base=$(basename -- ${global_fasta_file})
+global_iqtree_file=${newick_output_dir}${global_fasta_file_base}.iqtree
+global_treefile=${newick_output_dir}${global_fasta_file_base}*treefile
 
-# ------------------------------------------------------------------------------
-
-# RESET!!!!!!
-
-#  set reset_all=true in variables section
-
-# if [ ${reset_all} = true ] ; then
-
-# echo "-------------------------------------------------"
-# echo "Removing files - RESET ALL"
-# echo "-------------------------------------------------"
-# set -x
-# Remove directories
-# rm -rf ${tmp_dir}
-# rm -rf genomicsDB
-# metadata
-# rm -f ${pakistan_metadata_file}
-# rm -f ${pakistan_metadata_file_dated}
-# rm -f ${dated_samples_file}
-# vcf
-# rm -f ${vcf_dir}${study_accession}*
-# rm -f ${dated_samps_vcf}
-# dist
-# rm -f ${dist_file}
-# rm -f ${dist_id_file}
-# fasta
-# rm -f ${unfilt_fasta_file}
-# iqtree
-# rm -f ${iqtree_file}
-# rm -f ${treefile}
-# itol
-# rm -f ${itol_dir}*
-# fasta with dates
-# rm -f ${fasta_dated_samples_file}
-# rm -f ${fasta_file_annotated_with_dates}
-# Beast
-# rm -f ${xml_file}
-# rm -f ${xml_file_plus_const}
-# rm -f ${new_beast_log_file}
-# rm -f ${new_beast_trees_file}
-# rm -f ${new_beast_state_file}
-# rm -f ${mcc_tree}
-# rm -f ${beast_clusters_file}
-# variants
-rm -f ${tbprofiler_variants_file}*
-
-    # set +x
-    # printf "\n"
-# fi
+# echo ${global_sample_list_outfile}
+# echo ${global_metadata_outfile}
+# echo ${global_val_multi_vcf_file}
+# echo ${global_filt_multi_vcf_file}
+# echo ${global_fasta_file}
+# echo ${global_fasta_file_base}
+# echo ${global_iqtree_file}
+# echo ${global_treefile}
 
 
 # ------------------------------------------------------------------------------
@@ -189,6 +159,11 @@ fi
 if [ ! -d ${beast_results_dir} ]; then
     mkdir ${beast_results_dir}
 fi
+
+if [ ! -d ${beast_results_BACKUP_dir} ]; then
+    mkdir ${beast_results_BACKUP_dir}
+fi
+
 
 if [ ! -d ${beast_xml_dir} ]; then
     mkdir ${beast_xml_dir}
@@ -499,7 +474,7 @@ if [ ! -f ${xml_file} ]; then
     echo "------------------------------------------------------------------------------"
     echo "Creating XML file r_scripts/pakistan_babette.R - outputs ${xml_file}"
     set -x
-    Rscript r_scripts/pakistan_babette.R -s ${study_accession} -f ${fasta_file_annotated_with_dates} -i ${local_metadata_dir} -o ${xml_file} --chain_length 1e+06
+    Rscript r_scripts/pakistan_babette.R -s ${study_accession} -f ${fasta_file_annotated_with_dates} -i ${local_metadata_dir} -o ${xml_file} --chain_length 1e+07
     set +x
     echo "------------------------------------------------------------------------------"
     printf "\n"
@@ -543,11 +518,13 @@ if [ ! -f ${new_beast_log_file} ] || [ ! -f ${new_beast_trees_file} ] || [ ! -f 
     echo "------------------------------------------------------------------------------"
     echo "Run Beast"
     printf "\n"
-
     echo "Running BEAST - outputs ${original_beast_log_file}, ${original_beast_trees_file} and ${original_beast_state_file}"
     set -x
     # Run Beast and clean up - put in right folder
     beast -overwrite -threads 20 ${xml_file_plus_const}
+
+    # Copy the beast results into the backup folder and move into beast results folder
+    cp ${original_beast_log_file} ${original_beast_trees_file} ${original_beast_state_file} ${beast_results_BACKUP_dir}
     mv ${original_beast_log_file} ${beast_results_dir}
     mv ${original_beast_trees_file} ${beast_results_dir}
     mv ${original_beast_state_file} ${beast_results_dir}
@@ -585,13 +562,33 @@ fi
 
 # ------------------------------------------------------------------------------
 
+# Convert nexus to newick in R first (having trouble with Phylo.convert() in cut_tree.py)
+
+if [ ! -f ${mcc_tree_newick} ]; then
+    echo "------------------------------------------------------------------------------"
+    echo "Running nexus2nwk.R on ${mcc_tree} - outputs ${mcc_tree_newick}"
+    set -x
+    nexus2nwk.R --infile ${mcc_tree} --outfile ${mcc_tree_newick}
+    set +x
+    echo "------------------------------------------------------------------------------"
+    printf "\n"
+else
+    echo "------------------------------------------------------------------------------"
+    echo "Files ${mcc_tree_newick} exists, skipping nexus2nwk.R"
+    echo "------------------------------------------------------------------------------"
+    printf "\n"
+fi
+
+
+# ------------------------------------------------------------------------------
+
 # Get clusters from MCC tree - cut at year and find clusters (discards single samples)
 
 if [ ! -f ${beast_clusters_file} ]; then
     echo "------------------------------------------------------------------------------"
     echo "Running python_scripts/cut_tree.py on ${mcc_tree} - outputs ${beast_clusters_file}"
     set -x
-    python python_scripts/cut_tree.py --infile ${mcc_tree} --outfile ${beast_clusters_file} --cut ${cut_year}
+    python python_scripts/cut_tree.py --infile ${mcc_tree_newick} --outfile ${beast_clusters_file} --cut ${cut_year}
     set +x
     echo "------------------------------------------------------------------------------"
     printf "\n"
@@ -621,3 +618,112 @@ else
     echo "------------------------------------------------------------------------------"
     printf "\n"
 fi
+
+# ------------------------------------------------------------------------------
+
+# ANCESTRAL STATE - make tree of global samples and pakistan samples 
+
+# Get global samples list and metadata
+
+if [ ! -f ${global_metadata_outfile} ]; then
+    echo "------------------------------------------------------------------------------"
+    echo "Running pull_global_samps.R - outputs global_sample_list_outfile and global_metadata_outfile"
+    set -x
+    Rscript r_scripts/pull_global_samps.R -m ${main_metadata_file} -c ${country_code_lookup_file} -s ${global_sample_list_outfile} -g ${global_metadata_outfile}
+    set +x
+    echo "------------------------------------------------------------------------------"
+    printf "\n"
+else
+    echo "------------------------------------------------------------------------------"
+    echo "Files ${global_metadata_outfile} and ${global_sample_list_outfile} exist, skipping tbprofiler_filter.py"
+    echo "------------------------------------------------------------------------------"
+    printf "\n"
+
+fi
+
+# Use samples to make new fasta file
+
+if [ ! -f ${global_val_multi_vcf_file} ]; then
+    echo "------------------------------------------------------------------------------"
+    echo "Running variant_calling_and_concat_gvcfs.sh - outputs global_sample_list_outfile and global_metadata_outfile"
+    set -x
+    # Copy vcf files across (have new IDs)
+    cat ${global_sample_list_outfile} | parallel -j 4 --bar "cp ${jody_vcf_dir}/{}*vcf* ${vcf_dir}"
+    # variant_calling_and_concat_gvcfs.sh <study_accession>   <sample_list_file>            <vcf_dir>  <gvcf_file_suffix>  <ref_file>          <threads>
+    variant_calling_and_concat_gvcfs.sh   GLOBAL              ${global_sample_list_outfile} ${vcf_dir} ${gvcf_file_suffix} ${ref_fasta_file}   10
+    set +x
+    echo "------------------------------------------------------------------------------"
+    printf "\n"
+else
+    echo "------------------------------------------------------------------------------"
+    echo "File ${global_val_multi_vcf_file} exists, skipping variant_calling_and_concat_gvcfs.sh"
+    echo "------------------------------------------------------------------------------"
+    printf "\n"
+fi
+
+# Variant filtering 
+
+if [ ! -f ${global_filt_multi_vcf_file} ]; then
+    echo "------------------------------------------------------------------------------"   
+    echo "Variant filtering"
+    printf "\n"
+    echo "Running variant_filtering.sh - outputs file ${global_filt_multi_vcf_file}"
+    printf "\n"
+    set -x
+    # variant_filtering.sh    <multi-sample vcf file name>  <output file name>            <bed file name>  <ref fasta>
+    variant_filtering.sh      ${global_val_multi_vcf_file}  ${global_filt_multi_vcf_file} ${ex_loci_file}  ${ref_fasta_file}
+    set +x
+    echo "------------------------------------------------------------------------------"
+    printf "\n"
+
+else
+    echo "------------------------------------------------------------------------------"
+    echo "File ${global_filt_multi_vcf_file} already exists, skipping variant_filtering.sh"
+    echo "------------------------------------------------------------------------------"
+    printf "\n"
+fi
+
+# VCF to fasta
+
+if [ ! -f ${global_fasta_file} ]; then
+    echo "------------------------------------------------------------------------------"
+    echo "VCF to fasta"
+    printf "\n"
+    echo "Running VCF to fasta command - outputs file ${global_fasta_file}"
+    set -x
+    # Nb vcf2fasta.py (run by vcf2fasta.sh) needs datamash - conda install -c bioconda datamash
+    # vcf2fasta.sh   <study_accession>  <vcf_file>                     <fasta_output_dir>   <ref_fasta>
+    vcf2fasta.sh     GLOBAL             ${global_filt_multi_vcf_file}  ${fasta_dir}         ${ref_fasta_file}
+    set +x
+    echo "------------------------------------------------------------------------------"
+    printf "\n"
+else
+    echo "------------------------------------------------------------------------------"
+    echo "File ${global_fasta_file} exists, skipping vcf2fasta.sh"
+    echo "------------------------------------------------------------------------------"
+    printf "\n"
+fi
+
+# IQ tree
+
+if [ ! -f ${global_iqtree_file} ] || [ ! -f ${global_treefile} ]; then
+
+    echo "------------------------------------------------------------------------------"
+    echo "IQ tree"
+    printf "\n"
+    echo "Running shell_scripts/iqtree.sh - outputs files ${global_iqtree_file}, ${global_treefile}"
+    set -x
+    # shell_scripts/iqtree.sh <study_accession>   <fasta_dir>           <newick_output_dir>
+    # iqtree.sh   ${study_accession}  ${unfilt_fasta_file}  ${newick_output_dir}
+    iqtree.sh   GLOBAL  ${global_fasta_file}  ${newick_output_dir}
+    set +x
+    echo "------------------------------------------------------------------------------"
+    printf "\n"
+else
+    echo "------------------------------------------------------------------------------"
+    echo "Files ${global_iqtree_file} and ${global_treefile} exist, skipping shell_scripts/iqtree.sh"
+    echo "------------------------------------------------------------------------------"
+    printf "\n"
+fi
+
+
