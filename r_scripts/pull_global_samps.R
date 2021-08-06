@@ -126,7 +126,8 @@ global_samps_downsamp <- do.call("rbind", global_samps_downsamp)
 
 # Write out metadata
 # Put togehter with pakistan metadata
-write.csv(global_samps_downsamp, global_metadata_outfile, row.names = F, quote = F)
+# write.csv(global_samps_downsamp, global_metadata_outfile, row.names = F, quote = F)
+write.table(global_samps_downsamp, global_metadata_outfile, row.names = F, quote = F, sep = "\t")
 
 # Take the sample names
 # Put together with pakistan samples
