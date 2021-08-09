@@ -85,38 +85,49 @@ uniq_lins <- unique(metadata_34k[metadata_34k["country_code"] == "pk", "sub_line
 # Get the global samples that are the same sublin as the pakisatan samples
 global_samps <- metadata_34k[metadata_34k$sub_lineage %in% uniq_lins, ]
 
-# Remove the pakistan samples
-# global_samps <- global_samps[!(global_samps$country_code == "pk"), ]
+# Save and remove the pakistan samples
+pk_samps <- global_samps[global_samps$country_code == "pk", ]
+global_samps <- global_samps[!(global_samps$country_code == "pk"), ]
 
 # DO ANALYSIS
 
-n <- 10
+n <- 20
 
-# Remove countries that have less than 20 samples
-country_tab <- table(global_samps$country_code)
-country_keep <- names(subset(country_tab, country_tab > n)) # Keep these
+# Remove regions that have less than 20 samples
+# country_tab <- table(global_samps$country_code)
+region_tab <- table(global_samps$subregion)
+# country_keep <- names(subset(country_tab, country_tab > n)) # Keep these
+region_keep <- names(subset(region_tab, region_tab > n)) # Keep these
 # Remove NAs
-country_keep <- country_keep[!(country_keep == "N/A")]
+# country_keep <- country_keep[!(country_keep == "N/A")]
+region_keep <- region_keep[!(region_keep == "N/A")]
 
 # Check
 # x <- unique(global_samps[global_samps$country_code %in% country_keep, c("country_code", "country", "region")])
 
 # Remove countries not in list
-global_samps <- global_samps[global_samps$country_code %in% country_keep, ]
+# global_samps <- global_samps[global_samps$country_code %in% country_keep, ]
+global_samps <- global_samps[global_samps$subregion %in% region_keep, ]
 
 # Loop over the split data and downsample to ten rows per sublin
-global_samps_split <- split(global_samps, global_samps$country_code)
+# global_samps_split <- split(global_samps, global_samps$country_code)
+global_samps_split <- split(global_samps, global_samps$subregion)
+
+
 global_samps_downsamp <- list()
 for(i in seq(global_samps_split)){
   x <- global_samps_split[[i]]
-  if(length(x$country_code) < n){
-    next
-  }else{
-    set.seed(1)
-    global_samps_downsamp[[i]] <- x[sample(1:nrow(x), n), ]
-  }
+  # if(length(x$country_code) < n | x$country_code == "pk"){
+  #   next
+  # }else{
+  #   set.seed(1)
+  global_samps_downsamp[[i]] <- x[sample(1:nrow(x), n), ]
+  # }
 }
 global_samps_downsamp <- do.call("rbind", global_samps_downsamp)
+
+# Stick the pk samps back on
+global_samps_downsamp <- rbind(global_samps_downsamp, pk_samps)
 
 # Check
 # x <- unique(global_samps_downsamp[global_samps_downsamp$country_code %in% country_keep, 
@@ -125,7 +136,7 @@ global_samps_downsamp <- do.call("rbind", global_samps_downsamp)
 # WRITE OUT
 
 # Write out metadata
-# Put togehter with pakistan metadata
+# Put together with pakistan metadata
 # write.csv(global_samps_downsamp, global_metadata_outfile, row.names = F, quote = F)
 write.table(global_samps_downsamp, global_metadata_outfile, row.names = F, quote = F, sep = "\t")
 
