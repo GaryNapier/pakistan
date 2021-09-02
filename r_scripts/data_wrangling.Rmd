@@ -1,7 +1,7 @@
 ---
 title: "Characterisation of drug-resistant Mycobacterium tuberculosis mutations and transmission in Pakistan"
 output: 
-  bookdown::html_document2: 
+  bookdown::word_document2: 
     fig_caption: yes
     table_caption: yes
     number_sections: no
@@ -36,6 +36,7 @@ library(phytools)
 library(sp)
 library(english)
 library(corrplot)
+library(chisq.posthoc.test)
 knitr::opts_chunk$set(echo = F)
 # options(scipen=1, digits=2)
 options(scipen=999, digits = 3)
@@ -86,6 +87,10 @@ tab2df <- function(tab){
 
 print_vect <- function(x){
   gsub(".{1}$", "", paste0(x, sep = ",", collapse = " "))
+}
+
+drop_cols <- function(x, cnames){
+  x[!(names(x) %in% cnames)]
 }
 
 plot.phylo.to.map <- function (x, type = c("phylogram", "direct"), ...) 
@@ -384,7 +389,9 @@ dr_trees_pdf_file <- paste0(plots_path, "PAKISTAN_ALL.dr_trees.pdf")
 pakistan_sp_file <- paste0(metadata_path, "pakistan_sp.rds")
 pakistan_lat_long_file <- paste0(metadata_path, "pakistan_lat_long.csv")
 pakistan_province_lookup_file <- paste0(metadata_path, "pakistan_province_lookup.csv")
-# Other
+# ASR
+asr_file <- paste0(plots_path, "asr_tree.png")
+# Methods
 methods_file <- paste0(methods_path, "pakistan_methods.tsv")
 
 ```
@@ -516,23 +523,108 @@ dist_thresh <- dist_thresh+1 # Add 1 because 1/x later.
 
 ```
 
+```{r wrangle-location, echo=F}
+
+
+# LOCATION ----
+
+
+# Clean blanks in location
+# metadata$location <- ifelse(metadata$location == "", NA, metadata$location)
+metadata$location <- ifelse(metadata$location == "" | is.na(metadata$location), "Missing", metadata$location)
+
+# Convert to 'other' if less than 5 samples
+other_locs <- names(table(metadata$location)[table(metadata$location) < 5])
+metadata$location_other <- ifelse(metadata$location %in% other_locs, "Other", metadata$location)
+
+# Add province and district
+metadata <- merge(metadata, pakistan_province_lookup, by = "location", all.x = T, sort = F)
+
+# Add province lat long
+province_lat_long_df <- merge(metadata["province"], pakistan_lat_long, by.x = "province", by.y = "location", all.x = T, sort = F)
+names(province_lat_long_df) <- c("province", "province_lat", "province_long")
+province_lat_long_df <- unique(province_lat_long_df)
+metadata <- merge(metadata, province_lat_long_df, by = "province", all.x = T, sort = F)
+
+# Pivot table of locations
+# location_tab <- reshape2::dcast(metadata, location ~ "N", value.var = id_col, fun.aggregate = length)
+# location_tab$pc <- round((location_tab$N/sum(location_tab$N)) * 100, rnd)
+# location_tab <- location_tab[order(location_tab$N, decreasing =T),]
+
+location_tab <- reshape2::dcast(metadata, location_other ~ "N", value.var = id_col, fun.aggregate = length)
+location_tab$pc <- round((location_tab$N/sum(location_tab$N)) * 100, rnd)
+location_tab <- location_tab[order(location_tab$N, decreasing =T),]
+names(location_tab) <- c("location", "N", "pc")
+
+
+```
+
 ```{r in-transmission-stats, echo=F, warning = F}
 
 # Take the samples from the above "clusters" variable - these samples are "in transmission"
 # Find their metadata and put into a table
 in_trans_metadata <- metadata[metadata[,"wgs_id"] %in% names(clusters), ]
 
-# Linrage
+# ---
+
+# FOR TABLE
+
+
+metadata$trans_status <- ifelse(metadata[,"wgs_id"] %in% names(clusters), "in_trans", "not_in_trans")
+
+round_to <- 1
+
+trans_lin_pivot <- reshape2::dcast(metadata, main_lineage ~ trans_status, value.var = "trans_status", fun.aggregate = length)
+trans_lin_pivot$in_trans_pc <- round((trans_lin_pivot$in_trans/sum(trans_lin_pivot$in_trans))*100, round_to)
+trans_lin_pivot$not_in_trans_pc <- round((trans_lin_pivot$not_in_trans/sum(trans_lin_pivot$not_in_trans))*100, round_to)
+
+trans_dr_pivot <- reshape2::dcast(metadata, dr_status ~ trans_status, value.var = "trans_status", fun.aggregate = length)
+trans_dr_pivot <- trans_dr_pivot[order(match(trans_dr_pivot$dr_status, dr_status_vect)), ]
+trans_dr_pivot$in_trans_pc <- round((trans_dr_pivot$in_trans/sum(trans_dr_pivot$in_trans))*100, round_to)
+trans_dr_pivot$not_in_trans_pc <- round((trans_dr_pivot$not_in_trans/sum(trans_dr_pivot$not_in_trans))*100, round_to)
+
+
+trans_loc_pivot <- reshape2::dcast(metadata, location_other ~ trans_status, value.var = "trans_status", fun.aggregate = length)
+trans_loc_pivot$in_trans_pc <- round((trans_loc_pivot$in_trans/sum(trans_loc_pivot$in_trans))*100, round_to)
+trans_loc_pivot$not_in_trans_pc <- round((trans_loc_pivot$not_in_trans/sum(trans_loc_pivot$not_in_trans))*100, round_to)
+
+
+trans_df <- rbind(trans_lin_pivot, 
+                  setNames(trans_dr_pivot, names(trans_lin_pivot)), 
+                  setNames(trans_loc_pivot, names(trans_lin_pivot)))
+
+
+trans_df$category <- c(rep("Lineage", nrow(trans_lin_pivot)), 
+                       rep("DR status", nrow(trans_dr_pivot)), 
+                       rep("Location", nrow(trans_loc_pivot)))
+
+names(trans_df)[1] <-"X"
+
+trans_df <- trans_df[, c("category", "X", "in_trans", "in_trans_pc", "not_in_trans", "not_in_trans_pc")]
+
+# ------
+
+
+# Make df of samples in and not in transmission
+trans_samps <- names(clusters)
+non_trans_samps <- metadata[!(metadata[,"wgs_id"] %in% trans_samps), "wgs_id"]
+trans_non_trans_df <- data.frame(id = c(trans_samps, non_trans_samps), trans_status = c(rep(1, length(trans_samps)), rep(0, length(non_trans_samps))))
+
+# Write out trans_non_trans_df
+write.csv(trans_non_trans_df, file = "../metadata/trans.csv", row.names = F, quote = F, col.names = F)
+
+# Lineage
 lin <- tab2df(table(in_trans_metadata$main_lineage))
 # DR
 dr <- tab2df(table(in_trans_metadata$dr_status))
 dr <- dr[, dr_status_vect]
 
-# Loc - 
-# n.b. have to do all this messy wrangling because not all locs are represented in transmission, 
+# Loc -
+# n.b. have to do all this messy wrangling because not all locs are represented in transmission,
 # so need a pivot table that includes all the 0s
 # loc <- tab2df(table(in_trans_metadata$location))
-loc_data <- metadata[, c("wgs_id", "location")]
+# loc_data <- metadata[, c("wgs_id", "location")]
+loc_data <- metadata[, c("wgs_id", "location_other")]
 loc_data$trans_status <- ifelse(loc_data$wgs_id %in% names(clusters), 1, 0)
 loc_data$location <- ifelse(loc_data$location == "", NA, loc_data$location)
 loc_piviot <- reshape2::dcast(loc_data, trans_status ~ location, value.var = "trans_status",
@@ -540,16 +632,19 @@ loc_piviot <- reshape2::dcast(loc_data, trans_status ~ location, value.var = "tr
 loc <- loc_piviot[loc_piviot[, "trans_status"] == 1, !(names(loc_piviot) %in% "trans_status")]
 
 # Put all together
-
-in_trans_df <- data.frame(t(cbind(lin, dr, loc)))
+in_trans_df <- t(cbind(lin, dr, loc))
+in_trans_df_rows <- row.names(in_trans_df)
+in_trans_df <- data.frame(in_trans_df)
 names(in_trans_df) <- "N"
 in_trans_df$pc <- (in_trans_df$N/length(clusters))*100
-in_trans_df$X <- row.names(in_trans_df)
+# in_trans_df$X <- row.names(in_trans_df)
+in_trans_df$X <- in_trans_df_rows
 in_trans_df$Y <- c(rep("Lineage", length(lin)), rep("DR status", length(dr)), rep("Location", length(loc)))
 row.names(in_trans_df) <- NULL
 in_trans_df <- in_trans_df[, c("Y", "X", "N", "pc")]
 names(in_trans_df) <- c("", "", "N", "pc")
 row.names(in_trans_df) <- NULL
+
 
 # -----
 
@@ -564,11 +659,11 @@ row.names(lin_contingency_tab) <- c("yes", "no")
 # Convert the data as a table
 lin_contingency_tab <- as.table(as.matrix(lin_contingency_tab))
 
+# Do test
 trans_lin_chi_sq <- chisq.test(lin_contingency_tab)
 
-# Plot
-# See - trans-category-plots
-
+# Do post-hoc test
+trans_lin_chi_sq_ph <- chisq.posthoc.test(lin_contingency_tab)
 
 # DR status
 
@@ -579,8 +674,10 @@ row.names(dr_contingency_tab) <- c("yes", "no")
 # Convert the data as a table
 dr_contingency_tab <- as.table(as.matrix(dr_contingency_tab))
 
+# Do test
 trans_dr_chi_sq <- chisq.test(dr_contingency_tab, simulate.p.value = T)
-
+# Do post hoc test
+trans_dr_chi_sq_ph <- chisq.posthoc.test(dr_contingency_tab)
 
 # Location
 
@@ -592,13 +689,10 @@ row.names(loc_contingency_tab) <- c("yes", "no")
 
 # Convert the data as a table
 loc_contingency_tab <- as.table(as.matrix(loc_contingency_tab))
-
+# Do test
 trans_loc_chi_sq <- chisq.test(loc_contingency_tab, simulate.p.value = T)
-
-
-# Plot
-
-
+# Do post-hoc test
+trans_loc_chi_sq_ph <- chisq.posthoc.test(loc_contingency_tab)
 
 
 
@@ -706,35 +800,6 @@ year_tab$pc <- round((year_tab$N/sum(year_tab$N)) * 100, rnd)
 
 ```
 
-```{r wrangle-location, echo=F}
-
-
-# LOCATION ----
-
-# Clean blanks in location
-metadata$location <- ifelse(metadata$location == "", NA, metadata$location)
-
-# Add province and district
-metadata <- merge(metadata, pakistan_province_lookup, by = "location", all.x = T, sort = F)
-
-# Add province lat long
-province_lat_long_df <- merge(metadata["province"], pakistan_lat_long, by.x = "province", by.y = "location", all.x = T, sort = F)
-names(province_lat_long_df) <- c("province", "province_lat", "province_long")
-province_lat_long_df <- unique(province_lat_long_df)
-metadata <- merge(metadata, province_lat_long_df, by = "province", all.x = T, sort = F)
-
-# Pivot table of locations
-location_tab <- reshape2::dcast(metadata, location ~ "N", value.var = id_col, fun.aggregate = length)
-location_tab$pc <- round((location_tab$N/sum(location_tab$N)) * 100, rnd)
-location_tab <- location_tab[order(location_tab$N, decreasing =T),]
-
-
-
-
-
-
-```
-
 ```{r wrangle-map, echo = F, message = F, warning = F}
 
 # Not sure what this does
@@ -806,13 +871,15 @@ n_beast_cluster_samps <- nrow(beast_clusters)
 # Specific drugs - phenotypic tests (DST)
 drugs_data <- apply(metadata[drugs], 2, as.numeric)
 dr_tab <- as.data.frame(t(t(apply(drugs_data[, drugs], 2, sum, na.rm = T))))
+dr_tab$N_dst_total <- apply(drugs_data, 2, function(x) sum(!(is.na(x))))
 dst_by_row_vect <- apply(drugs_data[, drugs], 1, sum, na.rm = T)
 n_samps_dst_res <- n_samps_total - sum(dst_by_row_vect == 0)
-dr_tab$drug_resistance <- row.names(dr_tab)
-names(dr_tab) <- c("N", "drug")
-dr_tab <- dr_tab[c("drug", "N")]
+dr_tab$drug <- row.names(dr_tab)
+names(dr_tab) <- c("N_dst_res", "N_dst_total", "drug")
+dr_tab <- dr_tab[c("drug", "N_dst_total", "N_dst_res")]
 row.names(dr_tab) <- NULL
-dr_tab$pc <- round((dr_tab$N/n_samps_total) * 100, rnd)
+dr_tab$pc_dst_resistant <- round((dr_tab$N_dst_res/dr_tab$N_dst_total) * 100, rnd)
+dr_tab$pc_dst_resistant_of_total <- round((dr_tab$N_dst_res/n_samps_total) * 100, rnd)
 
 
 # Genotypic DR - TBprofiler
@@ -827,12 +894,22 @@ names(tbp_data)[2] <- "N"
 tbp_data$pc <- round((tbp_data$N/n_samps_total) * 100, rnd)
 tbp_data$drug <- gsub("_tbp", "", tbp_data$drug)
 
-# Put DST and TBprofiler results together
-dr_tab <- merge(dr_tab, tbp_data, by = "drug", all = T, sort = F)
-dr_tab_easy <- dr_tab
-names(dr_tab_easy) <- c("drug", "N_dst", "pc_dst", "N_gen", "pc_gen")
-names(dr_tab) <- c("Drug", "N DST resistant", "% DST resistant", "N genotypic resistant", "% genotypic resistant")
+# Discrepancies columns
+FN <- "pheno_res; geno_sens"
+FP <- "pheno_sens; geno_res"
+discrepancy_data <- metadata[, grep("_test", names(metadata), value = T)]
+FN_sums <- as.data.frame(t(t(apply(discrepancy_data, 2, function(x) sum(x == FN)))))
+FP_sums <- as.data.frame(t(t(apply(discrepancy_data, 2, function(x) sum(x == FP)))))
+FN_FP_df <- setNames(cbind(FP_sums, FN_sums), c("FP", "FN"))
+FN_FP_df$drug <- row.names(FN_FP_df)
+FN_FP_df$drug <- gsub("_test", "", FN_FP_df$drug)
 
+# Put DST, TBprofiler and discrepancies results together
+dr_tab <- merge(dr_tab, tbp_data, by = "drug", all = T, sort = F)
+dr_tab <- merge(dr_tab, FN_FP_df, by = "drug", all = T, sort = F)
+dr_tab_easy <- dr_tab
+names(dr_tab_easy) <- c("drug", "N_dst_total", "N_dst_res", "pc_dst_resistant", "pc_dst_resistant_of_total", "N_gen", "pc_gen", "FP", "FN")
+names(dr_tab) <- c("Drug", "DST N", "DST N resistant", "DST % resistant", "DST % resistant of total", "N genotypic resistant", "% genotypic resistant", "DST - Geno +", "DST + Geno -")
 
 # DR status
 # Desired order of DR cols
@@ -894,11 +971,20 @@ n_FP_samps <- sum(apply(discrepancy_data == FP, 1, sum) > 0)
 FN_res <- apply(discrepancy_data, 2, function(x){sum(x == FN)})
 FP_res <- apply(discrepancy_data, 2, function(x){sum(x == FP)})
 
-discrepancy_data$wgs_id <- metadata$wgs_id # Add ids in for the other variants stuff
+# Add ids in for the other variants stuff
+discrepancy_data$wgs_id <- metadata$wgs_id 
 # n_FN_samps <- sum(FN_res)
 # n_FP_samps <- sum(FP_res)
 FN_drugs_split <- names(FN_res[FN_res > 0])
 FP_drugs_split <- names(FP_res[FP_res > 0])
+
+# HOW MANY FN TESTS?
+sum(apply(discrepancy_data == FN, 1, sum))
+
+
+
+
+
 
 # Drug resistance genes lookup table ----
 
@@ -997,6 +1083,12 @@ row.names(FP_results_table) <- NULL
 
 # Get stats
 
+# How many TOTAL DST TESTS
+total_dst_tests <- sum(apply(drugs_data, 2, function(x) !(is.na(x))))
+
+# Total number of FP TESTS
+total_FP <- sum(FP_res)
+
 n_FN_drugs <- length(unique(FN_results_table$drug))
 n_FP_drugs <- length(unique(FP_results_table$drug))
 FN_drugs <- gsub(".{1}$", "", paste0(unique(FN_results_table$drug), sep = ",", collapse = " "))
@@ -1033,9 +1125,9 @@ dr_variants_pivot <- reshape2::dcast(dr_variants, drug + gene + change ~ "N",
 # Merge with totals for each drug
 
 # DST
-dr_variants_pivot <- merge(dr_variants_pivot, dr_tab_easy[, c("drug", "N_dst")], 
+dr_variants_pivot <- merge(dr_variants_pivot, dr_tab_easy[, c("drug", "N_dst_total")], 
                            by = "drug", all.x = T, sort = F)
-dr_variants_pivot$pc_dst <- (dr_variants_pivot$N/dr_variants_pivot$N_dst)*100
+dr_variants_pivot$pc_dst <- (dr_variants_pivot$N/dr_variants_pivot$N_dst_total)*100
 dr_variants_pivot$pc_dst <- ifelse(is.infinite(dr_variants_pivot$pc_dst), NA, dr_variants_pivot$pc_dst)
 
 # Genotype - n.b. this has to be merged from itself because the dr_tab_easy doesn't match the known variants table. 
@@ -1052,7 +1144,7 @@ row.names(dr_variants_results_table) <- NULL
 
 ```
 
-```{r wrangle-loc-lin-dr-dates, echo = F}
+```{r wrangle-loc-lin-dr-dates-table-1, echo = F}
 
 
 # TABLE 1 ----
@@ -1087,78 +1179,6 @@ row.names(table_1) <- NULL
 
 ```
 
-```{r ggtree-setup, echo = F}
-
-
-# GGTREE SETUP ----
-
-
-# Prep data for heatmaps (strips)
-
-legend_spec <- theme(legend.title = element_text(size = 7),
-                     legend.text = element_text(size = 5),
-                     legend.key.size = unit(0.3, "cm"))
-
-# Add id/year hybrid col
-metadata$id_year <- paste0(metadata$wgs_id, "_", metadata$year)
-rownames(metadata) <- metadata$id_year
-# heatmap_data <- metadata[metadata$id_year %in% mcc_tree_ape$tip.label,
-#                          c("main_lineage", "dr_status"), drop = F]
-# Subset metadata
-lin_data <- metadata[, "main_lineage", drop = F]
-dr_status_data <- metadata[, "dr_status", drop = F]
-loc_data <- metadata[, "location", drop = F]
-dr_data <- dplyr::select(metadata, rifampicin:delamanid)
-dr_tbp_data <- dplyr::select(metadata, rifampicin_tbp:delamanid_tbp)
-drug_discrepancy_data <- dplyr::select(metadata, rifampicin_test:delamanid_test)
-
-# Clean location data
-loc_data[loc_data == ""] <- NA
-
-# Clean dr_tbp_data
-dr_tbp_data[dr_tbp_data != "-"] <- 1
-dr_tbp_data[dr_tbp_data == "-"] <- 0
-
-# Convert lin and DR data to factors
-dr_data <- data.frame(apply(dr_data, 2, as.factor))
-dr_tbp_data <- data.frame(apply(dr_tbp_data, 2, as.factor))
-lin_data <- data.frame(apply(lin_data, 2, as.factor))
-# drug_discrepancy_data <- data.frame(apply(drug_discrepancy_data, 2, as.factor))
-
-# Change col names
-colnames(dr_status_data) <- "DR status"
-colnames(lin_data) <- "Lineage"
-colnames(loc_data) <- "Location"
-
-# Define cols for each dataset
-alpha <- 0.9
-lin_colours <- rainbow(length(unique(metadata$main_lineage)), alpha = alpha)
-dr_status_colours <- scales::alpha(gplots::col2hex(c("green1", "yellow2", "orange1", "red1", "black", "grey")), alpha = alpha)
-
-
-n <- length(unique(loc_data$Location))
-qual_col_pals <- brewer.pal.info[brewer.pal.info$category == 'qual',]
-col_vector <- unlist(mapply(brewer.pal, qual_col_pals$maxcolors, rownames(qual_col_pals)))
-set.seed(2)
-loc_cols <- sample(col_vector, n)
-names(loc_cols) <- unique(loc_data$Location)
-loc_cols[is.na(names(loc_cols))] <- "#FFFFFF"
-loc_cols <- c(loc_cols[sort(names(loc_cols))], loc_cols[is.na(names(loc_cols))])
-
-# loc_cols <- randomcoloR::distinctColorPalette(length(unique(loc_data$Location)))
-# names(loc_cols) <- unique(loc_data$Location)
-# loc_cols[is.na(names(loc_cols))] <- "#FFFFFF"
-# loc_cols <- c(loc_cols[sort(names(loc_cols))], loc_cols[is.na(names(loc_cols))])
-
-drug_discrepancy_vals <- sort(unique(as.vector(as.matrix(drug_discrepancy_data))))
-drug_discrepancy_cols <- brewer.pal(length(drug_discrepancy_vals), "Paired")
-
-# Add names (unique vals for each dataset) to dataframes. Don't need to do this for the binary data (DR individual status)
-names(lin_colours) <- c(sort(unique(metadata$main_lineage)))
-names(dr_status_colours) <- c("Sensitive", "Pre-MDR", "MDR", "Pre-XDR", "XDR", "Other")
-names(drug_discrepancy_cols) <- drug_discrepancy_vals
-
-```
 
 | | |
 | ----------- | ----------- |
@@ -1211,7 +1231,7 @@ Drug resistance and its associated mutation have previously been characterised i
 
 Further novel drug-resistance associated mutations were investigated in Jabbar (2019) [@Jabbar2019] in samples from the Khyber Pakhtunkhwa province for 11 anti-TB drugs. Again, the moajority of samples (76.5%) were CAS (lineage 3) samples. Previously unknown mutations were found for ethionamide (*katG* and *ethA*), fluoroquinolones (*gyrA* and *gyrB*) and pyrazinamide (*pncA*). This study also provided evidence of transmission chains in North-West Pakistan: With a standard 10-SNP difference cut-off, there were eight potential transmission clusters formed of 18 drug-resistant samples, concluding that there was support for spread of MDR TB. 
 
-Recently, Qadir (2021) [@Qadir2021] confirmed mutations in the Rifampacin Resistance Determining Region (RRDR) of the *rpoB* gene among 702 Pakistan isolates, and discovered three novel mutations.  
+Recently, Qadir (2021) [@Qadir2021] confirmed mutations in the Rifampacin Resistance Determining Region (RRDR) of the *rpoB* gene among 702 Pakistan isolates, and discovered three novel mutations. 
 
 
 <!--
@@ -1336,19 +1356,47 @@ Conclusion: Mutations in the RRDR region of rpoB is a major mechanism of RIF res
 
 ### Clinical isolates and phylogeny
 
-A total of `r n_samps_total` *M. tuberculosis* WGS isolates from Pakistan were downloaded from the European Nucleotide Archive (ENA). The samples were cultured, whole-genome sequenced, and drug susceptibility testing (DST) was applied for `r n_pheno_tests` drugs. Combining the results of the DST and the genotypic prediction tests (see **Methods**), `r n_sens` (`r pc_sens`%) samples were pan-sensitive, `r n_mdr` (`r pc_mdr`%) classed as MDR-TB (resistant to both rifampicin and isoniazid), and `r n_xdr` (`r pc_xdr`%) were XDR (resistant to isoniazid and rifampicin, plus any fluoroquinolone and at least one of three injectable second-line drugs). See **Table \@ref(tab:drTableLin)** for Pre-MDR, Pre-XDR figures and drug resistance categories by lineage. 
+A total of `r n_samps_total` *M. tuberculosis* WGS isolates from Pakistan were downloaded from the European Nucleotide Archive (ENA). The samples were cultured, whole-genome sequenced, and drug susceptibility testing (DST) was applied for `r n_pheno_tests` drugs. These isolates covered four provinces, but a high proportion of locations were missing (69.5%), all from one study [@Cryptic2018] (Table 1). Combining the results of the DST and the genotypic prediction tests (see **Methods**), `r n_sens` (`r pc_sens`%) samples were pan-sensitive, `r n_mdr` (`r pc_mdr`%) classed as MDR-TB (resistant to both rifampicin and isoniazid), and `r n_xdr` (`r pc_xdr`%) were XDR (resistant to isoniazid and rifampicin, plus any fluoroquinolone and at least one of three injectable second-line drugs). See **Table \@ref(tab:drTableLin)** for Pre-MDR, Pre-XDR figures and drug resistance categories by lineage. 
+
+
+```{r dst-stats, echo=F}
+
+n_rif_dst <- dr_tab_easy[dr_tab_easy[, "drug"] == "rifampicin", "N_dst_total"]
+pc_rif_dst_tested <- (n_rif_dst/n_samps_total)*100
+
+n_izd_dst <- dr_tab_easy[dr_tab_easy[, "drug"] == "isoniazid", "N_dst_total"]
+pc_izd_dst_tested <- (n_izd_dst/n_samps_total)*100
+
+n_eth_dst <- dr_tab_easy[dr_tab_easy[, "drug"] == "ethambutol", "N_dst_total"]
+pc_eth_dst <- (n_eth_dst/n_samps_total)*100
+
+n_pzd_dst <- dr_tab_easy[dr_tab_easy[, "drug"] == "pyrazinamide", "N_dst_total"]
+pc_pzd_dst <- (n_pzd_dst/n_samps_total)*100
+
+
+n_drugs_no_dst <- sum(dr_tab_easy[, "N_dst_total"] == 0 | is.na(dr_tab_easy[, "N_dst_total"]))
+
+```
+
+Phenotypic drug susceptibility testing (DST) was most complete for rifampicin (n=`r n_rif_dst`, `r pc_rif_dst_tested`%), isoniazid (n=`r n_izd_dst`, `r pc_izd_dst_tested`%), ethambutol (n=`r n_eth_dst`, `r pc_eth_dst`%), and pyrazinamide (n=`r n_pzd_dst`, `r pc_pzd_dst`%) drugs (S2 Table), but incomplete / not present for `r n_drugs_no_dst` drugs. 
 
 Historically, *Mtb* samples from Pakistan belong predominantly to the CAS1-Delhi spoligotype family [@Demay2012], which belongs to Lineage 3 [@Napier2020]. In our samples, Lineage 3 comprises `r lin_tab[lin_tab["Lineages"] == 3, "pc"]`% of the total samples, followed by Lineage 4 (n=`r n_lin_4`, `r pc_lin_4`%), Lineage 2 (n=`r n_lin_2`, `r pc_lin_2`%) and Lineage 1 (n=`r n_lin_1`, `r pc_lin_1`%) (see **Table \@ref(tab:lintable)** for a breakdown of samples by lineage and sublineage and see **Figure \@ref(fig:ggtree-all-samps)** for a full phylogenetic tree). 
 
-Upon mapping the sequences, high average coverage was observed across the samples: XXX. A total of `r fmt(n_snps_total)` SNPs were identified, with XXX% found in single isolates. 
+After sequence data alignment, high average coverage was observed across the samples (median 76, range 30-2,027). 
 
 ### Evidence of transmission
 
 Median (range) pairwise SNP distances was `r round(median(lower_dist), rnd)` (min=`r min(lower_dist)`, max=`r max(lower_dist)`) for all `r n_samps_total` samples. 
 
-With a threshold of `r threshold` SNPs, `r n_clusters_cut_tree` clusters formed, where the median cluster size was `r med_clust_threshold` (range: `r min_clust_threshold`-`r max_clust_threshold`). **Figure \@ref(fig:distanceqgraph)** shows a graph of SNP distance connections among these samples (n = `r length(attributes(dist_thresh)$Labels)`. 
+With a threshold of `r threshold` SNPs, `r n_clusters_cut_tree` clusters formed, where the median cluster size was `r med_clust_threshold` (range: `r min_clust_threshold`-`r max_clust_threshold`). **Figure \@ref(fig:distanceqgraph)** shows a graph of SNP distance connections among these samples (n = `r length(attributes(dist_thresh)$Labels)`). 
 
-Chi-square tests for proportions of samples within the `r threshold`-SNP distance threshold for lineage, drug resistance status and location were all significant (X-sq=`r trans_lin_chi_sq$statistic`, p=`r scientific(trans_lin_chi_sq$p.value, digits = 2)`, X-sq=`r trans_dr_chi_sq$statistic`, p=`r scientific(trans_dr_chi_sq$p.value, digits = 2)`, X-sq=`r trans_loc_chi_sq$statistic`, p=`r scientific(trans_loc_chi_sq$p.value, digits = 2)`, respectively). **Figure \@ref(fig:trans-category-plots)** shows that lineages 2 and 4 have significantly more samples within `r threshold` SNPs than expected, as did Pre-XDR and XDR samples. Among locations, Peshawar showed a much higher proportion of potential transmission samples than expected. 
+<!--
+Chi-square tests for proportions of samples within the `r threshold`-SNP distance threshold for lineage, drug resistance status and location were all significant (X-sq=`r trans_lin_chi_sq$statistic`, p=`r scientific(trans_lin_chi_sq$p.value, digits = 2)`, X-sq=`r trans_dr_chi_sq$statistic`, p=`r scientific(trans_dr_chi_sq$p.value, digits = 2)`, X-sq=`r trans_loc_chi_sq$statistic`, p=`r scientific(trans_loc_chi_sq$p.value, digits = 2)`, respectively). **Figure \@ref(fig:trans-category-plots)** shows that lineages 2 and 4 have significantly more samples within `r threshold` SNPs than expected, as did Pre-XDR and XDR samples. Among locations, Peshawar showed a much higher proportion of potential transmission samples than expected.
+-->
+
+
+Comparing the 169 "transmitted" isolates in clusters to the others ("non-transmitted"; n=366), there was an increased risk of transmission in lineages 2 and 4 (overall chi-sq=`r trans_lin_chi_sq$statistic`, p=`r scientific(trans_lin_chi_sq$p.value, digits = 2)`; post-hoc tests: lineage 2 standardised residual=3.57, p=0.003; lineage 4 standardised residual=4.62, p=0.00003), Pre-XDR and XDR samples (overall chi-sq=98, p=0.0005; post-hoc tests: Pre-XDR standardised residual=5.31, p=<0.0001; XDR standardised residual=6.55, p=<0.0001), and in Peshawar province (overall chi-sq=70, p=0.0005; post-hoc tests: Peshawar standardised residual=5.74, p=<0.0001) (S5 Table; S3 Figure; S4 Figure). 
+
 
 **Figure \@ref(fig:n-clusters-plot)** and **Table \@ref(tab:dist-sens-table)** show a sensitivity analysis of different SNP-distance thresholds. 
 
@@ -1360,9 +1408,21 @@ Date of collection was recorded between the years `r first_year` and `r last_yea
 
 ### Drug susceptibility discrepancies
 
-We identified DSTs that disagreed with the genotypic drug resistance predictions for all samples (n=`r n_samps_total`). These discrepancies were classified into two kinds - where the phenotypic test showed resistance and the genotypic test predicted sensitivity ("false negative" (FN)), and where the phenotypic test result was sensitive but the genotypic test predicted resistance ("false positive" (FP)). Within the clusters defined above, `r n_FN_samps` samples were FN for `r as.english(n_FN_drugs)` drugs (`r FN_drugs`) and `r n_FP_samps` samples were FP for `r as.english(n_FN_drugs)` drugs (`r FP_drugs`).
+We identified DSTs that disagreed with the genotypic drug resistance predictions for all samples (n=`r n_samps_total`). These discrepancies were classified into two kinds - where the phenotypic test showed resistance and the genotypic test predicted sensitivity ("false negative" (FN)), and where the phenotypic test result was sensitive but the genotypic test predicted resistance ("false positive" (FP)). Within the clusters defined above, `r n_FN_samps` samples were FN for `r as.english(n_FN_drugs)` drugs (`r FN_drugs`) and `r n_FP_samps` samples were FP for `r as.english(n_FP_drugs)` drugs (`r FP_drugs`).
 
-For phenotypic DST, there were `r n_samps_dst_res` total samples (`r (n_samps_dst_res/n_samps_total)*100`%) resistant to at least one drug (median = `r median(dst_by_row_vect)`, max = `r max(dst_by_row_vect)`). Among the phenotypic DST results, a high percentage were resistant to four drugs: rifampicin (n=`r dr_tab_easy[dr_tab_easy$drug == "rifampicin", "N_dst"]`, `r dr_tab_easy[dr_tab_easy$drug == "rifampicin", "pc_dst"]`%), isoniazid (n=`r dr_tab_easy[dr_tab_easy$drug == "isoniazid", "N_dst"]`, `r dr_tab_easy[dr_tab_easy$drug == "isoniazid", "pc_dst"]`%), ethambutol (n=`r dr_tab_easy[dr_tab_easy$drug == "ethambutol", "N_dst"]`, `r dr_tab_easy[dr_tab_easy$drug == "ethambutol", "pc_dst"]`%), and pyrazinamide (n=`r dr_tab_easy[dr_tab_easy$drug == "pyrazinamide", "N_dst"]`, `r dr_tab_easy[dr_tab_easy$drug == "pyrazinamide", "pc_dst"]`%)
+For phenotypic DST, there were `r n_samps_dst_res` total samples (`r (n_samps_dst_res/n_samps_total)*100`%) resistant to at least one drug (median = `r median(dst_by_row_vect)`, max = `r max(dst_by_row_vect)`). 
+
+```{r echo = F}
+
+max_FP_drug <- names(which.max(FP_res))
+max_FP_drug <- gsub("_.*", "", max_FP_drug)
+max_FP_val <- FP_res[which.max(FP_res)]
+
+```
+
+The number of potential errors on the phenotypic testing appeared low (`r total_FP`/`r total_dst_tests` tests), where established genotypic resistance markers were present in isolates with DST results that implied sensitive. The discordance appeared in `r n_FP_drugs` drugs (`r FP_drugs`), but predominantly in `r max_FP_drug` (`r max_FP_val`) (S2 Table). 
+
+Among the phenotypic DST results, a high percentage were resistant to four drugs: rifampicin (n=`r dr_tab_easy[dr_tab_easy$drug == "rifampicin", "N_dst"]`, `r dr_tab_easy[dr_tab_easy$drug == "rifampicin", "pc_dst"]`%), isoniazid (n=`r dr_tab_easy[dr_tab_easy$drug == "isoniazid", "N_dst"]`, `r dr_tab_easy[dr_tab_easy$drug == "isoniazid", "pc_dst"]`%), ethambutol (n=`r dr_tab_easy[dr_tab_easy$drug == "ethambutol", "N_dst"]`, `r dr_tab_easy[dr_tab_easy$drug == "ethambutol", "pc_dst"]`%), and pyrazinamide (n=`r dr_tab_easy[dr_tab_easy$drug == "pyrazinamide", "N_dst"]`, `r dr_tab_easy[dr_tab_easy$drug == "pyrazinamide", "pc_dst"]`%)
 
 Known drug-resistance mutations were predicted in TB-profiler [@Phelan2019] and compared to the phenotypic DST results for `r n_tbp_drug_tests` distinct drugs (plus fluoroquinolones and aminoglycosides generically). We identified a total of `r sum(discrepancy_data == FP | discrepancy_data == FN)` individual DSTs that disagreed with the genotypic drug resistance predictions in `r n_FN_samps+n_FP_samps` samples (**Table \@ref(tab:dr-tab)**; the other discrepancies here are explained by the unavailability of phenotypic DST data). Of these samples, `r n_FN_samps` were FN, and `r n_FP_samps` samples FP.
 
@@ -1371,35 +1431,50 @@ Known drug-resistance mutations were predicted in TB-profiler [@Phelan2019] and 
 
 For FN samples, **Table \@ref(tab:FNresultstable)** shows all variants found in drug resistance-associated genes for `r n_FN_drugs` drugs (`r FN_drugs`), that were previously unknown to be associated with each respective drug, potentially explaining discrepancies between phenotypic DST results and genotypic predictions. 
 
-<!--
 #### Rifampicin
+Three different inframe indels (c.1291_1292insGCC, c.1294_1296del and c.1309_1311del) were found in three isolates with no other known resistance mutations. 
 
-`r tools::toTitleCase(as.character(as.english(length(rif_mutations))))` mutations were associated with changes to the *rpoB* gene/Rv0667 locus: one in a non-coding region, one insertion and two deletions (n=`r n_rpob_mutaion_samps`). 
+#### Isoniazid
+Several nonsense mutations in *katG* were found to explain discrepant results between genotype and DST for isoniazid. These include three mutations leading to premature stop codons (p.Trp438\*, p.Trp204\*, p.Gln36\*) and a frameshift mutation (c.587_588insGGT). 
 
-#### Isoniazid 
+#### Ethambutol
+Variants in the *embA* promoter region and *embB* were observed in isolates with resistant DSTs but no known resistance mutations. Four isolates contained mutations in the *embA* promoter region including two deletions (c.-42CAT>C, c.-27TA>T) and two SNPs (c.-16C>A, c.-8C>A). 
 
-Among isoniazid-associated genes, `r length(unique(iso_mutations))` previously-unknown mutations were found among `r as.english(length(unique(iso_data$gene)))` genes (`r iso_genes`) (n=`r n_iso_samps`). 
--->
+#### Second line injectables
+The mutation r.878g>a was found in *rrs* and was previously reported by Malinga *et al* [@Malinga2016] as well as Jabbar *et al* [@Jabbar2019] (of which the samples are present in the currently analysed set). Malinga *et al* report the mutation to be involved with capreomycin resistance and to be associated with the EuroAmerican X3 strain. We observe the mutation in four lineage 3 strains with three independent homoplastic acquisitions, signifying the mutation is not limited to EuroAmerican X3 strains. Mutations in *rrs* are generally clustered in two regions with the most common mutations involved with streptomycin resistance being located around position 514 and those involved with resistance to amikacin, kanamycin and capreomycin located around 1401. As this mutation is located in between these two mutation hotspots, it is yet to be determined to which drug it confers resistance. Of the three strains which had DST data (amikacin and kanamycin) in this study, two were resistant to both amikacin and kanamycin and the other was sensitive to both. 
+
+#### Pyrazinamide
+Mutations in *pncA* were present in isolates for which no known resistance variants could be found. These include three inframe indels (c.511_512insTCGCCG, c.392_393insGGT and c.451_462del) a premature stop codon (p.Ser18\*), and SNPs in both the coding region (p.Val180Ala) and the promoter (c.-7T>G). 
+
+#### Streptomycin
+Several mutations in *gid* were found in DST-discrepant isolates. These include nonsense mutations leading to a premature stop codon (p.Gly71\*) and frameshift (c.102_102del). Low-level streptomycin resistance has been shown to be conferred through loss-of-function mutations in *gid*. SNPs were also found in isolates (p.Ala119Asp, p.Ala82Pro and p.Asp67Gly). These SNPs were not found to be previously reported, however they were found in the global dataset. All mutations were found to have been acquired as the result of homoplasy. The p.Ala119Asp mutation was present in 15 isolates (ten different sublineages), of which two had DSTs and were resistant. The p.Ala82Pro mutation was present in three isolates from two different sublineages. No DST was available for these isolates. The p.Asp67Gly was present in 38 global isolates from five different sublineages. Of these, seven had DST data available with four presenting resistance. 
+
+#### Fluoroquinolones
+The p.Ala288Asp mutation in *gyrA* was found in three lineage 3 isolates and was acquired in each sample independently. One isolate was tested resistant to ciprofloxacin with no known resistance mutation found in the *gyrA* and *gyrB* genes. This mutation was previously reported by Farhat *et al* [@Farhat2016], with the mutation leading to an observed increase in MIC to both ofloxacin and moxifloxacin.
 
 ## DISCUSSION
 
 This study helps demonstrate the value of WGS in the context of a low-income, high-burden country. Our findings on potential transmission among lineages 2 and 4, Pre-XDR and XDR TB, and in Peshawar, as well as drug resistance mutations can inform better epidemiological, clinical, and control decisions in Pakistan and, more generally, provides insight into mutations relevant to drug design. WGS can potentially be particularly useful in countries similar to Pakistan where effective public health surveillance is inadequate due to socio-economic problems - genetic data can fill gaps in data collection, revealing salient connections and variation.
 
+### Transmission
 
+Evidence of increased transmission among lineages 2 and 4 is consistent with previous characterisations of these clades as more transmissible [@Coscolla2014a][@Assuncao2015], and therefore ought to be monitored more closely despite greater prevalence of lineage 3. 
 
+It is surprising that Pr-XDR and XDR samples were found to be clustered more than expected given the usual fitness cost of drug resistance [@Cohen2003][@Gygli2017]. This however suggests unknown compensatory mutations and ought to be investigated in future work. 
 
+### Drug resistance
 
+Inframe deletions have not been widely reported as a major mechanism of resistance to rifampicin and it is surprising to see the relative high number of these mutations in our dataset.
 
+Nonsense mutations are presumed to lead loss of function in the *katG* gene since it codes for the activator of isoniazid (catalase-peroxidase enzyme), so it is unsurprising to see potentially drug-resistance conferring mutations here. 
 
-- Evidence of transmission among
-  - lineages 2 and 4 
-  - Pre-MDR and MDR 
-  - Peshawar
-  
-- Previously unknown DR mutations for drugs XXX in genes XXX
+Mutations in the -16 and -8 position of the *embA* promoter have been reported to enhance binding of the *embR* transcription regulator to the promoter and increase expression of *embCAB* operon. The deletions are also presumed to have a similar effect to enhance binding of *embR*, though further experimental evidence would be required in future. 
 
-- 
+The two strains which were resistant to both amikacin and kanamycin also contained a mutation in the promoter region to *eis* (c.-14C>T). This mutation could potentially explain the resistance to both these drugs and may point to the r.878g>a being either increasing the level of resistance to these drugs or potentially conferring resistance to streptomycin (which was not tested for in these samples).
 
+The *pncA* gene codes for the activator of pyrazinamide and loss of function leads to resistance. The functional consequence of the premature stop codons and indels are usually severe to protein function and these mutations in our isolates represent highly likely candidates as conferring resistance. Mutations in the promoter region of *pncA* leads to changes in the expression of PncA and resistance [@Sheen2013]. The c.-7T>G mutation is thus also likely to cause resistance. The functional effect of SNPs in the coding region of *pncA* can be harder to predict, however the Val180Ala mutation was reported previously to be associated to pyrazinamide resistance in the CARD database [@Alcock2020].
+
+The incomplete penetrance of the streptomycin-associated p.Asp67Gly mutation could be explained by the relative low-level resistance conferred by mutation in *gid* which could be under the critical concentration but still elevated with respect to wild-type.
 
 ## METHODS
 
@@ -1453,7 +1528,10 @@ knitr::kable(lin_conv_tab, caption = cap)
 #### Transmission
 ```{r in-trans-table, echo=FALSE, out.width = "2000px"}
 
-knitr::kable(in_trans_df, 
+# knitr::kable(in_trans_df,
+#              caption = sprintf("Lineages, drug-resistance status and locations of samples 'in transmission' - i.e. a SNP distance of %s (n=%s)", threshold, length(clusters)))
+
+knitr::kable(trans_df,
              caption = sprintf("Lineages, drug-resistance status and locations of samples 'in transmission' - i.e. a SNP distance of %s (n=%s)", threshold, length(clusters)))
 
 ```
@@ -1550,13 +1628,107 @@ knitr::include_graphics(tree_all_samps_file)
 
 ***
 
-```{r ggtree-all-samps, echo=FALSE, out.width = "1500px", warning = F, message = F, cache=F, fig.show="hold", fig.cap=sprintf("The %s *M. tuberculosis* isolates: A phylogenetic tree constructed using %s SNPs", n_samps_total, fmt(n_snps_total))}
+```{r ggtree-setup, echo = F}
+
+
+# GGTREE SETUP ----
+
+
+# Prep data for heatmaps (strips)
+
+legend_spec <- theme(legend.title = element_text(size = 9),
+                     legend.text = element_text(size = 7),
+                     legend.key.size = unit(0.3, "cm"))
+
+# Add id/year hybrid col
+metadata$id_year <- paste0(metadata$wgs_id, "_", metadata$year)
+rownames(metadata) <- metadata$id_year
+# heatmap_data <- metadata[metadata$id_year %in% mcc_tree_ape$tip.label,
+#                          c("main_lineage", "dr_status"), drop = F]
+# Subset metadata
+lin_data <- metadata[, "main_lineage", drop = F]
+dr_status_data <- metadata[, "dr_status", drop = F]
+loc_data <- metadata[, "location_other", drop = F]
+dr_data <- dplyr::select(metadata, rifampicin:delamanid)
+dr_tbp_data <- dplyr::select(metadata, rifampicin_tbp:delamanid_tbp)
+drug_discrepancy_data <- dplyr::select(metadata, rifampicin_test:delamanid_test)
+
+# Clean location data
+# loc_data[loc_data == ""] <- NA
+
+# Clean dr_tbp_data
+dr_tbp_data[dr_tbp_data != "-"] <- 1
+dr_tbp_data[dr_tbp_data == "-"] <- 0
+
+# Convert lin and DR data to factors
+dr_data <- data.frame(apply(dr_data, 2, as.factor))
+dr_tbp_data <- data.frame(apply(dr_tbp_data, 2, as.factor))
+lin_data <- data.frame(apply(lin_data, 2, as.factor))
+# drug_discrepancy_data <- data.frame(apply(drug_discrepancy_data, 2, as.factor))
+
+# Change col names
+colnames(dr_status_data) <- "DR status"
+colnames(lin_data) <- "Lineage"
+colnames(loc_data) <- "Location"
+colnames(dr_data)[colnames(dr_data) %in% "para_aminosalicylic_acid"] <- "PAS"
+colnames(dr_tbp_data) <- gsub("_tbp", "", colnames(dr_tbp_data))
+colnames(dr_tbp_data)[colnames(dr_tbp_data) %in% "para_aminosalicylic_acid"] <- "PAS"
+colnames(drug_discrepancy_data) <- gsub("_test", "", colnames(drug_discrepancy_data))
+colnames(drug_discrepancy_data)[colnames(drug_discrepancy_data) %in% "para_aminosalicylic_acid"] <- "PAS"
+
+
+# Define cols for each dataset
+alpha <- 0.9
+lin_colours <- rainbow(length(unique(metadata$main_lineage)), alpha = alpha)
+dr_status_colours <- scales::alpha(gplots::col2hex(c("green1", "yellow2", "orange1", "red1", "black", "grey")), alpha = alpha)
+
+
+# n <- length(unique(loc_data$Location))
+
+# qual_col_pals <- brewer.pal.info[brewer.pal.info$category == 'qual',]
+# col_vector <- unlist(mapply(brewer.pal, qual_col_pals$maxcolors, rownames(qual_col_pals)))
+# set.seed(2)
+# loc_cols <- sample(col_vector, n)
+
+loc_cols <- c(brewer.pal(9,"Set1"), "#FFFFFF")
+names(loc_cols) <- sort(unique(loc_data$Location))
+
+# Save missing col
+missing_col <- loc_cols[names(loc_cols) %in% "Missing"] 
+
+# Make missing white
+loc_cols[names(loc_cols) %in% "Missing"] <- loc_cols[length(loc_cols)]
+
+# Make the last loc the previous missing colour
+loc_cols[length(loc_cols)] <- missing_col
+
+# loc_cols[is.na(names(loc_cols))] <- "#FFFFFF"
+# loc_cols <- c(loc_cols[sort(names(loc_cols))], loc_cols[is.na(names(loc_cols))])
+
+# loc_cols <- randomcoloR::distinctColorPalette(length(unique(loc_data$Location)))
+# names(loc_cols) <- unique(loc_data$Location)
+# loc_cols[is.na(names(loc_cols))] <- "#FFFFFF"
+# loc_cols <- c(loc_cols[sort(names(loc_cols))], loc_cols[is.na(names(loc_cols))])
+
+drug_discrepancy_vals <- sort(unique(as.vector(as.matrix(drug_discrepancy_data))))
+drug_discrepancy_cols <- brewer.pal(length(drug_discrepancy_vals), "Paired")
+
+# Add names (unique vals for each dataset) to dataframes. Don't need to do this for the binary data (DR individual status)
+names(lin_colours) <- c(sort(unique(metadata$main_lineage)))
+names(dr_status_colours) <- c("Sensitive", "Pre-MDR", "MDR", "Pre-XDR", "XDR", "Other")
+names(drug_discrepancy_cols) <- drug_discrepancy_vals
+
+```
+
+
+```{r ggtree-all-samps, echo=FALSE, out.width = "1500px", dpi = 300, fig.height=5, warning = F, message = F, cache=F, fig.show="hold", fig.cap=sprintf("The %s *M. tuberculosis* isolates: A phylogenetic tree constructed using %s SNPs", n_samps_total, fmt(n_snps_total))}
 
 # Tree setup
 line_sz <- 0.25
 n <- length(tree_all_samps$tip.label)
 width <- 0.1
-angle <- 45
+angle <- 30
+font_sz <- 2
 
 # Remove years from lineage data
 lin_data_no_year <- lin_data
@@ -1568,8 +1740,15 @@ row.names(dr_status_data) <- unlist(lapply(strsplit(row.names(dr_status_data), "
 # Remove years from location data
 row.names(loc_data) <- unlist(lapply(strsplit(row.names(loc_data), "_"), function(x){ paste0(x[1:(length(x)-1)], collapse = "_") }))
 
+# Transmission wrangling
+row.names(trans_non_trans_df) <- trans_non_trans_df$id
+trans_non_trans_df <- drop_cols(trans_non_trans_df, "id")
+trans_non_trans_df$trans_status <- as.factor(trans_non_trans_df$trans_status)
+names(trans_non_trans_df) <- "Transmission"
 
-ggtree_all_samps <- ggtree(tree_all_samps, size = line_sz, layout="circular")
+# Do tree
+
+ggtree_all_samps <- ggtree(tree_all_samps, size = line_sz, layout="fan", open.angle = 10)
 
 # Add lin data
 lin_hm <- gheatmap(ggtree_all_samps, lin_data_no_year,
@@ -1580,9 +1759,9 @@ lin_hm <- gheatmap(ggtree_all_samps, lin_data_no_year,
          colnames_angle = angle, 
          colnames_offset_y = 1,
          hjust = 0,
-         font.size = 2) +
-  scale_fill_manual(values = lin_colours, breaks = names(lin_colours) ) +
+         font.size = font_sz) +
   labs(fill = "Lineage")+
+  scale_fill_manual(values = lin_colours, breaks = names(lin_colours) ) +
   legend_spec
 
 # Do this to add new gheatmap for some reason
@@ -1597,32 +1776,54 @@ dr_status_hm <- gheatmap(lin_hm, dr_status_data,
                    colnames_position = "top",
                    colnames_angle = angle, colnames_offset_y = 1,
                    hjust = 0,
-                   font.size = 2) +
-  scale_fill_manual(values = dr_status_colours, breaks = names(dr_status_colours) )+
+                   font.size = font_sz) +
   labs(fill = "DR status")+
+  scale_fill_manual(values = dr_status_colours, breaks = names(dr_status_colours) )+
   legend_spec
 
 # dr_status_hm
 
 dr_status_hm <- dr_status_hm + ggnewscale::new_scale_fill()
 
-gheatmap(dr_status_hm, loc_data,
+dr_status_loc_hm <- gheatmap(dr_status_hm, loc_data,
                    width = width,
                    offset = width * (0.025*2),
                    color = NULL,
                    colnames_position = "top",
                    colnames_angle = angle, colnames_offset_y = 1,
                    hjust = 0,
-                   font.size = 2) +
-  scale_fill_manual(values = loc_cols, breaks = names(loc_cols), na.value="white")+
+                   font.size = font_sz) +
   labs(fill = "Location")+
+  scale_fill_manual(values = loc_cols, breaks = names(loc_cols), na.value="white")+
   legend_spec
+
+# Transmission
+
+# Do this to add new gheatmap for some reason
+# See "7.3.1 Visualize tree with multiple associated matrix" https://yulab-smu.top/treedata-book/chapter7.html
+dr_status_loc_hm <- dr_status_loc_hm + ggnewscale::new_scale_fill()
+
+gheatmap(dr_status_loc_hm, trans_non_trans_df,
+         width = width,
+         offset = width * (0.025*3),
+         low="white", high="black", color="black",
+         colnames_position = "top",
+         colnames_angle = angle, colnames_offset_y = 1,
+         hjust = 0,
+         font.size = font_sz,
+         legend_title = "Transmission status") +
+  labs(fill = "Transmission status")+
+  scale_fill_manual(values=c("white", "black"), labels = c("Transmission", "Non-transmission"))+
+  legend_spec
+
+
 
 ```
 
 ***
 
-```{r dr-trees, echo=FALSE, out.width = "1500px", warning = F, message = F, cache=F, fig.show="hold", fig.cap=""}
+```{r dr-trees-noref, echo=FALSE, out.width = "1500px", fig.height=8, dpi = 300, warning = F, message = F, cache=F, fig.show="hold"}
+
 
 # -------------
 # Add DR stuff 
@@ -1631,9 +1832,9 @@ gheatmap(dr_status_hm, loc_data,
 # Tree setup
 width <- 0.02
 n_samps <- length(tree_all_samps$tip.label)
-y_lim <- c(-5, n_samps + (n_samps * 0.1))
+y_lim <- c(-10, n_samps + (n_samps * 0.1))
 font_sz <- 2
-width <- 0.05
+width <- 0.1
 angle <- 45
 line_sz <- 0.2
 
@@ -1699,8 +1900,8 @@ row.names(dr_data) <- unlist(lapply(strsplit(row.names(dr_data), "_"),
                                         function(x){ paste0(x[1:(length(x)-1)], collapse = "_") }))
 # pdf(file = dr_trees_pdf_file)
 gheatmap(lin_dr_loc_hm, dr_data,
-         offset = width * (0.025*3),
-         width = width+0.5,
+         offset = width * (0.025*3.5),
+         width = width+2,
          # color = NULL,
          low="white", high="black", color="black",
          colnames_position = "top",
@@ -1711,13 +1912,16 @@ gheatmap(lin_dr_loc_hm, dr_data,
   labs(fill = "Drug\nresistance")+
   legend_spec
 
+
+
+
 # Drug resistance from TB profiler (genotypic drug resistance predictions)
 # Strip dates from dr_tbp_data
 row.names(dr_tbp_data) <- unlist(lapply(strsplit(row.names(dr_tbp_data), "_"),
                                         function(x){ paste0(x[1:(length(x)-1)], collapse = "_") }))
 gheatmap(lin_dr_loc_hm, dr_tbp_data,
-         offset = width * (0.025*3),
-         width = width+0.5,
+         offset = width * (0.025*3.5),
+         width = width+2,
          # color = NULL,
          low="white", high="black", color="black",
          colnames_position = "top",
@@ -1735,9 +1939,14 @@ gheatmap(lin_dr_loc_hm, dr_tbp_data,
 
 row.names(drug_discrepancy_data) <- unlist(lapply(strsplit(row.names(drug_discrepancy_data), "_"),
                                         function(x){ paste0(x[1:(length(x)-1)], collapse = "_") }))
+
+```
+
+```{r dr-trees, echo=FALSE, out.width = "1500px", fig.height=8, dpi = 300, warning = F, message = F, cache=F, fig.show="hold", fig.cap="Phyolgenetic trees of all samples and A: DST drug resistance; B: genotypic drug resistance; C: Discrepancies between DST and genotypic resistance."}
+
 gheatmap(lin_dr_loc_hm, drug_discrepancy_data,
-         offset = width * (0.025*3),
-         width = width+0.5,
+         offset = width * (0.025*3.5),
+         width = width+2,
          color = NULL,
          colnames_position = "top",
          colnames_angle = angle,
@@ -1753,14 +1962,24 @@ gheatmap(lin_dr_loc_hm, drug_discrepancy_data,
 
 ***
 
-```{r map, echo=FALSE, out.width = "2000px", fig.cap=sprintf("Locations of samples; n = %s", length(obj$tree$tip.label))}
+```{r map, echo=FALSE, fig.width=6, fig.height=7, cache=F, dpi=300, message = F, warning = F, fig.cap=sprintf("Locations of samples; n = %s", length(obj$tree$tip.label))}
 
-plot(obj, lty = 1, fsize = 0.01, direction = "rightwards", colors = map_cols, pch=20)
-legend("bottomright", legend = regions_uniq, fill = regions_cols, cex = 0.75)
+phylo_plot_file <- "../plots/phylomap.png"
+
+# png(phylo_plot_file, width = 1000, height = 1000, res = 150)
+# plot(obj, lty = 1, fsize = 0.01, direction = "rightwards", colors = map_cols, pch=20, lwd = 1)
+# legend("bottomright", legend = regions_uniq, fill = regions_cols, cex = 0.75)
+# dev.off()
+
+include_graphics(phylo_plot_file)
+
+# fig.width=6, fig.height=6
 
 ```
 
+
 ***
+
 <!--
 ```{r dates, echo=FALSE, out.width = "2000px", fig.cap=sprintf("Histogram of sample collection year; n = %s", n_dated_samps)}
 
@@ -1773,7 +1992,9 @@ legend("bottomright", legend = regions_uniq, fill = regions_cols, cex = 0.75)
 
 ```
 -->
+
 ***
+
 <!--
 ```{r boxdistance, echo=FALSE, fig.show="hold", out.width="50%", fig.cap = sprintf("Boxplot of pairwise SNP distances (excluding DR sites), all samples (left; n = %s), samples within %s SNP distance (right; n = %s).", nrow(dist), threshold, nrow(as.matrix(dist_thresh)))}
 
@@ -1795,13 +2016,14 @@ boxplot(dist_thresh, col = col,
 
 ```
 -->
-```{r dist-dens-all-samples, echo=FALSE, fig.show="hold", out.width="50%", fig.cap = sprintf("Density of pairwise SNP distances for all samples (n=%s)", n_samps_total)}
+
+```{r dist-dens-all-samples, echo=FALSE, fig.show="hold", out.width="50%", dpi=300, fig.cap = sprintf("Density of pairwise SNP distances for all samples (n=%s)", n_samps_total)}
 
 dist_dens_all_samples
 
 ```
 
-***
+
 <!--
 ```{r clusterstree, echo = F, out.width = "2000px", fig.cap = sprintf("Single linkage tree of SNP distances, dated samples. Line shown at a SNP distance of %s; n = %s; n clusters = %s", threshold, nrow(dist), n_clusters_cut_tree)}
 
@@ -1830,9 +2052,11 @@ abline(a = threshold, b = 0)
 
 ```
 -->
+
 ***
 
-```{r distanceqgraph, echo=FALSE, out.width = "2000px", fig.cap = sprintf("Connections among samples with <= %s SNP distance; n = %s. Thicker lines indicate smaller SNP distance.", threshold, length(attributes(dist_thresh)$Labels)), fig.show="hold"}
+```{r distanceqgraph-noref, echo=FALSE, out.width = "2000px", fig.height=3, dpi = 300, fig.show="hold"}
+
 
 # qgraph::qgraph(1/dist_dated_thresh, layout='spring', vsize=5)
 
@@ -1861,6 +2085,7 @@ for(i in seq(lin_data_split)){
 cut_val <- 0.5
 # Node size
 vsize_val <- 2
+leg_cex <- 0.4
 
 qgraph::qgraph(1/dist_thresh, 
                layout='spring',
@@ -1871,7 +2096,8 @@ qgraph::qgraph(1/dist_thresh,
                groups = lin_data_split, 
                legend = TRUE, 
                color = lin_colours, 
-               labels = F)
+               labels = F, 
+               legend.cex = leg_cex)
 
 
 # Same for DR data
@@ -1897,7 +2123,8 @@ qgraph::qgraph(1/dist_thresh,
                groups = dr_data_split, 
                legend = TRUE, 
                color = dr_status_colours, 
-               labels = F)
+               labels = F, 
+               legend.cex = leg_cex)
 
 # Location
 loc_data_qgraph <- loc_data[row.names(loc_data) %in% attributes(dist_thresh)$Labels, "Location", drop = F]
@@ -1920,6 +2147,12 @@ for(i in seq(loc_data_split)){
   loc_data_split[[i]] <- loc_data_split[[i]]$row
 }
 
+
+```
+
+```{r distanceqgraph, echo=FALSE, out.width = "2000px", fig.height=3, dpi = 300, fig.cap = sprintf("Connections among samples with <= %s SNP distance; n = %s. Thicker lines indicate smaller SNP distance.", threshold, length(attributes(dist_thresh)$Labels)), fig.show="hold"}
+
+
 qgraph::qgraph(1/dist_thresh, 
                layout='spring',
                minimum = 1/threshold,
@@ -1929,17 +2162,19 @@ qgraph::qgraph(1/dist_thresh,
                groups = loc_data_split, 
                legend = TRUE, 
                color = loc_cols_qgraph, 
-               labels = F)
+               labels = F, 
+               legend.cex = leg_cex)
 
   
 ```
 
 ***
 
-```{r trans-category-plots, echo=FALSE, out.width = "2000px", fig.cap = sprintf("Proportions of samples within %s SNPs (top) and size of residuals in chi-square tests for lineage, drug resistance status and location.", threshold), fig.show="hold"}
+```{r trans-category-plots-noref, echo=FALSE, out.width = "2000px", dpi = 300, fig.height=5, fig.width=7, fig.show="hold"}
 
 # Lin
 
+# par(mfrow = c(1, 1))
 balloonplot(t(lin_contingency_tab), 
             main = sprintf("Samples within %s-SNP threshold, by lineage", threshold), 
             xlab ="", ylab="",
@@ -1951,7 +2186,7 @@ corrplot(trans_lin_chi_sq$residuals, is.cor = FALSE)
 balloonplot(t(dr_contingency_tab), 
             main = sprintf("Samples within %s-SNP threshold, by DR status", threshold), 
             xlab ="", ylab="",
-            label = T, show.margins = FALSE)
+            label = T, show.margins = FALSE, colsrt = 90)
 corrplot(trans_dr_chi_sq$residuals, is.cor = FALSE)
 
 # Loc
@@ -1959,17 +2194,36 @@ corrplot(trans_dr_chi_sq$residuals, is.cor = FALSE)
 balloonplot(t(loc_contingency_tab), 
             main = sprintf("Samples within %s-SNP threshold, by location", threshold), 
             xlab ="", ylab="",
-            label = T, show.margins = FALSE, show.zeros = T, colsrt = 90)
-corrplot(trans_loc_chi_sq$residuals, is.cor = FALSE)
+            label = T, show.margins = FALSE, show.zeros = T, colsrt = 90, text.size = 0.75, label.size = 0.75)
+
+
+```
+
+```{r trans-category-plots, echo=FALSE, out.width = "2000px", dpi = 300, fig.height=5, fig.width=7, fig.cap = sprintf("Proportions of samples within %s SNPs (top) and size of residuals in chi-square tests (bottom) for lineage, drug resistance status and location.", threshold), fig.show="hold"}
+
+corrplot(trans_loc_chi_sq$residuals, is.cor = FALSE, mar = c(0, 0, 0, 0), cl.cex = 0.5)
 
 ```
 
 ***
 
-```{r n-clusters-plot, echo = F, out.width = "2000px", fig.cap = "Number of clusters (top) and number of samples in each cluster (bottom), per SNP distance threshold (1 - 50 SNPs)", fig.show="hold"}
+```{r asr-tree, echo=FALSE, out.width = "2000px", dpi = 300, fig.cap = sprintf("Tree with the Pakistan samples and closely-related global isolates from previously published datasets. The posterior probability for the ancestral state reconstruction of subregion of sample collection is indicated by the pie charts on the internal nodes. (n = 915)")}
+
+include_graphics(asr_file)
+
+```
+
+***
+
+```{r n-clusters-plot-noref, echo = F, out.width = "2000px", dpi = 300, fig.show="hold"}
 
 plot(threshold_vect, n_clusts_vect, type = 'l', xaxt = "n", xlab = "SNP distance threshold", ylab = "n clusters")
 axis(1, at = threshold_vect, las = 2)
+
+```
+
+```{r n-clusters-plot, echo = F, out.width = "2000px", dpi = 300, fig.show="hold", fig.cap="Number of clusters and number of samples by SNP distance threshold in clustering sensitivity analysis"}
+
 plot(threshold_vect, n_samps_per_cluster_vect, type = 'l', xaxt = "n", xlab = "SNP distance threshold", ylab = "n clustering samples")
 axis(1, at = threshold_vect, las = 2)
 
@@ -1978,7 +2232,6 @@ axis(1, at = threshold_vect, las = 2)
 ***
 
 <!--
-
 ```{r beasttrees, echo=FALSE, out.width = "1500px", warning = F, message = F, cache=F, fig.show="hold", fig.cap="Timed phylogenetic trees of all dated samples (n = n_dated_samps), inferred from BEAST. A - Timed phylogenetic tree annotated with drug resistance statuses from phylogenetic tests (DST); B - The same tree annotated with drug resistance statuses from genotypic profiling (TBprofiler); C - Annotated with the discrepancies between the phenotypic and genotypic tests."}
 
 
@@ -2114,7 +2367,6 @@ gheatmap(dr_status_hm, drug_discrepancy_data,
 ```
 -->
 
-***
 
 <!--
 ```{r beasttreeszoom, echo=FALSE, out.width = "1500px", warning = F, message = F, cache=F, fig.show="hold", fig.cap=sprintf("The same trees and annotations as Figure \\@ref(fig:beasttrees), zoomed in to the last 50 years before the last sample date. Samples which do not form a cluster (the MRCA was before 50 years or there is only one sample) have been dropped. n = %s",  n_beast_cluster_samps)}
@@ -2330,7 +2582,6 @@ gheatmap(dr_status_hm, drug_discrepancy_data,
 ```
 -->
 
-***
 
 <!--
 ```{r beastlogplots, echo=FALSE, out.width = "1500px", fig.cap = "Trace plots of BEAST MCMC iterations across posterior, likelihood, prior and MRCA parameters. The plots show no upward or downward trend, hence imply convergence."}
