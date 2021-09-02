@@ -35,9 +35,10 @@ global_tree <- phytools::midpoint.root(global_tree)
 # COLOURS.. here we go.. 
 
 # Get df of unique regions and subregions
-country_region <- unique(global_metadata[, c("subregion", "region")])
+# country_region <- unique(global_metadata[, c("subregion", "region")])
+country_region <- data.frame(region = sort(unique(global_metadata[, c("region")])))
 # Sort
-country_region <- country_region[order(country_region$region, country_region$region), ]
+# country_region <- country_region[order(country_region$region, country_region$subregion), ]
 # Split on main region
 country_region_split <- split(country_region, country_region$region)
 # Get the unique main regions
@@ -79,7 +80,8 @@ show_col(all_cols)
 # Add colours to df
 country_region$col <- all_cols
 # Add Pakistan
-country_region[nrow(country_region)+1, ] <- c("Pakistan", "Asia", "#808080")
+# country_region[nrow(country_region)+1, ] <- c("Pakistan", "Asia", "#808080")
+country_region[nrow(country_region)+1, ] <- c("Pakistan", "#808080")
 # Make pakistan grey
 # country_region[country_region[, "country"] == "Pakistan", "col"] <- "#808080"
 
@@ -89,7 +91,7 @@ country_region[nrow(country_region)+1, ] <- c("Pakistan", "Asia", "#808080")
 # Pull countries as vector and add sample names 
 # countries <- global_metadata[, "country"]
 # names(countries) <- global_metadata[, "wgs_id"]
-x <- global_metadata[, "subregion"] # 'x' is used as the variable of the ASR in the examples on the webpage
+x <- global_metadata[, "region"] # 'x' is used as the variable of the ASR in the examples on the webpage
 names(x) <- global_metadata[, "wgs_id"]
 
 # Get pk samps and change value
@@ -106,7 +108,8 @@ x[names(x) %in% pk_samps] <- "Pakistan"
 # cols[names(cols) == "Pakistan"] <- "#808080"
 
 cols <- country_region[, "col"]
-names(cols) <- country_region[, "subregion"]
+# names(cols) <- country_region[, "subregion"]
+names(cols) <- country_region[, "region"]
 
 # fitER <- ace(x, anoletree, model="ER",type="discrete")
 # fitER <- ace(countries, global_tree, model="ER",type="discrete")
