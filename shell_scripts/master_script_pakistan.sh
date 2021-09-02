@@ -111,7 +111,7 @@ tbprofiler_variants_file=${local_metadata_dir}${study_accession}.variants
 
 # Ancestral state
 global_sample_list_outfile=${local_metadata_dir}global_sample_list.txt
-global_metadata_outfile=${local_metadata_dir}global_metadata.csv
+global_metadata_outfile=${local_metadata_dir}global_metadata.txt
 global_val_multi_vcf_file=${vcf_dir}GLOBAL.val.gt${gvcf_file_suffix}
 global_filt_multi_vcf_file=${vcf_dir}GLOBAL.filt.val.gt${gvcf_file_suffix}
 global_fasta_file=${fasta_dir}GLOBAL.filt.val.gt.g.snps.fa
@@ -725,5 +725,3 @@ else
     echo "------------------------------------------------------------------------------"
     printf "\n"
 fi
-
-
