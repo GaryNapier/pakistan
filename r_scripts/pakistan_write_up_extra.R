@@ -109,6 +109,8 @@ gene_res_sort <- gene_res[order(gene_res$log_p, decreasing = T), ]
 snp_res_10 <- snp_res_sort[10, "log_p"]
 gene_res_10 <- gene_res_sort[10, "log_p"]
 
+gene_res_sort[1:5, c("rs", "beta", "log_p")]
+
 
 plot(snp_res$log_p, pch = 19, cex = 0.2)
 abline(h = snp_res_10, col = "red")
@@ -140,31 +142,74 @@ in_trans_metadata[, c("province", "location")]
 table(metadata$sub_lineage)
 
 
-
 # ------------------------------------------------------------------------
 
-# TABLE 3 - join global freqs
+# Join global freqs to known mutations table (dr_variants_pivot)
 
-global_file <- paste0(metadata_path, "novel_mutations_global_freqs.csv")
-
+# Read in global data
+global_file <- paste0(metadata_path, "mutations_global_freqs.csv")
 global <- read.csv(global_file)
 
+# Clean
+names(global)[names(global) %in% "drug_resistant_."] <- "drug_resistant_pc"
 
-names(global)[names(global) %in% "drug_resistant_."] <- "drug_resistant"
-
-
+# Checks/have a look
 global[global[, "change"] == "c.-92T>G", ]
 global[global[, "change"] == "p.Ala288Asp", ]
 
+# Re-arrange cols, take out gene col
 global_subset <- global[, c("drug", "change", 
                             "global_freq", 
                             "Sensitive_freq", 
-                            "drug_resistant", 
+                            "drug_resistant_pc", 
                             "Pre.MDR_freq", 
                             "MDR_freq", 
                             "Pre.XDR_freq", 
                             "XDR_freq", 
                             "Other_freq")]
+
+# Merge
+known_mut_global <- merge(dr_variants_pivot, global_subset, by = c("drug", "change"), all.x = T, sort = F)
+
+# Clean
+known_mut_global <- known_mut_global %>% mutate_if(is.numeric, round, 3)
+known_mut_global <- known_mut_global[order(known_mut_global$drug), ]
+known_mut_global <- known_mut_global[, c("drug", 
+           "gene", 
+           "change",
+           "N", 
+           "global_freq", 
+           "Sensitive_freq", 
+           "drug_resistant_pc", 
+           "Pre.MDR_freq", 
+           "MDR_freq", 
+           "Pre.XDR_freq", 
+           "XDR_freq", 
+           "Other_freq")]
+
+names(known_mut_global) <- c("Drug", 
+              "Gene", 
+              "Change",
+              "N", 
+              "Global N", 
+              "Sensitive freq", 
+              "Drug resistant %", 
+              "Pre MDR freq", 
+              "MDR freq", 
+              "Pre XDR freq", 
+              "XDR freq", 
+              "Other freq")
+
+known_mut_global <- data.frame(lapply(known_mut_global, function(x) {gsub(",", ";", x)}))
+
+write.csv(known_mut_global, file = paste0(metadata_path, "known_mutations_and_global_freq_merged.csv"),
+          row.names = F, quote = F)
+
+
+# ------------------------------------------------------------------------
+
+# Join global freqs to novel mnutations table (FN_results_table_pivot)
+
 
 x <- merge(FN_results_table_pivot, global_subset, 
       by = c("drug", "change"), all.x = T, sort = F)
@@ -179,7 +224,7 @@ x <- x[, c("drug",
       "N", 
       "global_freq", 
       "Sensitive_freq", 
-      "drug_resistant", 
+      "drug_resistant_pc", 
       "Pre.MDR_freq", 
       "MDR_freq", 
       "Pre.XDR_freq", 
@@ -205,6 +250,9 @@ write.csv(x, paste0(metadata_path, "novel_mutations_and_global_freq_merged.csv")
 
 
 
+none_global <- x[x[, "Global N"] == 0, ]
+
+length(unique(none_global$Change))
 
 
 
