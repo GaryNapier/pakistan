@@ -1571,6 +1571,16 @@ Linear mixed models have been previously applied to adjust for the confounds of 
 
 
 
+
+
+For sublineages in the Pakistan dataset for which there were > 10 samples (1.1.2, 2.2.1, 3, 3.1.2, 4.5, 4.9), other samples from a global dataset were found which also belonged to these lineages. Phylogenetic trees of the concatenated Pakistan and global samples were then constructed, for each sublineage separately, with FastTree [@Price2010a]. Likelihoods of ancestral locations were conducted with the ape 5.0 [@Paradis2019] and phytools [@Revell2012] packages in R (**Figure 2**).
+
+
+
+
+
+
+
 <!--
 
 BEAST v2.6.3 [@Bouckaert2019] was used to infer timed phylogenetic trees (see **Table \@ref(tab:beautiparams)** for parameters and settings). From the high ESS values (**Table \@ref(tab:beastlogtable)**) and the non-directional trace plots in (**Figure \@ref(fig:beastlogplots)**), effective sample size seems satisfactory and parameters have converged.
@@ -1795,6 +1805,8 @@ names(drug_discrepancy_cols) <- drug_discrepancy_vals
 
 
 ```{r ggtree-all-samps, echo=FALSE, out.width = "1500px", dpi = 300, fig.height=5, warning = F, message = F, cache=F, fig.show="hold", fig.cap=sprintf("The %s *M. tuberculosis* isolates: A phylogenetic tree constructed using %s SNPs", n_samps_total, fmt(n_snps_total))}
+
+
 
 # Tree setup
 line_sz <- 0.25

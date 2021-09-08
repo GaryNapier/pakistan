@@ -121,6 +121,149 @@ abline(h = gene_res_10, col = "red")
 text(x = seq(gene_res$log_p), y = gene_res$log_p, labels = ifelse(gene_res$log_p >= gene_res_10, gene_res$rs, ""), 
      adj = 0, cex=1, srt=-25)
 
+# Put on tree
+
+genesum_file <- "../gwas_results/PAKISTAN_ALL.filt.val.gt.g.ann.genesum"
+samples_file <- "../gwas_results/samples.txt"
+
+genesum <- read.delim(genesum_file, header = F)
+samples <- read.delim(samples_file, header = F)
+
+genesum <- genesum[, -c(2, 3)]
+
+names(genesum) <- c("gene", samples[,1])
+
+top_genes <- gene_res_sort[1:5, "rs"]
+
+genesum_sub <- genesum[genesum[, "gene"] %in% top_genes, ]
+
+#         nusG
+# ERR123  0
+# ERR321  0
+# ERR456  1
+
+genesum_list <- list()
+for(i in seq(nrow(genesum_sub))){
+  gene_df <- genesum_sub[i, ]
+  df <- setNames(data.frame(as.numeric(as.vector(gene_df[2:ncol(gene_df)]))), gene_df["gene"])
+  row.names(df) <- samples[, 1]
+  genesum_list[[i]] <- df
+}
+
+genesum_list <- lapply(genesum_list, function(x) {
+  apply(x, 2, as.factor)
+})
+
+ggtree_all_samps <- ggtree(tree_all_samps, size = line_sz, layout="fan", open.angle = 10)
+
+trans_tree <- gheatmap(ggtree_all_samps, trans_non_trans_df,
+         width = width,
+         offset = 0,
+         low="white", high="black", color="black",
+         colnames_position = "top",
+         colnames_angle = angle, colnames_offset_y = 1,
+         hjust = 0,
+         font.size = font_sz,
+         legend_title = "Transmission status") +
+  labs(fill = "Transmission status")+
+  scale_fill_manual(values=c("white", "black"), labels = c("Transmission", "Non-transmission"))+
+  legend_spec
+
+trans_tree <- trans_tree + ggnewscale::new_scale_fill()
+
+df <- genesum_list[[1]]
+gene <- colnames(df)
+
+gene_tree <- gheatmap(trans_tree, df,
+                       width = width,
+                       offset = 0.003,
+                       low="white", high="black", color="black",
+                       colnames_position = "top",
+                       colnames_angle = angle, colnames_offset_y = 1,
+                       hjust = 0,
+                       font.size = font_sz,
+                       legend_title = gene) +
+  labs(fill = gene)+
+  scale_fill_gradient2()+
+  scale_fill_manual(values=c("white", "black"), labels = c("0", "1"))+
+  legend_spec
+
+gene_tree <- gene_tree + ggnewscale::new_scale_fill()
+
+df <- genesum_list[[2]]
+gene <- colnames(df)
+
+gene_tree <- gheatmap(gene_tree, df,
+                      width = width,
+                      offset = 0.006,
+                      low="white", high="black", color="black",
+                      colnames_position = "top",
+                      colnames_angle = angle, colnames_offset_y = 1,
+                      hjust = 0,
+                      font.size = font_sz,
+                      legend_title = gene) +
+  labs(fill = gene)+
+  scale_fill_gradient2()+
+  scale_fill_manual(values=c("white", "black"), labels = c("0", "1"))+
+  legend_spec
+
+gene_tree <- gene_tree + ggnewscale::new_scale_fill()
+
+df <- genesum_list[[3]]
+gene <- colnames(df)
+
+gene_tree <- gheatmap(gene_tree, df,
+                      width = width,
+                      offset = 0.009,
+                      low="white", high="black", color="black",
+                      colnames_position = "top",
+                      colnames_angle = angle, colnames_offset_y = 1,
+                      hjust = 0,
+                      font.size = font_sz,
+                      legend_title = gene) +
+  labs(fill = gene)+
+  scale_fill_gradient2()+
+  scale_fill_manual(values=c("white", "black"), labels = c("0", "1"))+
+  legend_spec
+
+gene_tree <- gene_tree + ggnewscale::new_scale_fill()
+
+df <- genesum_list[[4]]
+gene <- colnames(df)
+
+gene_tree <- gheatmap(gene_tree, df,
+                      width = width,
+                      offset = 0.012,
+                      low="white", high="black", color="black",
+                      colnames_position = "top",
+                      colnames_angle = angle, colnames_offset_y = 1,
+                      hjust = 0,
+                      font.size = font_sz,
+                      legend_title = gene) +
+  labs(fill = gene)+
+  scale_fill_gradient2()+
+  scale_fill_manual(values=c("white", "black"), labels = c("0", "1"))+
+  legend_spec
+
+gene_tree <- gene_tree + ggnewscale::new_scale_fill()
+
+df <- genesum_list[[5]]
+gene <- colnames(df)
+
+gheatmap(gene_tree, df,
+                      width = width,
+                      offset = 0.015,
+                      low="white", high="black", color="black",
+                      colnames_position = "top",
+                      colnames_angle = angle, colnames_offset_y = 1,
+                      hjust = 0,
+                      font.size = font_sz,
+                      legend_title = gene) +
+  labs(fill = gene)+
+  scale_fill_gradient2()+
+  scale_fill_manual(values=c("white", "black"), labels = c("0", "1"))+
+  legend_spec
+
 
 # ------------------------------------------------------------------------
 
@@ -255,13 +398,7 @@ none_global <- x[x[, "Global N"] == 0, ]
 length(unique(none_global$Change))
 
 
-
-
-
-
-
-
-
+# ------------------------------------------------------------------------
 
 
 
