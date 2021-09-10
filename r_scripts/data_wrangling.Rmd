@@ -1047,7 +1047,10 @@ FN_drugs_split <- names(FN_res[FN_res > 0])
 FP_drugs_split <- names(FP_res[FP_res > 0])
 
 # HOW MANY FN TESTS?
-sum(apply(discrepancy_data == FN, 1, sum))
+N_FN <- sum(apply(discrepancy_data == FN, 1, sum))
+
+# HOW MANY FP TESTS?
+N_FP <- sum(apply(discrepancy_data == FP, 1, sum))
 
 
 

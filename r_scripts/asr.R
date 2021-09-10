@@ -17,17 +17,18 @@ lins <- c("1.1.2", "2.2.1", "3", "3.1.2", "4.5",  "4.9")
 
 # PATHS
 
-# methods_path <- "../methods/"
-# main_metadata_path <- "../../metadata/"
-# metadata_path <- "../metadata/"
-# newick_path <- "../newick/"
-# plots_path <- "../plots/"
+asr_results_path <- "../asr_results/"
+methods_path <- "../methods/"
+main_metadata_path <- "../../metadata/"
+metadata_path <- "../metadata/"
+newick_path <- "../newick/"
+plots_path <- "../plots/"
 
-asr_results_path <- "asr_results/"
-main_metadata_path <- "../metadata/"
-metadata_path <- "metadata/"
-newick_path <- "newick/"
-plots_path <- "plots/"
+# asr_results_path <- "asr_results/"
+# main_metadata_path <- "../metadata/"
+# metadata_path <- "metadata/"
+# newick_path <- "newick/"
+# plots_path <- "plots/"
 
 # FILES
 
@@ -210,12 +211,15 @@ for(i in seq(mtree_list)){
 # add.simmap.legend(colors = cols, prompt = F, fsize = 0.8, y = 550)
 # dev.off()
 
+
+legend_pos <- c(100, 1500, 400, 15, 500, 40)
 for(i in seq(mtree_list)){
   png(filename = plot_files[i], width = 2000, height = 2000, res = 300)
   plot(mtree_list[[i]], cols, lwd = 1)
   nodelabels(node=1:new_tree_list[[i]]$Nnode+Ntip(new_tree_list[[i]]), 
-             pie = fitER$lik.anc, piecol = cols, cex = 0.3)
-  add.simmap.legend(colors = cols, prompt = F, fsize = 0.8, y = 550)
+             pie = fitER[[i]]$lik.anc, piecol = cols, cex = 0.3)
+  # add.simmap.legend(colors = cols, prompt = F, fsize = 0.8, y = 100)
+  add.simmap.legend(colors = cols, prompt = F, fsize = 0.8, y = legend_pos[i])
   dev.off()
 }
 
