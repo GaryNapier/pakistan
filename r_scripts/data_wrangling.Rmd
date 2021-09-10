@@ -1300,19 +1300,12 @@ names(gwas_table) <- c("Gene", "Function", "beta", "-log10 Wald p-value")
 |Muhammad Tahir Khan^4^ |	muhammad.tahir8@imbb.uol.edu.pk |
 |Sajid Ali^2^ | sajidjan@live.com |
 |Muhammad Qasim^2^ | qasim@kust.edu.pk |
-
-XXXXX Aga Khan group XXXX	
-
-| | |
-| ----------- | ----------- |
 |Susana Campino^1^ | susana.campino@lshtm.ac.uk |
 |Sajjad Ahmad^5^ | sajjadahmad793@yahoo.com |
 |Hazir Rahman^6^ | hazirrahman@hotmail.com |
 |Taj Ali Khan^5^,** | tajalikhan.ibms@kmu.edu.pk |
 |Jody E. Phelan^1^,** | jody.phelan@lshtm.ac.uk |
 |Taane G. Clark^1^,^7^,** | taane.clark@lshtm.ac.uk |
-
-XXX to be confirmed XXX
 
 ^1^ Faculty of Infectious & Tropical Diseases, London School of Hygiene & Tropical Medicine, London, UK \
 ^2^ Department of Microbiology, Kohat University of Science and Technology, Kohat, Pakistan; \
@@ -1507,7 +1500,7 @@ n_drugs_no_dst <- sum(dr_tab_easy[, "N_dst_total"] == 0 | is.na(dr_tab_easy[, "N
 
 A total of 535 M. tuberculosis isolates sourced between 2003 and 2005, and 2013 and 2020 from Pakistan with publically available WGS and phenotypic susceptibility testing <!--7--> [@Jabbar2019]<!--8-->[@Coll2018]<!--9-->[@Kanji2016]<!--10-->[@Ali2015]<!--11-->[@Cryptic2018]<!--12-->[@Khan2021]. These isolates covered four provinces (Balochistan, Khyber Pakhtunkhwa, Punjab, Sindh), but a high proportion of locations were missing (69.5%), all from one study [@Cryptic2018]. (**Table 1**). The majority of samples were from lineage 3 (L3 397, 74.2%; CAS strains), but the other main lineages were represented (L4, 80, 15.0%, including LAM, T and X strains); L2 36, 6.7%, including Beijing; L1 22, 4.1%) (**Table 1**; **S1 Table**). Phenotypic drug susceptibility testing (DST) was most complete for rifampicin (n=487, 91.03%), isoniazid (n=487, 91.03%), ethambutol (n=479, 89.53%), and pyrazinamide (n=444, 82.99%) drugs (**S2 Table**), but incomplete / not present for 12 drugs. A total of 432 total samples (80.7%) were phenotypically resistant to at least one drug (median 3, maximum 10). The number of potential errors on the phenotypic testing appeared low (218/2,430 tests), where established genotypic resistance markers were present in isolates with DST results that implied sensitive. The discordance appeared in nine drugs (capreomycin, ethambutol, ethionamide, isoniazid, moxifloxacin, ofloxacin, pyrazinamide, rifampicin, streptomycin), but predominantly in ethambutol (96) (**S2 Table**).
 
-There were 100/2,430 tests in the case where established genotypic resistance markers were absent in isolates with DST results that implied resistance. The discordance appeared in eight drugs (amikacin, ciprofloxacin, ethambutol, isoniazid, kanamycin, pyrazinamide, rifampicin, streptomycin), mostly in isonizid (25) and pyrazinamide (24) (**S2 Table*).
+There were 100/2,430 tests in the case where established genotypic resistance markers were absent in isolates with DST results that implied resistance. The discordance appeared in eight drugs (amikacin, ciprofloxacin, ethambutol, isoniazid, kanamycin, pyrazinamide, rifampicin, streptomycin), mostly in isonizid (25) and pyrazinamide (24) (**S2 Table**).
 
 The majority of isolates were genotypically assessed as MDR-TB (328, 61.3%), with high proportions of (pre-) XDR (113, 21.1) and pan-sensitive (60, 11.2%) (**Table 1**). There were 31 pre-MDR, and overall there was a high prevalence of rifampicin (460, 86.0%) and isoniazid (435, 81.3%) resistance strains. Resistance to drugs used in combination with isoniazid and rifampicin were also common, including ethambutol (385, 72.0%), pyrazinamide (258, 48.2%), streptomycin (238, 44.5%), ethionamide (102, 19.1%), any fluoroquinolones (277, 51.8%) or aminoglycoside (75, 14.0%). As expected, very few isolates appeared resistant to bedaquiliine, clofazimine and cycloserine (n<3; **Table 1**). Across all lineages, the majority of isolates (>75%) were at least MDR-TB resistance (**S3 Table**). 
 
@@ -1522,7 +1515,7 @@ A phylogenetic tree constructed using the genome-wide SNPs, and has the expected
 
 ### Evidence of transmission
 
-<!-- Median (range) pairwise SNP distances was `r round(median(lower_dist), rnd)` (min=`r min(lower_dist)`, max=`r max(lower_dist)`) for all `r n_samps_total` samples.  -->
+<!-- Median (range) pairwise SNP distances was `r round(median(lower_dist), rnd)` (min=`r min(lower_dist)`, max=`r max(lower_dist)`) for all `r n_samps_total` samples.-->
 
 <!-- With a threshold of `r threshold` SNPs, `r n_clusters_cut_tree` clusters formed, where the median cluster size was `r med_clust_threshold` (range: `r min_clust_threshold`-`r max_clust_threshold`). **Figure \@ref(fig:distanceqgraph)** shows a graph of SNP distance connections among these samples (n = `r length(attributes(dist_thresh)$Labels)`).  -->
 
@@ -1532,7 +1525,7 @@ A phylogenetic tree constructed using the genome-wide SNPs, and has the expected
 
 <!-- Comparing the 169 "transmitted" isolates in clusters to the others ("non-transmitted"; n=366), there was an increased risk of transmission in lineages 2 and 4 (overall chi-sq=`r trans_lin_chi_sq$statistic`, p=`r scientific(trans_lin_chi_sq$p.value, digits = 2)`; post-hoc tests: lineage 2 standardised residual=3.57, p=0.003; lineage 4 standardised residual=4.62, p=0.00003), Pre-XDR and XDR samples (overall chi-sq=98, p=0.0005; post-hoc tests: Pre-XDR standardised residual=5.31, p=<0.0001; XDR standardised residual=6.55, p=<0.0001), and in Peshawar province (overall chi-sq=70, p=0.0005; post-hoc tests: Peshawar standardised residual=5.74, p=<0.0001) (S5 Table; S3 Figure; S4 Figure).  -->
 
-<!-- **Figure \@ref(fig:n-clusters-plot)** and **Table \@ref(tab:dist-sens-table)** show a sensitivity analysis of different SNP-distance thresholds.  -->
+<!-- **Figure \@ref(fig:n-clusters-plot)** and **Table \@ref(tab:dist-sens-table)** show a sensitivity analysis of different SNP-distance thresholds.-->
 
 <!--
 Date of collection was recorded between the years `r first_year` and `r last_year` (`r last_year - first_year` years) for `r n_dated_samps` samples, which represent probable closely-related, if not potiential transmission cases. A dated phylogenetic tree was constructed with these samples (**Figures \@ref(fig:beasttrees)**), and when cut at `r cutoff_year` years before the last sample date, `r n_beast_clusters` clusters (n=`r n_beast_cluster_samps`) were inferred. 
@@ -1553,15 +1546,15 @@ A genome-wide association study (GWAS) revealed genes *Rv2102*, *Rv0914c*, *nusG
 
 <!-- For phenotypic DST, there were `r n_samps_dst_res` total samples (`r (n_samps_dst_res/n_samps_total)*100`%) resistant to at least one drug (median = `r median(dst_by_row_vect)`, max = `r max(dst_by_row_vect)`).  -->
 
-<!-- ```{r echo = F} -->
+```{r echo = F}
 
-<!-- max_FP_drug <- names(which.max(FP_res)) -->
-<!-- max_FP_drug <- gsub("_.*", "", max_FP_drug) -->
-<!-- max_FP_val <- FP_res[which.max(FP_res)] -->
+max_FP_drug <- names(which.max(FP_res))
+max_FP_drug <- gsub("_.*", "", max_FP_drug)
+max_FP_val <- FP_res[which.max(FP_res)]
 
-<!-- ``` -->
+```
 
-<!-- The number of potential errors on the phenotypic testing appeared low (`r total_FP`/`r total_dst_tests` tests), where established genotypic resistance markers were present in isolates with DST results that implied sensitive. The discordance appeared in `r n_FP_drugs` drugs (`r FP_drugs`), but predominantly in `r max_FP_drug` (`r max_FP_val`) (S2 Table).  -->
+<!-- The number of potential errors on the phenotypic testing appeared low (`r total_FP`/`r total_dst_tests` tests), where established genotypic resistance markers were present in isolates with DST results that implied sensitive. The discordance appeared in `r n_FP_drugs` drugs (`r FP_drugs`), but predominantly in <!--`r max_FP_drug`-->  <!-- (`r max_FP_val`) (S2 Table). -->
 
 <!-- Among the phenotypic DST results, a high percentage were resistant to four drugs: rifampicin (n=`r dr_tab_easy[dr_tab_easy$drug == "rifampicin", "N_dst"]`, `r dr_tab_easy[dr_tab_easy$drug == "rifampicin", "pc_dst"]`%), isoniazid (n=`r dr_tab_easy[dr_tab_easy$drug == "isoniazid", "N_dst"]`, `r dr_tab_easy[dr_tab_easy$drug == "isoniazid", "pc_dst"]`%), ethambutol (n=`r dr_tab_easy[dr_tab_easy$drug == "ethambutol", "N_dst"]`, `r dr_tab_easy[dr_tab_easy$drug == "ethambutol", "pc_dst"]`%), and pyrazinamide (n=`r dr_tab_easy[dr_tab_easy$drug == "pyrazinamide", "N_dst"]`, `r dr_tab_easy[dr_tab_easy$drug == "pyrazinamide", "pc_dst"]`%) -->
 
@@ -1763,7 +1756,7 @@ global[global[, "change"] == "p.Ala288Asp", ]
 
 # Re-arrange cols, take out gene col
 global_subset <- global[, c("drug", "change", 
-                            "global_freq", 
+                            "global_N", 
                             "Sensitive_freq", 
                             "drug_resistant_pc", 
                             "Pre.MDR_freq", 
@@ -1782,7 +1775,7 @@ known_mut_global <- known_mut_global[, c("drug",
            "gene", 
            "change",
            "N", 
-           "global_freq", 
+           "global_N", 
            "Sensitive_freq", 
            "drug_resistant_pc", 
            "Pre.MDR_freq", 
@@ -1835,7 +1828,7 @@ x <- x[, c("drug",
       "gene", 
       "change",
       "N", 
-      "global_freq", 
+      "global_N", 
       "Sensitive_freq", 
       "drug_resistant_pc", 
       "Pre.MDR_freq", 
@@ -2127,14 +2120,14 @@ gheatmap(dr_status_loc_hm, trans_non_trans_df,
 
 ***
 
-```{r asr-trees, echo=FALSE, out.width = "1500px", fig.height=8, dpi = 300, warning = F, message = F, cache=F, fig.show="hold", fig.cap = Phylogenetic tree with the Pakistan samples and closely-related global isolates from previously published datasets (n= ) XXXX need to describe in methods and results XXXX. The posterior probability for the ancestral state reconstruction of subregion of sample collection is indicated by the pie charts on the internal nodes. Sublineages 1.1.2, 2.2.1,  3, 3.1.2, 4.5 and 4.9}
+```{r asr-trees, echo=FALSE, out.width = "1500px", fig.height=8, dpi = 300, warning = F, message = F, cache=F, fig.show="hold", fig.cap = "Phylogenetic tree with the Pakistan samples and closely-related global isolates from previously published datasets (n= ) XXXX need to describe in methods and results XXXX. The posterior probability for the ancestral state reconstruction of subregion of sample collection is indicated by the pie charts on the internal nodes. Sublineages 1.1.2, 2.2.1,  3, 3.1.2, 4.5 and 4.9"}
 
 plot(1,1)
 
 ```
 
 **TOO LARGE - ATTACHED**
-s
+
 ***
 
 **S1 Figure: Phylogenetic tree for the 535 M. tuberculosis isolates with individual genomic drug resistance predictions.**
@@ -2275,7 +2268,7 @@ gheatmap(lin_dr_loc_hm, dr_tbp_data,
 
 **S2 Figure: SNP distance analyses and clusters (n=535). (top) Density of pairwise SNP differences for all samples; (bottom) number of clustering samples at minimum pairwised SNP difference thresholds**
 
-```{r dist-dens-all-samples, echo=FALSE, fig.show="hold", out.width="50%", dpi=300, fig.cap = SNP distance analyses and clusters (n=535). (top) Density of pairwise SNP differences for all samples; (bottom) number of clustering samples at minimum pairwised SNP difference thresholds.}
+```{r dist-dens-all-samples, echo=FALSE, fig.show="hold", out.width="50%", dpi=300, fig.cap = "SNP distance analyses and clusters (n=535). (top) Density of pairwise SNP differences for all samples; (bottom) number of clustering samples at minimum pairwised SNP difference thresholds."}
 
 dist_dens_all_samples
 plot(threshold_vect, n_clusts_vect, type = 'l', xaxt = "n", xlab = "SNP distance threshold", ylab = "n clusters")
@@ -2292,7 +2285,9 @@ axis(1, at = threshold_vect, las = 2)
 
 ***
 
-```{r map, echo=FALSE, fig.width=6, fig.height=7, cache=F, dpi=300, message = F, warning = F, fig.cap=sprintf("Locations of samples; n = %s", length(obj$tree$tip.label))}
+**S3 Figure: Locations of samples in the transmission chains (n = 163)**
+
+```{r map, echo=FALSE, fig.width=6, fig.height=7, cache=F, dpi=300, message = F, warning = F, fig.cap=" Locations of samples in the transmission chains (n = 163)"}
 
 phylo_plot_file <- "../plots/phylomap.png"
 
@@ -2380,8 +2375,9 @@ abline(a = threshold, b = 0)
 
 ***
 
-```{r distanceqgraph-noref, echo=FALSE, out.width = "2000px", fig.height=3, dpi = 300, fig.show="hold"}
+**S4 Figure: The clusters with isolates at <= 10 SNP distance (n = 169), by lineage (top), drug resistance status (middle), and location (bottom).**
 
+```{r distanceqgraph, echo=FALSE, out.width = "2000px", fig.height=3, dpi = 300, fig.show="hold", fig.cap = "The clusters with isolates at <= 10 SNP distance (n = 169), by lineage (top), drug resistance status (middle), and location (bottom)."}
 
 # qgraph::qgraph(1/dist_dated_thresh, layout='spring', vsize=5)
 
@@ -2472,12 +2468,6 @@ for(i in seq(loc_data_split)){
   loc_data_split[[i]] <- loc_data_split[[i]]$row
 }
 
-
-```
-
-```{r distanceqgraph, echo=FALSE, out.width = "2000px", fig.height=3, dpi = 300, fig.cap = sprintf("Connections among samples with <= %s SNP distance; n = %s. Thicker lines indicate smaller SNP distance.", threshold, length(attributes(dist_thresh)$Labels)), fig.show="hold"}
-
-
 qgraph::qgraph(1/dist_thresh, 
                layout='spring',
                minimum = 1/threshold,
@@ -2490,63 +2480,104 @@ qgraph::qgraph(1/dist_thresh,
                labels = F, 
                legend.cex = leg_cex)
 
-  
+
 ```
+
+
+**S5 Figure: Phylogenetic location of mutations in nusG gene compared with location of transmission samples.**
+
+```{r nusG-trees, echo=FALSE, out.width = "2000px", fig.height=3, dpi = 300, fig.show="hold", fig.cap = ""}
+
+nusg_mut <- read.delim("../gwas_results/nusG_samples_mutations.txt", header = F)
+
+names(nusg_mut) <- c("wgs_id", "mut")
+
+nusg_mut <- merge(metadata["wgs_id"], nusg_mut, by = "wgs_id", all.x = T, sort = F)
+
+nusg_cols <- rainbow(length(unique(nusg_mut$mut)))
+
+nusg_cols[length(nusg_cols)] <- "#FFFFFF"
+
+names(nusg_cols) <- unique(nusg_mut$mut)
+
+row.names(nusg_mut) <- nusg_mut$wgs_id
+
+nusg_mut <- nusg_mut[!(names(nusg_mut) %in% "wgs_id")]
+
+ggtree_all_samps <- ggtree(tree_all_samps, size = line_sz, layout="fan", open.angle = 10)
+
+trans_tree <- gheatmap(ggtree_all_samps, trans_non_trans_df,
+                       width = width,
+                       offset = 0,
+                       low="white", high="black", color="black",
+                       colnames_position = "top",
+                       colnames_angle = angle, colnames_offset_y = 1,
+                       hjust = 0,
+                       font.size = 3,
+                       legend_title = "Transmission status") +
+  labs(fill = "Transmission status")+
+  scale_fill_manual(values=c("white", "black"), labels = c("Transmission", "Non-transmission"))+
+  legend_spec
+
+trans_tree <- trans_tree + ggnewscale::new_scale_fill()
+
+gheatmap(trans_tree, nusg_mut,
+         width = width,
+         offset = 0.003,
+         color = NULL,
+         colnames_position = "top",
+         colnames_angle = angle, 
+         colnames_offset_y = 1,
+         hjust = 0,
+         font.size = 3) +
+  scale_fill_manual(values = nusg_cols, breaks = names(nusg_cols) ) +
+  labs(fill = "nusG mutations")+
+  legend_spec
+
+```
+
+
+<!-- # ```{r distanceqgraph, echo=FALSE, out.width = "2000px", fig.height=3, dpi = 300, fig.cap = sprintf("Connections among samples with <= %s SNP distance; n = %s. Thicker lines indicate smaller SNP distance.", threshold, length(attributes(dist_thresh)$Labels)), fig.show="hold"} -->
+<!-- #  -->
+<!-- #    -->
+<!-- # ``` -->
 
 ***
 
-```{r trans-category-plots-noref, echo=FALSE, out.width = "2000px", dpi = 300, fig.height=5, fig.width=7, fig.show="hold"}
+<!-- ```{r trans-category-plots-noref, echo=FALSE, out.width = "2000px", dpi = 300, fig.height=5, fig.width=7, fig.show="hold"} -->
 
-# Lin
+<!-- # Lin -->
 
-# par(mfrow = c(1, 1))
-balloonplot(t(lin_contingency_tab), 
-            main = sprintf("Samples within %s-SNP threshold, by lineage", threshold), 
-            xlab ="", ylab="",
-            label = T, show.margins = FALSE)
-corrplot(trans_lin_chi_sq$residuals, is.cor = FALSE)
+<!-- # par(mfrow = c(1, 1)) -->
+<!-- balloonplot(t(lin_contingency_tab),  -->
+<!--             main = sprintf("Samples within %s-SNP threshold, by lineage", threshold),  -->
+<!--             xlab ="", ylab="", -->
+<!--             label = T, show.margins = FALSE) -->
+<!-- corrplot(trans_lin_chi_sq$residuals, is.cor = FALSE) -->
 
-# DR
+<!-- # DR -->
 
-balloonplot(t(dr_contingency_tab), 
-            main = sprintf("Samples within %s-SNP threshold, by DR status", threshold), 
-            xlab ="", ylab="",
-            label = T, show.margins = FALSE, colsrt = 90)
-corrplot(trans_dr_chi_sq$residuals, is.cor = FALSE)
+<!-- balloonplot(t(dr_contingency_tab),  -->
+<!--             main = sprintf("Samples within %s-SNP threshold, by DR status", threshold),  -->
+<!--             xlab ="", ylab="", -->
+<!--             label = T, show.margins = FALSE, colsrt = 90) -->
+<!-- corrplot(trans_dr_chi_sq$residuals, is.cor = FALSE) -->
 
-# Loc
+<!-- # Loc -->
 
-balloonplot(t(loc_contingency_tab), 
-            main = sprintf("Samples within %s-SNP threshold, by location", threshold), 
-            xlab ="", ylab="",
-            label = T, show.margins = FALSE, show.zeros = T, colsrt = 90, text.size = 0.75, label.size = 0.75)
-
-
-```
-
-```{r trans-category-plots, echo=FALSE, out.width = "2000px", dpi = 300, fig.height=5, fig.width=7, fig.cap = sprintf("Proportions of samples within %s SNPs (top) and size of residuals in chi-square tests (bottom) for lineage, drug resistance status and location.", threshold), fig.show="hold"}
-
-corrplot(trans_loc_chi_sq$residuals, is.cor = FALSE, mar = c(0, 0, 0, 0), cl.cex = 0.5)
-
-```
-
-***
-
-```{r asr-tree, echo=FALSE, out.width = "2000px", dpi = 300, fig.cap = sprintf("Tree with the Pakistan samples and closely-related global isolates from previously published datasets. The posterior probability for the ancestral state reconstruction of subregion of sample collection is indicated by the pie charts on the internal nodes. (n = 915)")}
-
-include_graphics(asr_file)
-
-```
-
-***
+<!-- balloonplot(t(loc_contingency_tab),  -->
+<!--             main = sprintf("Samples within %s-SNP threshold, by location", threshold),  -->
+<!--             xlab ="", ylab="", -->
+<!--             label = T, show.margins = FALSE, show.zeros = T, colsrt = 90, text.size = 0.75, label.size = 0.75) -->
 
 
-```{r n-clusters-plot, echo = F, out.width = "2000px", dpi = 300, fig.show="hold", fig.cap="Number of clusters and number of samples by SNP distance threshold in clustering sensitivity analysis"}
+<!-- ``` -->
 
-plot(threshold_vect, n_samps_per_cluster_vect, type = 'l', xaxt = "n", xlab = "SNP distance threshold", ylab = "n clustering samples")
-axis(1, at = threshold_vect, las = 2)
+<!-- ```{r trans-category-plots, echo=FALSE, out.width = "2000px", dpi = 300, fig.height=5, fig.width=7, fig.cap = sprintf("Proportions of samples within %s SNPs (top) and size of residuals in chi-square tests (bottom) for lineage, drug resistance status and location.", threshold), fig.show="hold"} -->
 
-```
+<!-- corrplot(trans_loc_chi_sq$residuals, is.cor = FALSE, mar = c(0, 0, 0, 0), cl.cex = 0.5) -->
+
+<!-- ``` -->
 
 ***
 
