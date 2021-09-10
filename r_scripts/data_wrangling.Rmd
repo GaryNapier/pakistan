@@ -1250,6 +1250,48 @@ row.names(table_1) <- NULL
 
 ```
 
+```{r gwas, echo = F}
+
+# GWAS
+
+gwas_dir <- "../gwas_results/"
+
+snp_res_file <- paste0(gwas_dir, "trans_status.assoc.txt")
+gene_res_file <- paste0(gwas_dir, "trans_status.genesum.assoc.txt")
+
+snp_res <- read.delim(snp_res_file)
+gene_res <- read.delim(gene_res_file) 
+
+snp_res$log_p <- -log10(snp_res$p_wald)
+gene_res$log_p <- -log10(gene_res$p_wald) 
+
+snp_res$rs <- gsub("[a-z, A-Z, _]", "", snp_res$rs)
+
+snp_res_sort <- snp_res[order(snp_res$log_p, decreasing = T), ]
+gene_res_sort <- gene_res[order(gene_res$log_p, decreasing = T), ]
+
+# Get p val of 10th snp/gene
+snp_res_10 <- snp_res_sort[10, "log_p"]
+gene_res_10 <- gene_res_sort[10, "log_p"]
+
+gwas_table <- gene_res_sort[1:5, c("rs", "beta", "log_p")]
+
+gene_fun_lookup <- data.frame(rs = c("Rv2102", "Rv0914c", "nusG", "Rv2184c", "Rv1896c"), 
+                              Function = c("Uncharacterised", 
+                                           "Possible lipid carrier protein or keto acyl-CoA thiolase", 
+                                           "Transcription termination/antitermination protein NusG", 
+                                           "Uncharacterized", 
+                                           "Putative S-adenosyl-L-methionine-dependent methyltransferase"))
+
+gwas_table <- merge(gwas_table, gene_fun_lookup, by = "rs", all.x = T, sort = T)
+
+gwas_table <- gwas_table[, c("rs", "Function", "beta", "log_p")]
+
+names(gwas_table) <- c("Gene", "Function", "beta", "-log10 Wald p-value")
+
+
+
+```
 
 | | |
 | ----------- | ----------- |
@@ -1294,16 +1336,23 @@ Dr. Taj ali Khan, Institute of Basic medical Science Khyber Medical University P
 
 ## INTRODUCTION
 
-Tuberculosis disease (TB), caused by bacteria in the Mycobacterium tuberculosis (Mtb) complex, is a major global public health problem. Pakistan is a high-burden TB country, being one of eight countries accounting for two-thirds of the global total TB instance (5.7%). In 2019 it had a  total TB incidence of 570,000 and 43,900 deaths [@WHO_2020]. Furthermore, HIV prevalence in the country is increasing (0.1 prevalence 2019), which compounds the problem of TB infections and treatment [@UNAIDS_2020] (5,100 cases and 1,900 HIV-positive mortality cases in 2019). There is also a high burden for rifampacin resistant (RR-TB) and multidrug-resistance (MDR-TB, resistance to isoniazid and rifampicin treatments), with 25,000 cases of MDR/RR-TB in the latest WHO estimates. 
+<!-- Tuberculosis disease (TB), caused by bacteria in the Mycobacterium tuberculosis (Mtb) complex, is a major global public health problem. Pakistan is a high-burden TB country, being one of eight countries accounting for two-thirds of the global total TB instance (5.7%). In 2019 it had a  total TB incidence of 570,000 and 43,900 deaths [@WHO_2020]. Furthermore, HIV prevalence in the country is increasing (0.1 prevalence 2019), which compounds the problem of TB infections and treatment [@UNAIDS_2020] (5,100 cases and 1,900 HIV-positive mortality cases in 2019). There is also a high burden for rifampacin resistant (RR-TB) and multidrug-resistance (MDR-TB, resistance to isoniazid and rifampicin treatments), with 25,000 cases of MDR/RR-TB in the latest WHO estimates.  -->
 
-Whole genome sequencing is revolutionizing our understanding of drug resistance and clinical management, as well as transmission patterns, thereby can assist disease control. Within such a context, it is crucial to monitor transmission patterns and ensure that patients are being treated with optimal drug regimens. Here, we analyse `r n_samps_total` whole genome sequences (WGS) of Pakistan *Mycobacterium tuberculosis* (*Mtb*) samples dating from `r round(first_year)` to `r round(last_year)`, using `r fmt(n_snps_total)` SNPs to infer a timed phylogenetic tree and to predict resistance to `r n_drugs_total` drugs. While our data included phenotypic tests of resistance for `r n_pheno_tests` drugs (`r pheno_test_names`), we also applied genotypic tests of drug resistance using TBprofiler [@Coll2015] to predict drug resistance from a database of ~34,000 WGS samples. The `r n_samps_total` samples were previously published between `r min(pub_years)` and `r max(pub_years)` in `r as.english(length(unique(metadata$study_name)))` different studies. 
+<!-- Whole genome sequencing is revolutionizing our understanding of drug resistance and clinical management, as well as transmission patterns, thereby can assist disease control. Within such a context, it is crucial to monitor transmission patterns and ensure that patients are being treated with optimal drug regimens. Here, we analyse `r n_samps_total` whole genome sequences (WGS) of Pakistan *Mycobacterium tuberculosis* (*Mtb*) samples dating from `r round(first_year)` to `r round(last_year)`, using `r fmt(n_snps_total)` SNPs to infer a timed phylogenetic tree and to predict resistance to `r n_drugs_total` drugs. While our data included phenotypic tests of resistance for `r n_pheno_tests` drugs (`r pheno_test_names`), we also applied genotypic tests of drug resistance using TBprofiler [@Coll2015] to predict drug resistance from a database of ~34,000 WGS samples. The `r n_samps_total` samples were previously published between `r min(pub_years)` and `r max(pub_years)` in `r as.english(length(unique(metadata$study_name)))` different studies.  -->
 
-Drug resistance and its associated mutation have previously been characterised in samples from Pakistan. Ali (2015) [@Ali2015] investigated XDR isolates across four provinces, and consistent with the present study, most samples (67%) belonged to the Central Asian Strain (CAS) family (lineage 3). Here, SNP mutations were found to be associated to resistance to rifampicin (*rpoB*), isoniazid (*katG* and *inhA*), pyrazinamide (*pncA*), fluoroquinolones (*gyrA*) and aminoglycosides (*rss*). Leading on from this study, Kanji (2017) [@Kanji2017] found increased frequency and expression of novel SNP mutations in efflux pump genes, potentially explaining drug resistance mechanisms. 
+<!-- Drug resistance and its associated mutation have previously been characterised in samples from Pakistan. Ali (2015) [@Ali2015] investigated XDR isolates across four provinces, and consistent with the present study, most samples (67%) belonged to the Central Asian Strain (CAS) family (lineage 3). Here, SNP mutations were found to be associated to resistance to rifampicin (*rpoB*), isoniazid (*katG* and *inhA*), pyrazinamide (*pncA*), fluoroquinolones (*gyrA*) and aminoglycosides (*rss*). Leading on from this study, Kanji (2017) [@Kanji2017] found increased frequency and expression of novel SNP mutations in efflux pump genes, potentially explaining drug resistance mechanisms.  -->
 
-Further novel drug-resistance associated mutations were investigated in Jabbar (2019) [@Jabbar2019] in samples from the Khyber Pakhtunkhwa province for 11 anti-TB drugs. Again, the moajority of samples (76.5%) were CAS (lineage 3) samples. Previously unknown mutations were found for ethionamide (*katG* and *ethA*), fluoroquinolones (*gyrA* and *gyrB*) and pyrazinamide (*pncA*). This study also provided evidence of transmission chains in North-West Pakistan: With a standard 10-SNP difference cut-off, there were eight potential transmission clusters formed of 18 drug-resistant samples, concluding that there was support for spread of MDR TB. 
+<!-- Further novel drug-resistance associated mutations were investigated in Jabbar (2019) [@Jabbar2019] in samples from the Khyber Pakhtunkhwa province for 11 anti-TB drugs. Again, the moajority of samples (76.5%) were CAS (lineage 3) samples. Previously unknown mutations were found for ethionamide (*katG* and *ethA*), fluoroquinolones (*gyrA* and *gyrB*) and pyrazinamide (*pncA*). This study also provided evidence of transmission chains in North-West Pakistan: With a standard 10-SNP difference cut-off, there were eight potential transmission clusters formed of 18 drug-resistant samples, concluding that there was support for spread of MDR TB.  -->
 
-Recently, Qadir (2021) [@Qadir2021] confirmed mutations in the Rifampacin Resistance Determining Region (RRDR) of the *rpoB* gene among 702 Pakistan isolates, and discovered three novel mutations. 
+<!-- Recently, Qadir (2021) [@Qadir2021] confirmed mutations in the Rifampacin Resistance Determining Region (RRDR) of the *rpoB* gene among 702 Pakistan isolates, and discovered three novel mutations.  -->
 
+Tuberculosis disease (TB), caused by bacteria in the Mycobacterium tuberculosis (*Mtb*) complex, is a major global public health problem. Pakistan is a high-burden TB country, being one of eight countries accounting for two-thirds of the estimated 10 million people globally that fell ill with the disease [@WHO_2020]. In 2019, Pakistan had a total TB incidence of 570,000 and 43,900 deaths [@WHO_2020], but disease control is being compromised by increasing HIV prevalence and drug resistance. The country has a high burden for rifampacin resistant (RR-TB) and multidrug-resistance (MDR-TB), which is the additional resistance to isoniazid treatments. There were 25,000 cases of MDR-/RR-TB in 2019 [@WHO_2020]. The National TB control program aims to reduce by half the prevalence of TB in the general population by 2025, but to achieve this will require the scaling-up of TB detection and clinical care, as well as improved systems for inferring disease transmission, thereby facilitating further targeted interventions. 
+
+Whole genome sequencing (WGS) is revolutionizing our understanding of drug resistance and clinical management, as well as transmission patterns, thereby assisting disease control [@Phelan2016a]. *M. tuberculosis* drug resistance is linked to genomic variants in drug targets or pro-drug activators, including single nucleotide polymorphisms (SNPs) and small insertions and deletions (indels), some occurring in gene-gene interactions. It is therefore possible to predict resistance genotypically for 19 anti-TB drugs and their groups (e.g. floroquinolines) using curated libraries of >1000 mutations across >30 loci [@Phelan2019],[@Coll2015], thereby personalizing treatment. Genotypic predictions are an alternative to bacterial culture-based phenotypic drug susceptibility testing (DST), which can be time-consuming and resource intensive, with reproducibility and inhibitory concentration cut-off challenges for particular drugs [@Phelan2019]. Further, WGS data infers the population structure with the M. tuberculosis complex, which is phylo-geographical in nature, with strains falling within distinct (sub-)lineages [@Napier2020], and potential transmission chains identified through isolates with (near-)identical genomic variation [@Glynn2015]. The identification of highly virulent strain-types or lineages, drug resistance, and transmission clusters will assist the targeting of limited resources for TB control. 
+
+There have been recent studies using WGS to characterize *M. tuberculosis* genetic diversity in isolates sourced from Pakistan, where the predominant strains are from the Central Asian (CAS) family, set within lineage 3 <!--7--> [@Jabbar2019]<!--8-->[@Coll2018]<!--9-->[@Kanji2016]<!--10-->[@Ali2015]<!--11-->[@Cryptic2018]<!--12-->[@Khan2021]. A recent study of TB endemic province of Khyber Pakhtunkhwa (North West Pakistan) found that known mutations in *rpoB* (e.g. S405L), *katG* (e.g. S315T), or *inhA* promoter loci explain the majority of MDR-TB, but there was evidence of complex mixed infections and heteroresistance, which may reflect the high transmission nature of the setting [@Khan2021]. An earlier study in the same province found similar MDR-TB mutations, but also others  in genes conferring resistance to other first and second-line drugs, including in *pncA* (pyrazinamide), *embB* (ethambutol), *gyrA* (fluoroquinolones), *rrs* (aminoglycosides), *rpsL*, *rrs* and *giB* (streptomycin) loci. Further, acquisition of rifampicin resistance often preceded isoniazid in our isolates, but worringly a high proportion (~18%) of pre-MDR isolates had fluoroquinolone resistance markers, potentially due to unregulated anti-TB drug use [@Jabbar2019]. Eighteen *M. tuberculosis* isolates clustered within eight networks, thereby providing evidence of drug-resistant TB transmission in the Khyber Pakhtunkhwa province [@Jabbar2019]. An investigation of XDR-TB isolates sourced across four provinces found similar genes linked to drug resistance as in Khyber Pakhtunkhwa [@Ali2015], and follow-up work found an increased frequency and expression of novel SNP mutations in efflux pump genes, potentially explaining some drug resistance mechanisms.
+
+Here, we analyse 535 *M. tuberculosis* samples with WGS data , collected between 2003 and 2020, with phenotypic testing of resistance across 12 drugs (rifampicin, isoniazid, ethambutol, pyrazinamide, streptomycin, ofloxacin, moxifloxacin, amikacin, kanamycin, capreomycin, ciprofloxacin, ethionamide). By identifying  ~38k  SNPs, and inferring genotypic drug resistance across 19 anti-TB drugs (as well as fluoroquinolones and aminoglycosides classes), we sought to understand the phylogeny of *M. tuberculosis* in the largest Pakistan dataset, identify transmission events, and infer commonly circulating mutations linked to drug resistance. The genetic insights were validated in a large *M. tuberculosis* collection (n=34k) with WGS and drug susceptibility test data [@Napier2020].
 
 <!--
 ---
@@ -1425,10 +1474,9 @@ Conclusion: Mutations in the RRDR region of rpoB is a major mechanism of RIF res
 
 ## RESULTS
 
-### Clinical isolates and phylogeny
+<!-- ### Clinical isolates and phylogeny -->
 
-A total of `r n_samps_total` *M. tuberculosis* WGS isolates from Pakistan were downloaded from the European Nucleotide Archive (ENA). The samples were cultured, whole-genome sequenced, and drug susceptibility testing (DST) was applied for `r n_pheno_tests` drugs. These isolates covered four provinces, but a high proportion of locations were missing (69.5%), all from one study [@Cryptic2018] (Table 1). Combining the results of the DST and the genotypic prediction tests (see **Methods**), `r n_sens` (`r pc_sens`%) samples were pan-sensitive, `r n_mdr` (`r pc_mdr`%) classed as MDR-TB (resistant to both rifampicin and isoniazid), and `r n_xdr` (`r pc_xdr`%) were XDR (resistant to isoniazid and rifampicin, plus any fluoroquinolone and at least one of three injectable second-line drugs). See **Table \@ref(tab:drTableLin)** for Pre-MDR, Pre-XDR figures and drug resistance categories by lineage. 
-
+<!-- A total of `r n_samps_total` *M. tuberculosis* WGS isolates from Pakistan were downloaded from the European Nucleotide Archive (ENA). The samples were cultured, whole-genome sequenced, and drug susceptibility testing (DST) was applied for `r n_pheno_tests` drugs. These isolates covered four provinces, but a high proportion of locations were missing (69.5%), all from one study [@Cryptic2018] (Table 1). Combining the results of the DST and the genotypic prediction tests (see **Methods**), `r n_sens` (`r pc_sens`%) samples were pan-sensitive, `r n_mdr` (`r pc_mdr`%) classed as MDR-TB (resistant to both rifampicin and isoniazid), and `r n_xdr` (`r pc_xdr`%) were XDR (resistant to isoniazid and rifampicin, plus any fluoroquinolone and at least one of three injectable second-line drugs). See **Table \@ref(tab:dr-lin-tab)** for Pre-MDR, Pre-XDR figures and drug resistance categories by lineage.  -->
 
 ```{r dst-stats, echo=F}
 
@@ -1449,103 +1497,150 @@ n_drugs_no_dst <- sum(dr_tab_easy[, "N_dst_total"] == 0 | is.na(dr_tab_easy[, "N
 
 ```
 
-Phenotypic drug susceptibility testing (DST) was most complete for rifampicin (n=`r n_rif_dst`, `r pc_rif_dst_tested`%), isoniazid (n=`r n_izd_dst`, `r pc_izd_dst_tested`%), ethambutol (n=`r n_eth_dst`, `r pc_eth_dst`%), and pyrazinamide (n=`r n_pzd_dst`, `r pc_pzd_dst`%) drugs (S2 Table), but incomplete / not present for `r n_drugs_no_dst` drugs. 
+<!-- Phenotypic drug susceptibility testing (DST) was most complete for rifampicin (n=`r n_rif_dst`, `r pc_rif_dst_tested`%), isoniazid (n=`r n_izd_dst`, `r pc_izd_dst_tested`%), ethambutol (n=`r n_eth_dst`, `r pc_eth_dst`%), and pyrazinamide (n=`r n_pzd_dst`, `r pc_pzd_dst`%) drugs (S2 Table), but incomplete / not present for `r n_drugs_no_dst` drugs.  -->
 
-Historically, *Mtb* samples from Pakistan belong predominantly to the CAS1-Delhi spoligotype family [@Demay2012], which belongs to Lineage 3 [@Napier2020]. In our samples, Lineage 3 comprises `r lin_tab[lin_tab["Lineages"] == 3, "pc"]`% of the total samples, followed by Lineage 4 (n=`r n_lin_4`, `r pc_lin_4`%), Lineage 2 (n=`r n_lin_2`, `r pc_lin_2`%) and Lineage 1 (n=`r n_lin_1`, `r pc_lin_1`%) (see **Table \@ref(tab:lintable)** for a breakdown of samples by lineage and sublineage and see **Figure \@ref(fig:ggtree-all-samps)** for a full phylogenetic tree). 
+<!-- Historically, *Mtb* samples from Pakistan belong predominantly to the CAS1-Delhi spoligotype family [@Demay2012], which belongs to Lineage 3 [@Napier2020]. In our samples, Lineage 3 comprises `r lin_tab[lin_tab["Lineages"] == 3, "pc"]`% of the total samples, followed by Lineage 4 (n=`r n_lin_4`, `r pc_lin_4`%), Lineage 2 (n=`r n_lin_2`, `r pc_lin_2`%) and Lineage 1 (n=`r n_lin_1`, `r pc_lin_1`%) (see **Table \@ref(tab:strain-types)** for a breakdown of samples by lineage and sublineage and see **Figure \@ref(fig:ggtree-all-samps)** for a full phylogenetic tree).  -->
 
-After sequence data alignment, high average coverage was observed across the samples (median 76, range 30-2,027). 
+<!-- After sequence data alignment, high average coverage was observed across the samples (median 76, range 30-2,027).  -->
+
+**Isolates and whole genome sequencing data**
+
+A total of 535 M. tuberculosis isolates sourced between 2003 and 2005, and 2013 and 2020 from Pakistan with publically available WGS and phenotypic susceptibility testing <!--7--> [@Jabbar2019]<!--8-->[@Coll2018]<!--9-->[@Kanji2016]<!--10-->[@Ali2015]<!--11-->[@Cryptic2018]<!--12-->[@Khan2021]. These isolates covered four provinces (Balochistan, Khyber Pakhtunkhwa, Punjab, Sindh), but a high proportion of locations were missing (69.5%), all from one study [@Cryptic2018]. (**Table 1**). The majority of samples were from lineage 3 (L3 397, 74.2%; CAS strains), but the other main lineages were represented (L4, 80, 15.0%, including LAM, T and X strains); L2 36, 6.7%, including Beijing; L1 22, 4.1%) (**Table 1**; **S1 Table**). Phenotypic drug susceptibility testing (DST) was most complete for rifampicin (n=487, 91.03%), isoniazid (n=487, 91.03%), ethambutol (n=479, 89.53%), and pyrazinamide (n=444, 82.99%) drugs (**S2 Table**), but incomplete / not present for 12 drugs. A total of 432 total samples (80.7%) were phenotypically resistant to at least one drug (median 3, maximum 10). The number of potential errors on the phenotypic testing appeared low (218/2,430 tests), where established genotypic resistance markers were present in isolates with DST results that implied sensitive. The discordance appeared in nine drugs (capreomycin, ethambutol, ethionamide, isoniazid, moxifloxacin, ofloxacin, pyrazinamide, rifampicin, streptomycin), but predominantly in ethambutol (96) (**S2 Table**).
+
+There were 100/2,430 tests in the case where established genotypic resistance markers were absent in isolates with DST results that implied resistance. The discordance appeared in eight drugs (amikacin, ciprofloxacin, ethambutol, isoniazid, kanamycin, pyrazinamide, rifampicin, streptomycin), mostly in isonizid (25) and pyrazinamide (24) (**S2 Table*).
+
+The majority of isolates were genotypically assessed as MDR-TB (328, 61.3%), with high proportions of (pre-) XDR (113, 21.1) and pan-sensitive (60, 11.2%) (**Table 1**). There were 31 pre-MDR, and overall there was a high prevalence of rifampicin (460, 86.0%) and isoniazid (435, 81.3%) resistance strains. Resistance to drugs used in combination with isoniazid and rifampicin were also common, including ethambutol (385, 72.0%), pyrazinamide (258, 48.2%), streptomycin (238, 44.5%), ethionamide (102, 19.1%), any fluoroquinolones (277, 51.8%) or aminoglycoside (75, 14.0%). As expected, very few isolates appeared resistant to bedaquiliine, clofazimine and cycloserine (n<3; **Table 1**). Across all lineages, the majority of isolates (>75%) were at least MDR-TB resistance (**S3 Table**). 
+
+After sequence data alignment, high average coverage was observed across the samples (median 76-fold, range 30-2,027). A total of 37,970 SNPs were identified genome-wide, with 23,741 (62.5%) found in single isolates. 
+
+A phylogenetic tree constructed using the genome-wide SNPs, and has the expected lineage-based clustering (**Figure 1**). The tree also picked out clusters of samples separated by the 10-SNP distance threshold used to establish “transmission” and “non-transmission” samples. Clusters of Pre-XDR and XDR samples can also be observed in **Figure 1**.
+
+
+
+
+
 
 ### Evidence of transmission
 
-Median (range) pairwise SNP distances was `r round(median(lower_dist), rnd)` (min=`r min(lower_dist)`, max=`r max(lower_dist)`) for all `r n_samps_total` samples. 
+<!-- Median (range) pairwise SNP distances was `r round(median(lower_dist), rnd)` (min=`r min(lower_dist)`, max=`r max(lower_dist)`) for all `r n_samps_total` samples.  -->
 
-With a threshold of `r threshold` SNPs, `r n_clusters_cut_tree` clusters formed, where the median cluster size was `r med_clust_threshold` (range: `r min_clust_threshold`-`r max_clust_threshold`). **Figure \@ref(fig:distanceqgraph)** shows a graph of SNP distance connections among these samples (n = `r length(attributes(dist_thresh)$Labels)`). 
+<!-- With a threshold of `r threshold` SNPs, `r n_clusters_cut_tree` clusters formed, where the median cluster size was `r med_clust_threshold` (range: `r min_clust_threshold`-`r max_clust_threshold`). **Figure \@ref(fig:distanceqgraph)** shows a graph of SNP distance connections among these samples (n = `r length(attributes(dist_thresh)$Labels)`).  -->
 
-<!--
-Chi-square tests for proportions of samples within the `r threshold`-SNP distance threshold for lineage, drug resistance status and location were all significant (X-sq=`r trans_lin_chi_sq$statistic`, p=`r scientific(trans_lin_chi_sq$p.value, digits = 2)`, X-sq=`r trans_dr_chi_sq$statistic`, p=`r scientific(trans_dr_chi_sq$p.value, digits = 2)`, X-sq=`r trans_loc_chi_sq$statistic`, p=`r scientific(trans_loc_chi_sq$p.value, digits = 2)`, respectively). **Figure \@ref(fig:trans-category-plots)** shows that lineages 2 and 4 have significantly more samples within `r threshold` SNPs than expected, as did Pre-XDR and XDR samples. Among locations, Peshawar showed a much higher proportion of potential transmission samples than expected.
--->
+<!-- <!-- -->
+<!-- Chi-square tests for proportions of samples within the `r threshold`-SNP distance threshold for lineage, drug resistance status and location were all significant (X-sq=`r trans_lin_chi_sq$statistic`, p=`r scientific(trans_lin_chi_sq$p.value, digits = 2)`, X-sq=`r trans_dr_chi_sq$statistic`, p=`r scientific(trans_dr_chi_sq$p.value, digits = 2)`, X-sq=`r trans_loc_chi_sq$statistic`, p=`r scientific(trans_loc_chi_sq$p.value, digits = 2)`, respectively). **Figure \@ref(fig:trans-category-plots)** shows that lineages 2 and 4 have significantly more samples within `r threshold` SNPs than expected, as did Pre-XDR and XDR samples. Among locations, Peshawar showed a much higher proportion of potential transmission samples than expected. -->
+<!-- --> -->
 
+<!-- Comparing the 169 "transmitted" isolates in clusters to the others ("non-transmitted"; n=366), there was an increased risk of transmission in lineages 2 and 4 (overall chi-sq=`r trans_lin_chi_sq$statistic`, p=`r scientific(trans_lin_chi_sq$p.value, digits = 2)`; post-hoc tests: lineage 2 standardised residual=3.57, p=0.003; lineage 4 standardised residual=4.62, p=0.00003), Pre-XDR and XDR samples (overall chi-sq=98, p=0.0005; post-hoc tests: Pre-XDR standardised residual=5.31, p=<0.0001; XDR standardised residual=6.55, p=<0.0001), and in Peshawar province (overall chi-sq=70, p=0.0005; post-hoc tests: Peshawar standardised residual=5.74, p=<0.0001) (S5 Table; S3 Figure; S4 Figure).  -->
 
-Comparing the 169 "transmitted" isolates in clusters to the others ("non-transmitted"; n=366), there was an increased risk of transmission in lineages 2 and 4 (overall chi-sq=`r trans_lin_chi_sq$statistic`, p=`r scientific(trans_lin_chi_sq$p.value, digits = 2)`; post-hoc tests: lineage 2 standardised residual=3.57, p=0.003; lineage 4 standardised residual=4.62, p=0.00003), Pre-XDR and XDR samples (overall chi-sq=98, p=0.0005; post-hoc tests: Pre-XDR standardised residual=5.31, p=<0.0001; XDR standardised residual=6.55, p=<0.0001), and in Peshawar province (overall chi-sq=70, p=0.0005; post-hoc tests: Peshawar standardised residual=5.74, p=<0.0001) (S5 Table; S3 Figure; S4 Figure). 
-
-
-**Figure \@ref(fig:n-clusters-plot)** and **Table \@ref(tab:dist-sens-table)** show a sensitivity analysis of different SNP-distance thresholds. 
-
+<!-- **Figure \@ref(fig:n-clusters-plot)** and **Table \@ref(tab:dist-sens-table)** show a sensitivity analysis of different SNP-distance thresholds.  -->
 
 <!--
 Date of collection was recorded between the years `r first_year` and `r last_year` (`r last_year - first_year` years) for `r n_dated_samps` samples, which represent probable closely-related, if not potiential transmission cases. A dated phylogenetic tree was constructed with these samples (**Figures \@ref(fig:beasttrees)**), and when cut at `r cutoff_year` years before the last sample date, `r n_beast_clusters` clusters (n=`r n_beast_cluster_samps`) were inferred. 
 -->
 
+The median (range) pairwise SNP differences across the 535 isolates was 390 (minimum 0, maximum 1811), with a multi-modal distribution, where modes representing differences within and between lineages (**S2 Figure**). At a threshold of 10 SNPs, 55 clusters formed consisting of a total of 169 isolates, where the median number of isolates in each cluster was 2 (range: 2 - 22) (**S2 Figure**). The effects of changing the SNP threshold on clusters number and sizes (**S4 Table**) indicated the presence of only six additional clusters (33 more isolates) when increasing from a stringent threshold (5 SNPs) to our pragmatic choice (10 SNPs). 
 
-### Drug susceptibility discrepancies
+Comparing the 169 "transmitted" isolates in clusters to the others ("non-transmitted"; n=366), there was an increased risk of transmission in lineages 2 and 4 (overall chi-sq=38.853, p=1.9e-08; post-hoc tests: lineage 2 standardised residual=3.57, p=0.003; lineage 4 standardised residual=4.62, p=<0.0001), and Pre-XDR and XDR samples (overall chi-sq=98, p=0.0005; post-hoc tests: Pre-XDR standardised residual=5.31, p=<0.0001; XDR standardised residual=6.55, p=<0.0001).
 
-We identified DSTs that disagreed with the genotypic drug resistance predictions for all samples (n=`r n_samps_total`). These discrepancies were classified into two kinds - where the phenotypic test showed resistance and the genotypic test predicted sensitivity ("false negative" (FN)), and where the phenotypic test result was sensitive but the genotypic test predicted resistance ("false positive" (FP)). Within the clusters defined above, `r n_FN_samps` samples were FN for `r as.english(n_FN_drugs)` drugs (`r FN_drugs`) and `r n_FP_samps` samples were FP for `r as.english(n_FP_drugs)` drugs (`r FP_drugs`).
+"Transmitted" isolates were found in three of the four provinces - Khyber Pakhtunkhwa (71), Punjab (9) and Sindh (9). At the city and regional level, only the city of Peshawar was significant for increased risk of transmission (overall chi-sq=70, p=0.0005; post-hoc tests: standardised residual=5.74, p=<0.0001) (**S5 Table**; **S3 Figure**; **S4 Figure**).
 
-For phenotypic DST, there were `r n_samps_dst_res` total samples (`r (n_samps_dst_res/n_samps_total)*100`%) resistant to at least one drug (median = `r median(dst_by_row_vect)`, max = `r max(dst_by_row_vect)`). 
-
-```{r echo = F}
-
-max_FP_drug <- names(which.max(FP_res))
-max_FP_drug <- gsub("_.*", "", max_FP_drug)
-max_FP_val <- FP_res[which.max(FP_res)]
-
-```
-
-The number of potential errors on the phenotypic testing appeared low (`r total_FP`/`r total_dst_tests` tests), where established genotypic resistance markers were present in isolates with DST results that implied sensitive. The discordance appeared in `r n_FP_drugs` drugs (`r FP_drugs`), but predominantly in `r max_FP_drug` (`r max_FP_val`) (S2 Table). 
-
-Among the phenotypic DST results, a high percentage were resistant to four drugs: rifampicin (n=`r dr_tab_easy[dr_tab_easy$drug == "rifampicin", "N_dst"]`, `r dr_tab_easy[dr_tab_easy$drug == "rifampicin", "pc_dst"]`%), isoniazid (n=`r dr_tab_easy[dr_tab_easy$drug == "isoniazid", "N_dst"]`, `r dr_tab_easy[dr_tab_easy$drug == "isoniazid", "pc_dst"]`%), ethambutol (n=`r dr_tab_easy[dr_tab_easy$drug == "ethambutol", "N_dst"]`, `r dr_tab_easy[dr_tab_easy$drug == "ethambutol", "pc_dst"]`%), and pyrazinamide (n=`r dr_tab_easy[dr_tab_easy$drug == "pyrazinamide", "N_dst"]`, `r dr_tab_easy[dr_tab_easy$drug == "pyrazinamide", "pc_dst"]`%)
-
-Known drug-resistance mutations were predicted in TB-profiler [@Phelan2019] and compared to the phenotypic DST results for `r n_tbp_drug_tests` distinct drugs (plus fluoroquinolones and aminoglycosides generically). We identified a total of `r sum(discrepancy_data == FP | discrepancy_data == FN)` individual DSTs that disagreed with the genotypic drug resistance predictions in `r n_FN_samps+n_FP_samps` samples (**Table \@ref(tab:dr-tab)**; the other discrepancies here are explained by the unavailability of phenotypic DST data). Of these samples, `r n_FN_samps` were FN, and `r n_FP_samps` samples FP.
+A genome-wide association study (GWAS) revealed genes *Rv2102*, *Rv0914c*, *nusG*, *Rv2184c* and *Rv1896c* to be the top-five most closely associated with the "transmitted" samples (**Table XXX**, **Figure XXX**).  Two of these genes are uncharacterised (*Rv2102* and *Rv2102*). Two genes have putative functions: *Rv0914c* is thought to be a ‘lipid carrier protein’ or ‘keto acyl-CoA thiolase’, and *Rv1896c* is thought to code for ‘S-adenosyl-L-methionine-dependent methyltransferase’. Only *nusG* is definitively characterised, coding for transcription termination/antitermination protein NusG [@Wang2021].
 
 
-### Mutations potentially exlpaining drug-resistance
+<!-- ### Drug susceptibility discrepancies -->
 
-For FN samples, **Table \@ref(tab:FNresultstable)** shows all variants found in drug resistance-associated genes for `r n_FN_drugs` drugs (`r FN_drugs`), that were previously unknown to be associated with each respective drug, potentially explaining discrepancies between phenotypic DST results and genotypic predictions. 
+<!-- We identified DSTs that disagreed with the genotypic drug resistance predictions for all samples (n=`r n_samps_total`). These discrepancies were classified into two kinds - where the phenotypic test showed resistance and the genotypic test predicted sensitivity ("false negative" (FN)), and where the phenotypic test result was sensitive but the genotypic test predicted resistance ("false positive" (FP)). Within the clusters defined above, `r n_FN_samps` samples were FN for `r as.english(n_FN_drugs)` drugs (`r FN_drugs`) and `r n_FP_samps` samples were FP for `r as.english(n_FP_drugs)` drugs (`r FP_drugs`). -->
 
-#### Rifampicin
-Three different inframe indels (c.1291_1292insGCC, c.1294_1296del and c.1309_1311del) were found in three isolates with no other known resistance mutations. 
+<!-- For phenotypic DST, there were `r n_samps_dst_res` total samples (`r (n_samps_dst_res/n_samps_total)*100`%) resistant to at least one drug (median = `r median(dst_by_row_vect)`, max = `r max(dst_by_row_vect)`).  -->
 
-#### Isoniazid
-Several nonsense mutations in *katG* were found to explain discrepant results between genotype and DST for isoniazid. These include three mutations leading to premature stop codons (p.Trp438\*, p.Trp204\*, p.Gln36\*) and a frameshift mutation (c.587_588insGGT). 
+<!-- ```{r echo = F} -->
 
-#### Ethambutol
-Variants in the *embA* promoter region and *embB* were observed in isolates with resistant DSTs but no known resistance mutations. Four isolates contained mutations in the *embA* promoter region including two deletions (c.-42CAT>C, c.-27TA>T) and two SNPs (c.-16C>A, c.-8C>A). 
+<!-- max_FP_drug <- names(which.max(FP_res)) -->
+<!-- max_FP_drug <- gsub("_.*", "", max_FP_drug) -->
+<!-- max_FP_val <- FP_res[which.max(FP_res)] -->
 
-#### Second line injectables
-The mutation r.878g>a was found in *rrs* and was previously reported by Malinga *et al* [@Malinga2016] as well as Jabbar *et al* [@Jabbar2019] (of which the samples are present in the currently analysed set). Malinga *et al* report the mutation to be involved with capreomycin resistance and to be associated with the EuroAmerican X3 strain. We observe the mutation in four lineage 3 strains with three independent homoplastic acquisitions, signifying the mutation is not limited to EuroAmerican X3 strains. Mutations in *rrs* are generally clustered in two regions with the most common mutations involved with streptomycin resistance being located around position 514 and those involved with resistance to amikacin, kanamycin and capreomycin located around 1401. As this mutation is located in between these two mutation hotspots, it is yet to be determined to which drug it confers resistance. Of the three strains which had DST data (amikacin and kanamycin) in this study, two were resistant to both amikacin and kanamycin and the other was sensitive to both. 
+<!-- ``` -->
 
-#### Pyrazinamide
-Mutations in *pncA* were present in isolates for which no known resistance variants could be found. These include three inframe indels (c.511_512insTCGCCG, c.392_393insGGT and c.451_462del) a premature stop codon (p.Ser18\*), and SNPs in both the coding region (p.Val180Ala) and the promoter (c.-7T>G). 
+<!-- The number of potential errors on the phenotypic testing appeared low (`r total_FP`/`r total_dst_tests` tests), where established genotypic resistance markers were present in isolates with DST results that implied sensitive. The discordance appeared in `r n_FP_drugs` drugs (`r FP_drugs`), but predominantly in `r max_FP_drug` (`r max_FP_val`) (S2 Table).  -->
 
-#### Streptomycin
-Several mutations in *gid* were found in DST-discrepant isolates. These include nonsense mutations leading to a premature stop codon (p.Gly71\*) and frameshift (c.102_102del). Low-level streptomycin resistance has been shown to be conferred through loss-of-function mutations in *gid*. SNPs were also found in isolates (p.Ala119Asp, p.Ala82Pro and p.Asp67Gly). These SNPs were not found to be previously reported, however they were found in the global dataset. All mutations were found to have been acquired as the result of homoplasy. The p.Ala119Asp mutation was present in 15 isolates (ten different sublineages), of which two had DSTs and were resistant. The p.Ala82Pro mutation was present in three isolates from two different sublineages. No DST was available for these isolates. The p.Asp67Gly was present in 38 global isolates from five different sublineages. Of these, seven had DST data available with four presenting resistance. 
+<!-- Among the phenotypic DST results, a high percentage were resistant to four drugs: rifampicin (n=`r dr_tab_easy[dr_tab_easy$drug == "rifampicin", "N_dst"]`, `r dr_tab_easy[dr_tab_easy$drug == "rifampicin", "pc_dst"]`%), isoniazid (n=`r dr_tab_easy[dr_tab_easy$drug == "isoniazid", "N_dst"]`, `r dr_tab_easy[dr_tab_easy$drug == "isoniazid", "pc_dst"]`%), ethambutol (n=`r dr_tab_easy[dr_tab_easy$drug == "ethambutol", "N_dst"]`, `r dr_tab_easy[dr_tab_easy$drug == "ethambutol", "pc_dst"]`%), and pyrazinamide (n=`r dr_tab_easy[dr_tab_easy$drug == "pyrazinamide", "N_dst"]`, `r dr_tab_easy[dr_tab_easy$drug == "pyrazinamide", "pc_dst"]`%) -->
 
-#### Fluoroquinolones
-The p.Ala288Asp mutation in *gyrA* was found in three lineage 3 isolates and was acquired in each sample independently. One isolate was tested resistant to ciprofloxacin with no known resistance mutation found in the *gyrA* and *gyrB* genes. This mutation was previously reported by Farhat *et al* [@Farhat2016], with the mutation leading to an observed increase in MIC to both ofloxacin and moxifloxacin.
+<!-- Known drug-resistance mutations were predicted in TB-profiler [@Phelan2019] and compared to the phenotypic DST results for `r n_tbp_drug_tests` distinct drugs (plus fluoroquinolones and aminoglycosides generically). We identified a total of `r sum(discrepancy_data == FP | discrepancy_data == FN)` individual DSTs that disagreed with the genotypic drug resistance predictions in `r n_FN_samps+n_FP_samps` samples (**Table \@ref(tab:dr-tab)**; the other discrepancies here are explained by the unavailability of phenotypic DST data). Of these samples, `r n_FN_samps` were FN, and `r n_FP_samps` samples FP. -->
 
-## DISCUSSION
 
-This study helps demonstrate the value of WGS in the context of a low-income, high-burden country. Our findings on potential transmission among lineages 2 and 4, Pre-XDR and XDR TB, and in Peshawar, as well as drug resistance mutations can inform better epidemiological, clinical, and control decisions in Pakistan and, more generally, provides insight into mutations relevant to drug design. WGS can potentially be particularly useful in countries similar to Pakistan where effective public health surveillance is inadequate due to socio-economic problems - genetic data can fill gaps in data collection, revealing salient connections and variation.
+<!-- ### Mutations potentially exlpaining drug-resistance -->
 
-### Transmission
+<!-- For FN samples, **Table \@ref(tab:FNresultstable)** shows all variants found in drug resistance-associated genes for `r n_FN_drugs` drugs (`r FN_drugs`), that were previously unknown to be associated with each respective drug, potentially explaining discrepancies between phenotypic DST results and genotypic predictions.  -->
 
-Evidence of increased transmission among lineages 2 and 4 is consistent with previous characterisations of these clades as more transmissible [@Coscolla2014a][@Assuncao2015], and therefore ought to be monitored more closely despite greater prevalence of lineage 3. 
+<!-- #### Rifampicin -->
+<!-- Three different inframe indels (c.1291_1292insGCC, c.1294_1296del and c.1309_1311del) were found in three isolates with no other known resistance mutations.  -->
 
-It is surprising that Pr-XDR and XDR samples were found to be clustered more than expected given the usual fitness cost of drug resistance [@Cohen2003][@Gygli2017]. This however suggests unknown compensatory mutations and ought to be investigated in future work. 
+<!-- #### Isoniazid -->
+<!-- Several nonsense mutations in *katG* were found to explain discrepant results between genotype and DST for isoniazid. These include three mutations leading to premature stop codons (p.Trp438\*, p.Trp204\*, p.Gln36\*) and a frameshift mutation (c.587_588insGGT).  -->
 
-### Drug resistance
+<!-- #### Ethambutol -->
+<!-- Variants in the *embA* promoter region and *embB* were observed in isolates with resistant DSTs but no known resistance mutations. Four isolates contained mutations in the *embA* promoter region including two deletions (c.-42CAT>C, c.-27TA>T) and two SNPs (c.-16C>A, c.-8C>A).  -->
 
-Inframe deletions have not been widely reported as a major mechanism of resistance to rifampicin and it is surprising to see the relative high number of these mutations in our dataset.
+<!-- #### Second line injectables -->
+<!-- The mutation r.878g>a was found in *rrs* and was previously reported by Malinga *et al* [@Malinga2016] as well as Jabbar *et al* [@Jabbar2019] (of which the samples are present in the currently analysed set). Malinga *et al* report the mutation to be involved with capreomycin resistance and to be associated with the EuroAmerican X3 strain. We observe the mutation in four lineage 3 strains with three independent homoplastic acquisitions, signifying the mutation is not limited to EuroAmerican X3 strains. Mutations in *rrs* are generally clustered in two regions with the most common mutations involved with streptomycin resistance being located around position 514 and those involved with resistance to amikacin, kanamycin and capreomycin located around 1401. As this mutation is located in between these two mutation hotspots, it is yet to be determined to which drug it confers resistance. Of the three strains which had DST data (amikacin and kanamycin) in this study, two were resistant to both amikacin and kanamycin and the other was sensitive to both.  -->
 
-Nonsense mutations are presumed to lead loss of function in the *katG* gene since it codes for the activator of isoniazid (catalase-peroxidase enzyme), so it is unsurprising to see potentially drug-resistance conferring mutations here. 
+<!-- #### Pyrazinamide -->
+<!-- Mutations in *pncA* were present in isolates for which no known resistance variants could be found. These include three inframe indels (c.511_512insTCGCCG, c.392_393insGGT and c.451_462del) a premature stop codon (p.Ser18\*), and SNPs in both the coding region (p.Val180Ala) and the promoter (c.-7T>G).  -->
 
-Mutations in the -16 and -8 position of the *embA* promoter have been reported to enhance binding of the *embR* transcription regulator to the promoter and increase expression of *embCAB* operon. The deletions are also presumed to have a similar effect to enhance binding of *embR*, though further experimental evidence would be required in future. 
+<!-- #### Streptomycin -->
+<!-- Several mutations in *gid* were found in DST-discrepant isolates. These include nonsense mutations leading to a premature stop codon (p.Gly71\*) and frameshift (c.102_102del). Low-level streptomycin resistance has been shown to be conferred through loss-of-function mutations in *gid*. SNPs were also found in isolates (p.Ala119Asp, p.Ala82Pro and p.Asp67Gly). These SNPs were not found to be previously reported, however they were found in the global dataset. All mutations were found to have been acquired as the result of homoplasy. The p.Ala119Asp mutation was present in 15 isolates (ten different sublineages), of which two had DSTs and were resistant. The p.Ala82Pro mutation was present in three isolates from two different sublineages. No DST was available for these isolates. The p.Asp67Gly was present in 38 global isolates from five different sublineages. Of these, seven had DST data available with four presenting resistance.  -->
 
-The two strains which were resistant to both amikacin and kanamycin also contained a mutation in the promoter region to *eis* (c.-14C>T). This mutation could potentially explain the resistance to both these drugs and may point to the r.878g>a being either increasing the level of resistance to these drugs or potentially conferring resistance to streptomycin (which was not tested for in these samples).
+<!-- #### Fluoroquinolones -->
+<!-- The p.Ala288Asp mutation in *gyrA* was found in three lineage 3 isolates and was acquired in each sample independently. One isolate was tested resistant to ciprofloxacin with no known resistance mutation found in the *gyrA* and *gyrB* genes. This mutation was previously reported by Farhat *et al* [@Farhat2016], with the mutation leading to an observed increase in MIC to both ofloxacin and moxifloxacin. -->
 
-The *pncA* gene codes for the activator of pyrazinamide and loss of function leads to resistance. The functional consequence of the premature stop codons and indels are usually severe to protein function and these mutations in our isolates represent highly likely candidates as conferring resistance. Mutations in the promoter region of *pncA* leads to changes in the expression of PncA and resistance [@Sheen2013]. The c.-7T>G mutation is thus also likely to cause resistance. The functional effect of SNPs in the coding region of *pncA* can be harder to predict, however the Val180Ala mutation was reported previously to be associated to pyrazinamide resistance in the CARD database [@Alcock2020].
 
-The incomplete penetrance of the streptomycin-associated p.Asp67Gly mutation could be explained by the relative low-level resistance conferred by mutation in *gid* which could be under the critical concentration but still elevated with respect to wild-type.
+
+**Drug resistance mutations**
+The common mutations underlying genotypic drug resistance were in known mutations in *rpoB* (rifampicin; 460), *katG* (isoniazid; 416), *embA* / *embB* (ethambutol; 385), *gyrA* (fluoroquinolones; 277) and *pncA* (pyrazinamide; 258) (**S6 Table**).
+
+**Potential novel resistance markers**
+We investigated isolates that had a DST implying resistance, but no established genetic mutations to explain this phenotype. There were 82 isolates (100 tests) with discordance in 8 drugs (amikacin, ciprofloxacin, ethambutol, isoniazid, kanamycin, pyrazinamide, rifampicin, streptomycin), and identified 93 distinct potential genetic markers in candidate genes to explain the discordance (**S2 Table**; **Table 3**). 
+
+For rifampicin resistance, we identified three inframe indels in *rpoB* (1291_1292insGCC, 1294_1296del and 1309_1311del) in three isolates. For isoniazid, several nonsense mutations in *katG* were found, with 3 mutations leading to premature stop codons (W438\*, W2048\*, Q36\*) and a frameshift mutation (587_588insGGT). For ethambutol resistance, variants in the *embA* promoter region (-42CAT>C, -27TA>T-16C>A, -8C>A) and *embB* were observed. For pyrazinamide resistance, several potentially new mutations we found in pncA, including three inframe indels (511_512insTCGCCG, 392_393insGGT and 451_462del) a premature stop codon (S18\*), and SNPs in both the coding region (Val180Ala) and the promoter (-7T>G). For streptomycin resistance, several mutations were found in *gid* including a premature stop codon (G71\*), frameshift (102_102del), and SNPs (A119D, A82P and D67G). These SNPs were found in the 34k global dataset, and likely acquired as the result of homoplasy. The *gid* A119D mutation was present in 15 isolates (ten different sublineages), of which two had DSTs and were resistant. The *gid* A82P mutation was present in three isolates from two different sublineages, but no DST was available for these samples. The *gid* D67G was present in 38 global isolates from five different sublineages. Of these, seven had DST data available with four presenting resistance.
+
+For second line injectables, the *rrs* 878g>a mutation (seen previously[@Jabbar2019]) was observed in four lineage 3 strains with three independent homoplastic acquisitions, indicating it is unlikely to be strain-specifc. Mutations in *rrs* are generally clustered in two regions with the most common mutations involved with streptomycin resistance being located around position 514 and those involved with resistance to amikacin, kanamycin and capreomycin located around 1401. The *rrs* 878g>a falls between the two mutation hotspots, and of the three strains which had DST data (amikacin and kanamycin) in this study, two were resistant to both amikacin and kanamycin and the other was sensitive to both. For fluoroquinolones, the *gyrA* A288D mutation was found in three lineage 3 isolates and was acquired in each sample independently. One isolate was tested resistant to ciprofloxacin with no known resistance mutation found in the *gyrA* and *gyrB* genes. The mutation has been previously observed to increase MIC to both ofloxacin and moxifloxacin [@Farhat2016].
+
+
+
+<!-- ## DISCUSSION -->
+
+<!-- This study helps demonstrate the value of WGS in the context of a low-income, high-burden country. Our findings on potential transmission among lineages 2 and 4, Pre-XDR and XDR TB, and in Peshawar, as well as drug resistance mutations can inform better epidemiological, clinical, and control decisions in Pakistan and, more generally, provides insight into mutations relevant to drug design. WGS can potentially be particularly useful in countries similar to Pakistan where effective public health surveillance is inadequate due to socio-economic problems - genetic data can fill gaps in data collection, revealing salient connections and variation. -->
+
+<!-- ### Transmission -->
+
+<!-- Evidence of increased transmission among lineages 2 and 4 is consistent with previous characterisations of these clades as more transmissible [@Coscolla2014a][@Assuncao2015], and therefore ought to be monitored more closely despite greater prevalence of lineage 3.  -->
+
+<!-- It is surprising that Pr-XDR and XDR samples were found to be clustered more than expected given the usual fitness cost of drug resistance [@Cohen2003][@Gygli2017]. This however suggests unknown compensatory mutations and ought to be investigated in future work.  -->
+
+<!-- ### Drug resistance -->
+
+<!-- Inframe deletions have not been widely reported as a major mechanism of resistance to rifampicin and it is surprising to see the relative high number of these mutations in our dataset. -->
+
+<!-- Nonsense mutations are presumed to lead loss of function in the *katG* gene since it codes for the activator of isoniazid (catalase-peroxidase enzyme), so it is unsurprising to see potentially drug-resistance conferring mutations here.  -->
+
+<!-- Mutations in the -16 and -8 position of the *embA* promoter have been reported to enhance binding of the *embR* transcription regulator to the promoter and increase expression of *embCAB* operon. The deletions are also presumed to have a similar effect to enhance binding of *embR*, though further experimental evidence would be required in future.  -->
+
+<!-- The two strains which were resistant to both amikacin and kanamycin also contained a mutation in the promoter region to *eis* (c.-14C>T). This mutation could potentially explain the resistance to both these drugs and may point to the r.878g>a being either increasing the level of resistance to these drugs or potentially conferring resistance to streptomycin (which was not tested for in these samples). -->
+
+<!-- The *pncA* gene codes for the activator of pyrazinamide and loss of function leads to resistance. The functional consequence of the premature stop codons and indels are usually severe to protein function and these mutations in our isolates represent highly likely candidates as conferring resistance. Mutations in the promoter region of *pncA* leads to changes in the expression of PncA and resistance [@Sheen2013]. The c.-7T>G mutation is thus also likely to cause resistance. The functional effect of SNPs in the coding region of *pncA* can be harder to predict, however the Val180Ala mutation was reported previously to be associated to pyrazinamide resistance in the CARD database [@Alcock2020]. -->
+
+<!-- The incomplete penetrance of the streptomycin-associated p.Asp67Gly mutation could be explained by the relative low-level resistance conferred by mutation in *gid* which could be under the critical concentration but still elevated with respect to wild-type. -->
+
+
+
+### DISCUSSION XXXXXXX NOT LOOKED AT, NEEDS EDITING XXXXX
+This study reinforces the value of whole genome sequencing in the context of low resource and high TB burden settings. Our findings on potential transmission among lineages 2 and 4, Pre-XDR and XDR TB, and in Peshawar, as well as drug resistance mutations can inform better epidemiological, clinical, and control decisions in Pakistan and, more generally, provides insight into mutations relevant to drug design. WGS can potentially be particularly useful in countries similar to Pakistan where effective public health surveillance is inadequate due to socio-economic problems - genetic data can fill gaps in data collection, revealing salient connections and variation.
+
+Evidence of increased transmission among lineages 2 and 4 is consistent with previous characterisations of these clades as more transmissible [@Coscolla2014a][@Assuncao2015], and therefore ought to be monitored more closely despite greater prevalence of lineage 3. It is surprising that Pre-XDR and XDR samples were found to be clustered more than expected given the usual fitness cost of drug resistance [@Cohen2003][@Gygli2017]. This however suggests unknown compensatory mutations and ought to be investigated in future work.
+
+Inframe deletions have not been widely reported as a major mechanism of resistance to rifampicin and it is surprising to see the relative high number of these mutations in our dataset. Nonsense mutations are presumed to lead loss of function in the *katG* gene since it codes for the activator of isoniazid (catalase-peroxidase enzyme), so it is unsurprising to see potentially drug-resistance conferring mutations here. Mutations in the -16 and -8 position of the *embA* promoter have been reported to enhance binding of the *embR* transcription regulator to the promoter and increase expression of *embCAB* operon. The deletions are also presumed to have a similar effect to enhance binding of *embR*, though further experimental evidence would be required in future. The two strains which were resistant to both amikacin and kanamycin also contained a mutation in the promoter region to *eis* (-14C>T). This mutation could potentially explain the resistance to both these drugs and may point to the 878g>a being either increasing the level of resistance to these drugs or potentially conferring resistance to streptomycin (which was not tested for in these samples). The *pncA* gene codes for the activator of pyrazinamide and loss of function leads to resistance. The functional consequence of the premature stop codons and indels are usually severe to protein function and these mutations in our isolates represent highly likely candidates as conferring resistance. Mutations in the promoter region of *pncA* leads to changes in the expression of PncA and resistance [@Sheen2013]. The c.-7T>G mutation is thus also likely to cause resistance. The functional effect of SNPs in the coding region of *pncA* can be harder to predict, however the Val180Ala mutation was reported previously to be associated to pyrazinamide resistance in the CARD database [@Alcock2020]. 
+
+The incomplete penetrance of the streptomycin-associated D67Gly mutation could be explained by the relative low-level resistance conferred by mutation in gid which could be under the critical concentration but still elevated with respect to wild-type.
 
 ## METHODS
 
@@ -1557,31 +1652,26 @@ kable(methods_table)
 ```
 -->
 
-### Sequence data and processing
+**Sequence data and processing**
 
-WGS were sourced across `r as.english(length(unique(metadata$study_name)))` studies [@Stucki2016] [@Phelan2016a] [@Cryptic2018] [@Coll2018][@Jabbar2019][@Khan2021](ENA accessions: PRJEB7798, PRJEB10385, PRJEB25972, PRJEB32684, PRJEB43284). 
+<!-- WGS were sourced across `r as.english(length(unique(metadata$study_name)))` studies [@Stucki2016] [@Phelan2016a] [@Cryptic2018] [@Coll2018][@Jabbar2019][@Khan2021](ENA accessions: PRJEB7798, PRJEB10385, PRJEB25972, PRJEB32684, PRJEB43284).  -->
 
-Sequences were downloaded from the European Nucleotide Archive (ENA www.ebi.ac.uk/ena/) and quality inspection of reads assessed in fastQC (version 0.11.9, www.bioinformatics.babraham.ac.uk/projects/fastqc/). Raw reads were trimmed to remove low-quality sequences in Trimmomatic v0.39 [@Bolger2014] and aligned to the H37Rv reference genome (AL123456) with BWA mem v0.7.17 [@Li2013], [@Cole1998]. 
+<!-- Sequences were downloaded from the European Nucleotide Archive (ENA www.ebi.ac.uk/ena/) and quality inspection of reads assessed in fastQC (version 0.11.9, www.bioinformatics.babraham.ac.uk/projects/fastqc/). Raw reads were trimmed to remove low-quality sequences in Trimmomatic v0.39 [@Bolger2014] and aligned to the H37Rv reference genome (AL123456) with BWA mem v0.7.17 [@Li2013], [@Cole1998].  -->
 
-Joint SNP calling was processed in gatk GenotypeGVCFs v4.1.3.0 [@Depristo2011]. SNP filtering excluded indels, heterozygous SNPs, monomorphic SNPs and non-unique regions of the genome (e.g. PE/PPE genes), which was conducted in bcftools v1.9 [@Li2009]. 
+<!-- Joint SNP calling was processed in gatk GenotypeGVCFs v4.1.3.0 [@Depristo2011]. SNP filtering excluded indels, heterozygous SNPs, monomorphic SNPs and non-unique regions of the genome (e.g. PE/PPE genes), which was conducted in bcftools v1.9 [@Li2009].  -->
 
-A multi-FASTA format file was created from the filtered SNP file and H37Rv reference fasta using bedtools makewindows v2.28.0 [@Quinlan2010] which in turn was used to construct a phylogenetic tree with IQ-TREE v1.6.12. Here, a general time reversible model with rate heterogeneity set to a discrete Gamma model and an ascertainment bias correction were used (parameters -m GTR+G+ASC), with 1000 bootstrap samples used to measure branch quality and robustness. [@Nguyen2015] [@Hoang2018] [@Tavare1986] [@Lewis2001] [@Yang1994].
+<!-- A multi-FASTA format file was created from the filtered SNP file and H37Rv reference fasta using bedtools makewindows v2.28.0 [@Quinlan2010] which in turn was used to construct a phylogenetic tree with IQ-TREE v1.6.12. Here, a general time reversible model with rate heterogeneity set to a discrete Gamma model and an ascertainment bias correction were used (parameters -m GTR+G+ASC), with 1000 bootstrap samples used to measure branch quality and robustness. [@Nguyen2015] [@Hoang2018] [@Tavare1986] [@Lewis2001] [@Yang1994]. -->
 
-Pairwise distance matrices were calculated in Plink v1.90b4 [@Purcell2007]. Drug resistance status, drug resistance-associated mutations, other mutations, and lineages were predicted *in silico* using TB-Profiler v2.4 [@Phelan2019] [@Coll2015] [@Napier2020]. In categorising samples as *Susceptible*, *Pre-MDR*, *MDR*, *Pre-XDR*, *XDR*, or *other*, the TB-Profiler predictions were used in place of missing or contradictory DST data. 
+<!-- Pairwise distance matrices were calculated in Plink v1.90b4 [@Purcell2007]. Drug resistance status, drug resistance-associated mutations, other mutations, and lineages were predicted *in silico* using TB-Profiler v2.4 [@Phelan2019] [@Coll2015] [@Napier2020]. In categorising samples as *Susceptible*, *Pre-MDR*, *MDR*, *Pre-XDR*, *XDR*, or *other*, the TB-Profiler predictions were used in place of missing or contradictory DST data.  -->
 
-Linear mixed models have been previously applied to adjust for the confounds of *Mtb* (sub-)lineage and outbreak-based population structure [@Phelan2016b].Therefore a linear mixed regression model was conducted to estimate the strength of association between the binary "transmission"/"non-transmission" outcome and SNPs, conducted in GEMMA (v.1.1.2) [@Zhou2012].
-
-
+<!-- Linear mixed models have been previously applied to adjust for the confounds of *Mtb* (sub-)lineage and outbreak-based population structure [@Phelan2016b].Therefore a linear mixed regression model was conducted to estimate the strength of association between the binary "transmission"/"non-transmission" outcome and SNPs, conducted in GEMMA (v.1.1.2) [@Zhou2012]. -->
 
 
+<!-- For sublineages in the Pakistan dataset for which there were > 10 samples (1.1.2, 2.2.1, 3, 3.1.2, 4.5, 4.9), other samples from a global dataset were found which also belonged to these lineages. Phylogenetic trees of the concatenated Pakistan and global samples were then constructed, for each sublineage separately, with FastTree [@Price2010a]. Likelihoods of ancestral locations were conducted with the ape 5.0 [@Paradis2019] and phytools [@Revell2012] packages in R (**Figure 2**). -->
 
+WGS were sourced across 6 studies <!--7--> [@Jabbar2019]<!--8-->[@Coll2018]<!--9-->[@Kanji2016]<!--10-->[@Ali2015]<!--11-->[@Cryptic2018]<!--12-->[@Khan2021] (ENA accessions: PRJEB7798, PRJEB10385, PRJEB25972, PRJEB32684, PRJEB43284). Raw reads were trimmed to remove low-quality sequences in Trimmomatic (v0.39) [@Bolger2014],  and aligned to the H37Rv reference genome (AL123456) with BWA mem (v0.7.17) [@Li2013]. SNPs and indels were called using samtools software [@Li2011] and was processed in gatk GenotypeGVCFs (v4.1.3.0) (gatk.broadinstitute.org). Monomorphic SNPs and variants in non-unique regions of the genome (e.g. pe/ppe genes) were excluded. A multi-FASTA format file was created from the filtered SNP file and H37Rv reference fasta using bedtools makewindows (v2.28.0) [@Quinlan2010]. This multiple alignment was used to construct a phylogenetic tree with IQ-TREE (v1.6.12), involving a general time reversible model with rate heterogeneity set to a discrete Gamma model and an ascertainment bias correction (parameters -m GTR+G+ASC), with 1000 bootstrap samples [@Nguyen2015]. Pairwise distance matrices were calculated in Plink software (v1.90b4) [@Purcell2007]. Drug resistance and lineages were predicted  in silico from raw sequence data using TB-Profiler (v2.4) [@Phelan2019]. The Pakistan analysis results were compared to a global collection of 34k M. tuberculosis with WGS and DST data [@Napier2020].
 
-For sublineages in the Pakistan dataset for which there were > 10 samples (1.1.2, 2.2.1, 3, 3.1.2, 4.5, 4.9), other samples from a global dataset were found which also belonged to these lineages. Phylogenetic trees of the concatenated Pakistan and global samples were then constructed, for each sublineage separately, with FastTree [@Price2010a]. Likelihoods of ancestral locations were conducted with the ape 5.0 [@Paradis2019] and phytools [@Revell2012] packages in R (**Figure 2**).
-
-
-
-
-
+Linear mixed models have been previously applied to adjust for the confounds of Mtb (sub-)lineage and outbreak-based population structure [@Phelan2016b]. Therefore a linear mixed regression model was conducted to estimate the strength of association between the binary "transmission"/"non-transmission" outcome and SNPs, conducted in GEMMA (v.1.1.2) [@Zhou2012]. For sublineages in the Pakistan dataset for which there were > 10 samples (1.1.2, 2.2.1, 3, 3.1.2, 4.5, 4.9), other samples from a global dataset were found which also belonged to these lineages. Phylogenetic trees of the concatenated Pakistan and global samples were then constructed, for each sublineage separately, with FastTree [@Price2010a]. Likelihoods of ancestral locations were conducted with the ape 5.0 [@Paradis2019] and phytools [@Revell2012] packages in R (**Figure 2**). 
 
 
 <!--
@@ -1594,15 +1684,15 @@ BEAST v2.6.3 [@Bouckaert2019] was used to infer timed phylogenetic trees (see **
 
 ### Tables
 
-#### General
 ```{r table-1, echo=FALSE, out.width = "2000px"}
 
 knitr::kable(table_1, row.names = NA, rownames.print = F, caption = sprintf("*Mycobacterium tuberculosis* samples (N = %s)", n_samps_total))
 
 ```
 ***
-#### Lineages
-```{r lintable, echo=FALSE, out.width = "2000px"}
+
+**S1 Table: Strain-types**
+```{r strain-types, echo=FALSE, out.width = "2000px"}
 
 # knitr::kable(lin_tab, align = align)
 # cap <- "Table of main sublineages as proposed by Comas et al (2010) [@Comas2010] and Stucki et al (2016) [@Stucki2016] and predicted by Napier (2020) [@Napier2020], and their equivalents in 'Large Sequence Polymorphism' lineages[@GagneuxDeRiemer2006] and spoligotype families[@Demay2012]."
@@ -1610,50 +1700,180 @@ cap <- "Strain-types"
 knitr::kable(lin_conv_tab, caption = cap)
 
 ```
+
 ***
-#### Transmission
-```{r in-trans-table, echo=FALSE, out.width = "2000px"}
 
-# knitr::kable(in_trans_df,
-#              caption = sprintf("Lineages, drug-resistance status and locations of samples 'in transmission' - i.e. a SNP distance of %s (n=%s)", threshold, length(clusters)))
+**S2 Table: Drug-resistant samples according to drug susceptibility tests (DST) and genotypic predictions**
+```{r dr-tab, echo=FALSE, out.width = "2000px"}
 
-knitr::kable(trans_df,
-             caption = sprintf("Lineages, drug-resistance status and locations of samples 'in transmission' - i.e. a SNP distance of %s (n=%s)", threshold, length(clusters)))
+knitr::kable(dr_tab, caption = "Drug-resistant samples according to drug susceptibility tests (DST) and genotypic predictions")
 
 ```
+
+**S3 Table: Drug resistance categories by Lineage (L)**
+```{r dr-lin-tab, echo=FALSE, out.width = "2000px"}
+
+knitr::kable(dr_lin_tab, row.names = NA, rownames.print = F, caption = "S3 Table: Drug resistance categories by Lineage (L)")
+
+```
+
 ***
+
+**S4 Table: Sensitivity analysis of clustering by SNP distance, summary statistics**
 ```{r dist-sens-table, echo=FALSE, out.width = "2000px"}
 
 knitr::kable(dist_sensitivity_table, caption = "Sensitivity analysis of clustering by SNP distance, summary statistics")
 
 ```
-***
-#### Drug resistance
-```{r drTableLin, echo=FALSE, out.width = "2000px"}
 
-knitr::kable(dr_lin_tab, row.names = NA, rownames.print = F, caption = "Drug resistance categories by lineage. See *Methods* section for criteria of categories.")
+***
+
+**S5 Table: Characteristics of 169 M. tuberculosis isolates in 55 clusters with a SNP distance of 10 compared to others**
+```{r in-trans-table, echo=FALSE, out.width = "2000px"}
+
+# knitr::kable(in_trans_df,
+#              caption = sprintf("Lineages, drug-resistance status and locations of samples 'in transmission' - i.e. a SNP distance of %s (n=%s)", threshold, length(clusters)))
+
+# cap <- sprintf("Lineages, drug-resistance status and locations of samples 'in transmission' - i.e. a SNP distance of %s (n=%s)", threshold, length(clusters))
+cap <- "Characteristics of 169 M. tuberculosis isolates in 55 clusters with a SNP distance of 10 compared to others"
+knitr::kable(trans_df, caption = cap)
 
 ```
-***
-```{r dr-tab, echo=FALSE, out.width = "2000px"}
 
-knitr::kable(dr_tab, caption = "Numbers and percentages of drug-resistant samples accourding to DST and genotypic predictions (TBprofiler)")
-
-```
 ***
+
+
+**S6 Table: Number of samples with known drug resistance-associated mutations**
+
 ```{r dr-variants-table, echo=FALSE, out.width = "2500px"}
 
-knitr::kable(dr_variants_pivot, 
-             caption = sprintf("Number of samples with known drug resistance-associated mutations by gene and drug (n=%s)", n_samps_total))
+# knitr::kable(dr_variants_pivot, 
+#              caption = sprintf("Number of samples with known drug resistance-associated mutations by gene and drug (n=%s)", n_samps_total))
+
+# Read in global data
+global_file <- paste0(metadata_path, "mutations_global_freqs.csv")
+global <- read.csv(global_file)
+
+# Clean
+names(global)[names(global) %in% "drug_resistant_."] <- "drug_resistant_pc"
+
+# Checks/have a look
+global[global[, "change"] == "c.-92T>G", ]
+global[global[, "change"] == "p.Ala288Asp", ]
+
+# Re-arrange cols, take out gene col
+global_subset <- global[, c("drug", "change", 
+                            "global_freq", 
+                            "Sensitive_freq", 
+                            "drug_resistant_pc", 
+                            "Pre.MDR_freq", 
+                            "MDR_freq", 
+                            "Pre.XDR_freq", 
+                            "XDR_freq", 
+                            "Other_freq")]
+
+# Merge
+known_mut_global <- merge(dr_variants_pivot, global_subset, by = c("drug", "change"), all.x = T, sort = F)
+
+# Clean
+known_mut_global <- known_mut_global %>% mutate_if(is.numeric, round, 3)
+known_mut_global <- known_mut_global[order(known_mut_global$drug), ]
+known_mut_global <- known_mut_global[, c("drug", 
+           "gene", 
+           "change",
+           "N", 
+           "global_freq", 
+           "Sensitive_freq", 
+           "drug_resistant_pc", 
+           "Pre.MDR_freq", 
+           "MDR_freq", 
+           "Pre.XDR_freq", 
+           "XDR_freq", 
+           "Other_freq")]
+
+names(known_mut_global) <- c("Drug", 
+              "Gene", 
+              "Change",
+              "N", 
+              "Global N", 
+              "Sensitive freq", 
+              "Drug resistant %", 
+              "Pre MDR freq", 
+              "MDR freq", 
+              "Pre XDR freq", 
+              "XDR freq", 
+              "Other freq")
+
+known_mut_global <- data.frame(lapply(known_mut_global, function(x) {gsub(",", ";", x)}))
+
+write.csv(known_mut_global, file = paste0(metadata_path, "known_mutations_and_global_freq_merged.csv"),
+          row.names = F, quote = F)
+
 
 ```
+
+**TOO LARGE - ATTACHED**
+
 ***
+
+**S7 Table: Phenotypically resistance samples (n=82) with variants previously unknown to be associated with drug resistance**
+
 ```{r FNresultstable, echo=FALSE, out.width = "2500px"}
 
-knitr::kable(FN_results_table_pivot, caption = sprintf("Number of samples with variants previously unknown to be associated with drug resistance (for each respective drug) among 'FN' drug susceptibility test samples (n=%s)", n_FN_samps) )
+# knitr::kable(FN_results_table_pivot, caption = sprintf("Number of samples with variants previously unknown to be associated with drug resistance (for each respective drug) among 'FN' drug susceptibility test samples (n=%s)", n_FN_samps) )
+
+# Join global freqs to novel mutations table (FN_results_table_pivot)
+
+x <- merge(FN_results_table_pivot, global_subset, 
+      by = c("drug", "change"), all.x = T, sort = F)
+
+x <- x %>% mutate_if(is.numeric, round, 3)
+
+x <- x[order(x$drug), ]
+
+x <- x[, c("drug", 
+      "gene", 
+      "change",
+      "N", 
+      "global_freq", 
+      "Sensitive_freq", 
+      "drug_resistant_pc", 
+      "Pre.MDR_freq", 
+      "MDR_freq", 
+      "Pre.XDR_freq", 
+      "XDR_freq", 
+      "Other_freq")]
+
+names(x) <- c("Drug", 
+              "Gene", 
+              "Change",
+              "N", 
+              "Global N", 
+              "Sensitive freq", 
+              "Drug resistant freq", 
+              "Pre MDR freq", 
+              "MDR freq", 
+              "Pre XDR freq", 
+              "XDR freq", 
+              "Other freq")
+
+x <- unique(x)
+
+write.csv(x, paste0(metadata_path, "novel_mutations_and_global_freq_merged.csv"), quote = F, row.names = F)
 
 ```
+
+**TOO LARGE - ATTACHED**
+
 ***
+**S8 Genome-wide association analysis of transmission – top five genes.**
+```{r gwas-table, echo=FALSE, out.width = "2500px"}
+
+cap <- "Genome-wide association analysis of transmission – top five genes"
+knitr::kable(gwas_table, caption = cap)
+
+```
+
 
 <!--
 #### Beast
@@ -1806,10 +2026,7 @@ names(drug_discrepancy_cols) <- drug_discrepancy_vals
 
 ```
 
-
 ```{r ggtree-all-samps, echo=FALSE, out.width = "1500px", dpi = 300, fig.height=5, warning = F, message = F, cache=F, fig.show="hold", fig.cap=sprintf("The %s *M. tuberculosis* isolates: A phylogenetic tree constructed using %s SNPs", n_samps_total, fmt(n_snps_total))}
-
-
 
 # Tree setup
 line_sz <- 0.25
@@ -1910,7 +2127,19 @@ gheatmap(dr_status_loc_hm, trans_non_trans_df,
 
 ***
 
-```{r dr-trees-noref, echo=FALSE, out.width = "1500px", fig.height=8, dpi = 300, warning = F, message = F, cache=F, fig.show="hold"}
+```{r asr-trees, echo=FALSE, out.width = "1500px", fig.height=8, dpi = 300, warning = F, message = F, cache=F, fig.show="hold", fig.cap = Phylogenetic tree with the Pakistan samples and closely-related global isolates from previously published datasets (n= ) XXXX need to describe in methods and results XXXX. The posterior probability for the ancestral state reconstruction of subregion of sample collection is indicated by the pie charts on the internal nodes. Sublineages 1.1.2, 2.2.1,  3, 3.1.2, 4.5 and 4.9}
+
+plot(1,1)
+
+```
+
+**TOO LARGE - ATTACHED**
+s
+***
+
+**S1 Figure: Phylogenetic tree for the 535 M. tuberculosis isolates with individual genomic drug resistance predictions.**
+
+```{r dr-trees, echo=FALSE, out.width = "1500px", fig.height=8, dpi = 300, warning = F, message = F, cache=F, fig.show="hold", fig.cap = "Phylogenetic tree for the 535 M. tuberculosis isolates with individual genomic drug resistance predictions."}
 
 
 # -------------
@@ -1986,21 +2215,19 @@ lin_dr_loc_hm <- lin_dr_loc_hm + ggnewscale::new_scale_fill()
 # Strip date
 row.names(dr_data) <- unlist(lapply(strsplit(row.names(dr_data), "_"),
                                         function(x){ paste0(x[1:(length(x)-1)], collapse = "_") }))
-# pdf(file = dr_trees_pdf_file)
-gheatmap(lin_dr_loc_hm, dr_data,
-         offset = width * (0.025*3.5),
-         width = width+2,
-         # color = NULL,
-         low="white", high="black", color="black",
-         colnames_position = "top",
-         colnames_angle = angle, colnames_offset_y = 1,
-         hjust = 0,
-         font.size = font_sz) +
-  scale_fill_manual(values=c("white", "black"), labels = c("Sensitive", "Resistant", "NA"), na.value = "grey")+
-  labs(fill = "Drug\nresistance")+
-  legend_spec
-
-
+# # pdf(file = dr_trees_pdf_file)
+# gheatmap(lin_dr_loc_hm, dr_data,
+#          offset = width * (0.025*3.5),
+#          width = width+2,
+#          # color = NULL,
+#          low="white", high="black", color="black",
+#          colnames_position = "top",
+#          colnames_angle = angle, colnames_offset_y = 1,
+#          hjust = 0,
+#          font.size = font_sz) +
+#   scale_fill_manual(values=c("white", "black"), labels = c("Sensitive", "Resistant", "NA"), na.value = "grey")+
+#   labs(fill = "Drug\nresistance")+
+#   legend_spec
 
 
 # Drug resistance from TB profiler (genotypic drug resistance predictions)
@@ -2021,32 +2248,47 @@ gheatmap(lin_dr_loc_hm, dr_tbp_data,
   labs(fill = "Drug\nresistance\n(TB profiler)")+
   legend_spec
 
+# 
+# # Drug discrepancy
+# # Strip date
+# 
+# row.names(drug_discrepancy_data) <- unlist(lapply(strsplit(row.names(drug_discrepancy_data), "_"),
+#                                         function(x){ paste0(x[1:(length(x)-1)], collapse = "_") }))
 
-# Drug discrepancy
-# Strip date
-
-row.names(drug_discrepancy_data) <- unlist(lapply(strsplit(row.names(drug_discrepancy_data), "_"),
-                                        function(x){ paste0(x[1:(length(x)-1)], collapse = "_") }))
-
-```
-
-```{r dr-trees, echo=FALSE, out.width = "1500px", fig.height=8, dpi = 300, warning = F, message = F, cache=F, fig.show="hold", fig.cap="Phyolgenetic trees of all samples and A: DST drug resistance; B: genotypic drug resistance; C: Discrepancies between DST and genotypic resistance."}
-
-gheatmap(lin_dr_loc_hm, drug_discrepancy_data,
-         offset = width * (0.025*3.5),
-         width = width+2,
-         color = NULL,
-         colnames_position = "top",
-         colnames_angle = angle,
-         colnames_offset_y = 1,
-         hjust = 0,
-         font.size = font_sz) +
-  scale_fill_manual(values = drug_discrepancy_cols, breaks = names(drug_discrepancy_cols))+
-  labs(fill = "Phen./Gen diff")+
-  legend_spec
+# gheatmap(lin_dr_loc_hm, drug_discrepancy_data,
+#          offset = width * (0.025*3.5),
+#          width = width+2,
+#          color = NULL,
+#          colnames_position = "top",
+#          colnames_angle = angle,
+#          colnames_offset_y = 1,
+#          hjust = 0,
+#          font.size = font_sz) +
+#   scale_fill_manual(values = drug_discrepancy_cols, breaks = names(drug_discrepancy_cols))+
+#   labs(fill = "Phen./Gen diff")+
+#   legend_spec
 
 
 ```
+
+***
+
+**S2 Figure: SNP distance analyses and clusters (n=535). (top) Density of pairwise SNP differences for all samples; (bottom) number of clustering samples at minimum pairwised SNP difference thresholds**
+
+```{r dist-dens-all-samples, echo=FALSE, fig.show="hold", out.width="50%", dpi=300, fig.cap = SNP distance analyses and clusters (n=535). (top) Density of pairwise SNP differences for all samples; (bottom) number of clustering samples at minimum pairwised SNP difference thresholds.}
+
+dist_dens_all_samples
+plot(threshold_vect, n_clusts_vect, type = 'l', xaxt = "n", xlab = "SNP distance threshold", ylab = "n clusters")
+axis(1, at = threshold_vect, las = 2)
+
+```
+
+<!-- # ```{r n-clusters-plot-noref, echo = F, out.width = "2000px", dpi = 300, fig.show="hold"} -->
+<!-- #  -->
+<!-- #  -->
+<!-- #  -->
+<!-- # ``` -->
+
 
 ***
 
@@ -2105,11 +2347,6 @@ boxplot(dist_thresh, col = col,
 ```
 -->
 
-```{r dist-dens-all-samples, echo=FALSE, fig.show="hold", out.width="50%", dpi=300, fig.cap = sprintf("Density of pairwise SNP distances for all samples (n=%s)", n_samps_total)}
-
-dist_dens_all_samples
-
-```
 
 
 <!--
@@ -2303,12 +2540,6 @@ include_graphics(asr_file)
 
 ***
 
-```{r n-clusters-plot-noref, echo = F, out.width = "2000px", dpi = 300, fig.show="hold"}
-
-plot(threshold_vect, n_clusts_vect, type = 'l', xaxt = "n", xlab = "SNP distance threshold", ylab = "n clusters")
-axis(1, at = threshold_vect, las = 2)
-
-```
 
 ```{r n-clusters-plot, echo = F, out.width = "2000px", dpi = 300, fig.show="hold", fig.cap="Number of clusters and number of samples by SNP distance threshold in clustering sensitivity analysis"}
 
