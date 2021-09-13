@@ -116,7 +116,7 @@ plot(snp_res$log_p, pch = 19, cex = 0.2)
 abline(h = snp_res_10, col = "red")
 text(x = seq(snp_res$log_p), y = snp_res$log_p, labels = ifelse(snp_res$log_p >= snp_res_10, snp_res$rs, ""), offset = 0.5, cex=1, srt=-25)
 
-plot(gene_res$log_p, pch = 19, cex = 0.2, ylab = "-log10 p-value", xlab = "Gene index")
+plot(gene_res$log_p, pch = 19, cex = 0.2, ylab = "-log10 p-value", xlab = "Location")
 abline(h = gene_res_10, col = "red")
 text(x = seq(gene_res$log_p), y = gene_res$log_p, labels = ifelse(gene_res$log_p >= gene_res_10, gene_res$rs, ""), 
      adj = 0, cex=1, srt=-25)
@@ -153,6 +153,10 @@ for(i in seq(nrow(genesum_sub))){
 genesum_list <- lapply(genesum_list, function(x) {
   apply(x, 2, as.factor)
 })
+
+legend_spec <- theme(legend.title = element_text(size = 10),
+                     legend.text = element_text(size = 10),
+                     legend.key.size = unit(0.3, "cm"))
 
 ggtree_all_samps <- ggtree(tree_all_samps, size = line_sz, layout="fan", open.angle = 10)
 
@@ -265,6 +269,75 @@ gheatmap(gene_tree, df,
   legend_spec
 
 
+
+
+genesum <- as.data.frame(do.call("cbind", genesum_list))
+
+genesum$wgs_id <- row.names(genesum)
+
+df <- merge(metadata[, c("wgs_id", "trans_status")], genesum, by = "wgs_id", all.x = T, sort = F)
+
+table(df$trans_status, df$nusG)
+table(df$trans_status, df$Rv0914c)
+table(df$trans_status, df$Rv1896c)
+table(df$trans_status, df$Rv2102)
+table(df$trans_status, df$Rv2184c)
+
+
+
+# Put nusG mutations on tree
+
+nusg_mut <- read.delim("../gwas_results/nusG_samples_mutations.txt", header = F)
+
+names(nusg_mut) <- c("wgs_id", "mut")
+
+nusg_mut <- merge(metadata["wgs_id"], nusg_mut, by = "wgs_id", all.x = T, sort = F)
+
+nusg_cols <- rainbow(length(unique(nusg_mut$mut)))
+
+nusg_cols[length(nusg_cols)] <- "#FFFFFF"
+
+names(nusg_cols) <- unique(nusg_mut$mut)
+
+row.names(nusg_mut) <- nusg_mut$wgs_id
+
+nusg_mut <- nusg_mut[!(names(nusg_mut) %in% "wgs_id")]
+
+ggtree_all_samps <- ggtree(tree_all_samps, size = line_sz, layout="fan", open.angle = 10)
+
+trans_tree <- gheatmap(ggtree_all_samps, trans_non_trans_df,
+                       width = width,
+                       offset = 0,
+                       low="white", high="black", color="black",
+                       colnames_position = "top",
+                       colnames_angle = angle, colnames_offset_y = 1,
+                       hjust = 0,
+                       font.size = 3,
+                       legend_title = "Transmission status") +
+  labs(fill = "Transmission status")+
+  scale_fill_manual(values=c("white", "black"), labels = c("Transmission", "Non-transmission"))+
+  legend_spec
+
+trans_tree <- trans_tree + ggnewscale::new_scale_fill()
+
+png(filename = "../plots/nusG.png", width = 2000, height = 2000, res = 300)
+gheatmap(trans_tree, nusg_mut,
+         width = width,
+         offset = 0.003,
+         color = NULL,
+         colnames_position = "top",
+         colnames_angle = angle, 
+         colnames_offset_y = 1,
+         hjust = 0,
+         font.size = 3) +
+  scale_fill_manual(values = nusg_cols, breaks = names(nusg_cols) ) +
+  labs(fill = "nusG mutations")+
+  legend_spec
+dev.off()
+
+
+
+
 # ------------------------------------------------------------------------
 
 
@@ -351,8 +424,7 @@ write.csv(known_mut_global, file = paste0(metadata_path, "known_mutations_and_gl
 
 # ------------------------------------------------------------------------
 
-# Join global freqs to novel mnutations table (FN_results_table_pivot)
-
+# Join global freqs to novel mutations table (FN_results_table_pivot)
 
 x <- merge(FN_results_table_pivot, global_subset, 
       by = c("drug", "change"), all.x = T, sort = F)
