@@ -1,0 +1,37 @@
+##
+## GEMMA Version    = 0.98.3 (2020-11-28)
+## Build profile    = 
+## GCC version      = 7.5.0
+## GSL Version      = 1.16
+## OpenBlas         = OpenBLAS 0.3.12  - OpenBLAS 0.3.10 DYNAMIC_ARCH NO_AFFINITY Zen MAX_THREADS=128
+##   arch           = Zen
+##   threads        = 96
+##   parallel type  = threaded
+##
+## Command Line Input = gemma -lmm 1 -p trans_status.pheno -g ../vcf/PAKISTAN_ALL.filt.val.gt.g.ann.geno -k output/trans_status.cXX.txt -o trans_status -maf 0.00005 -miss 0.99 
+##
+## Date = Thu Aug 26 11:20:47 2021
+##
+## Summary Statistics:
+## number of total individuals = 535
+## number of analyzed individuals = 535
+## number of covariates = 1
+## number of phenotypes = 1
+## number of total SNPs/var = 38128
+## number of analyzed SNPs/var = 37301
+## REMLE log-likelihood in the null model = -138.728
+## MLE log-likelihood in the null model = -136.123
+## pve estimate in the null model = 0.998906
+## se(pve) in the null model = 0.000313127
+## vg estimate in the null model = 86.9927
+## ve estimate in the null model = 0.000869927
+## beta estimate in the null model =   0.315888
+## se(beta) =   0.00127516
+##
+## Computation Time:
+## total computation time = 1.22573 min 
+## computation time break down: 
+##      time on eigen-decomposition = 0.428708 min 
+##      time on calculating UtX = 0.211156 min 
+##      time on optimization = 0.180567 min 
+##
