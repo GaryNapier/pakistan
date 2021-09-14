@@ -5,6 +5,8 @@ output:
     fig_caption: yes
     table_caption: yes
     number_sections: no
+mainfont: Calibri
+fontsize: 11pt
 bibliography: all_refs.bib
 csl: biomed-central.csl
 ---
@@ -632,47 +634,47 @@ trans_df <- trans_df[, c("category", "X", "in_trans", "in_trans_pc", "not_in_tra
 # ------
 
 
-# # Make df of samples in and not in transmission
-# trans_samps <- names(clusters)
-# non_trans_samps <- metadata[!(metadata[,"wgs_id"] %in% trans_samps), "wgs_id"]
-# trans_non_trans_df <- data.frame(id = c(trans_samps, non_trans_samps), trans_status = c(rep(1, length(trans_samps)), rep(0, length(non_trans_samps))))
-# 
-# # Write out trans_non_trans_df
-# write.csv(trans_non_trans_df, file = "../metadata/trans.csv", row.names = F, quote = F, col.names = F)
-# 
-# # Lineage
-# lin <- tab2df(table(in_trans_metadata$main_lineage))
-# # DR
-# dr <- tab2df(table(in_trans_metadata$dr_status))
-# dr <- dr[, dr_status_vect]
-# 
-# # Loc -
-# # n.b. have to do all this messy wrangling because not all locs are represented in transmission,
-# # so need a pivot table that includes all the 0s
-# # loc <- tab2df(table(in_trans_metadata$location))
-# # loc_data <- metadata[, c("wgs_id", "location")]
-# loc_data <- metadata[, c("wgs_id", "location_other")]
-# loc_data$trans_status <- ifelse(loc_data$wgs_id %in% names(clusters), 1, 0)
-# loc_data$location <- ifelse(loc_data$location == "", NA, loc_data$location)
-# loc_piviot <- reshape2::dcast(loc_data, trans_status ~ location, value.var = "trans_status",
-#                               fun.aggregate = length)
-# loc <- loc_piviot[loc_piviot[, "trans_status"] == 1, !(names(loc_piviot) %in% "trans_status")]
-# 
-# # Put all together
-# in_trans_df <- t(cbind(lin, dr, loc))
-# in_trans_df_rows <- row.names(in_trans_df)
-# in_trans_df <- data.frame(in_trans_df)
-# names(in_trans_df) <- "N"
-# in_trans_df$pc <- (in_trans_df$N/length(clusters))*100
-# # in_trans_df$X <- row.names(in_trans_df)
-# in_trans_df$X <- in_trans_df_rows
-# in_trans_df$Y <- c(rep("Lineage", length(lin)), rep("DR status", length(dr)), rep("Location", length(loc)))
-# row.names(in_trans_df) <- NULL
-# in_trans_df <- in_trans_df[, c("Y", "X", "N", "pc")]
-# names(in_trans_df) <- c("", "", "N", "pc")
-# row.names(in_trans_df) <- NULL
-# 
-# 
+# Make df of samples in and not in transmission
+trans_samps <- names(clusters)
+non_trans_samps <- metadata[!(metadata[,"wgs_id"] %in% trans_samps), "wgs_id"]
+trans_non_trans_df <- data.frame(id = c(trans_samps, non_trans_samps), trans_status = c(rep(1, length(trans_samps)), rep(0, length(non_trans_samps))))
+
+# Write out trans_non_trans_df
+write.csv(trans_non_trans_df, file = "../metadata/trans.csv", row.names = F, quote = F, col.names = F)
+
+# Lineage
+lin <- tab2df(table(in_trans_metadata$main_lineage))
+# DR
+dr <- tab2df(table(in_trans_metadata$dr_status))
+dr <- dr[, dr_status_vect]
+
+# Loc -
+# n.b. have to do all this messy wrangling because not all locs are represented in transmission,
+# so need a pivot table that includes all the 0s
+# loc <- tab2df(table(in_trans_metadata$location))
+# loc_data <- metadata[, c("wgs_id", "location")]
+loc_data <- metadata[, c("wgs_id", "location_other")]
+loc_data$trans_status <- ifelse(loc_data$wgs_id %in% names(clusters), 1, 0)
+loc_data$location <- ifelse(loc_data$location == "", NA, loc_data$location)
+loc_piviot <- reshape2::dcast(loc_data, trans_status ~ location, value.var = "trans_status",
+                              fun.aggregate = length)
+loc <- loc_piviot[loc_piviot[, "trans_status"] == 1, !(names(loc_piviot) %in% "trans_status")]
+
+# Put all together
+in_trans_df <- t(cbind(lin, dr, loc))
+in_trans_df_rows <- row.names(in_trans_df)
+in_trans_df <- data.frame(in_trans_df)
+names(in_trans_df) <- "N"
+in_trans_df$pc <- (in_trans_df$N/length(clusters))*100
+# in_trans_df$X <- row.names(in_trans_df)
+in_trans_df$X <- in_trans_df_rows
+in_trans_df$Y <- c(rep("Lineage", length(lin)), rep("DR status", length(dr)), rep("Location", length(loc)))
+row.names(in_trans_df) <- NULL
+in_trans_df <- in_trans_df[, c("Y", "X", "N", "pc")]
+names(in_trans_df) <- c("", "", "N", "pc")
+row.names(in_trans_df) <- NULL
+
+
 # # -----
 # 
 # # Tests and plots - chi sq etc
@@ -774,7 +776,7 @@ or <- function(x, column){
   
   test <- fisher.test(df)
   
-  res_df <- data.frame(odds_ratio = test$estimate, 
+  res_df <- data.frame(odds_ratio = round(test$estimate, 2), 
                        CI = paste0(round(test$conf.int[1], 2), ", ", round(test$conf.int[2], 2)),
                        p_val = scientific(test$p.value))
   
@@ -787,8 +789,35 @@ or <- function(x, column){
 lin_contingency_tab_df <- trans_df[trans_df$category == "Lineage", c("X", "in_trans", "not_in_trans")]
 lin_contingency_tab_df <- setNames(data.frame(t(lin_contingency_tab_df[,-1])), lin_contingency_tab_df[,1])
 
+# DR
+dr_contingency_tab_df <- trans_df[trans_df$category == "DR status", c("X", "in_trans", "not_in_trans")]
+dr_contingency_tab_df <- setNames(data.frame(t(dr_contingency_tab_df[,-1])), dr_contingency_tab_df[,1])
+
+# Loc
+loc_contingency_tab_df <- trans_df[trans_df$category == "Location", c("X", "in_trans", "not_in_trans")]
+loc_contingency_tab_df <- setNames(data.frame(t(loc_contingency_tab_df[,-1])), loc_contingency_tab_df[,1])
+
+
+# Chi sq tests
+
+# Lin 
+trans_lin_chi_sq <- chisq.test(lin_contingency_tab_df)
+# Do post hoc test
+trans_lin_chi_sq_ph <- chisq.posthoc.test(lin_contingency_tab_df)
+
+# DR
+trans_dr_chi_sq <- chisq.test(dr_contingency_tab_df, simulate.p.value = F)
+trans_dr_chi_sq_ph <- chisq.posthoc.test(dr_contingency_tab_df)
+
+# Loc
+trans_loc_chi_sq <- chisq.test(loc_contingency_tab_df, simulate.p.value = F)
+trans_loc_chi_sq_ph <- chisq.posthoc.test(loc_contingency_tab_df)
+
+
 fisher_tests <- 
 rbind(
+
+# Lin
 rbind(or(lin_contingency_tab_df, "1"), 
       or(lin_contingency_tab_df, "2"), 
       or(lin_contingency_tab_df, "3"),
@@ -797,35 +826,23 @@ rbind(or(lin_contingency_tab_df, "1"),
 # DR
 rbind(
 or(dr_contingency_tab_df, "Sensitive"),
-or(dr_contingency_tab_df, "Pre-MDR"),
-or(dr_contingency_tab_df, "MDR"),
-or(dr_contingency_tab_df, "Pre-XDR"), 
-or(dr_contingency_tab_df, "XDR"),
-or(dr_contingency_tab_df, "Other")
+or(dr_contingency_tab_df, "Pre-MDR, MDR, Other"),
+or(dr_contingency_tab_df, "Pre-XDR, XDR")
 ),
 
 # Location
 rbind(
 or(loc_contingency_tab_df, "Abbottabad"), 
 or(loc_contingency_tab_df, "Dera Ismail Khan"), 
-or(loc_contingency_tab_df, "Hyderabad"), 
-or(loc_contingency_tab_df, "Karachi"), 
-or(loc_contingency_tab_df, "Lahore"), 
-or(loc_contingency_tab_df, "Missing"), 
-or(loc_contingency_tab_df, "Other"), 
 or(loc_contingency_tab_df, "Peshawar"), 
-or(loc_contingency_tab_df, "Rawalpindi"), 
-or(loc_contingency_tab_df, "Swat")
+or(loc_contingency_tab_df, "Swat"), 
+or(loc_contingency_tab_df, "Other")
 )
 )
-
-
-
-
-
 
 trans_df <- cbind(trans_df, fisher_tests)
 
+names(trans_df) <- c("", "", "Trans.", "%", "Non-trans.", "%", "OR", "95% CI", "P-value")
 
 ```
 
@@ -1336,30 +1353,39 @@ gene_res_sort <- gene_res[order(gene_res$log_p, decreasing = T), ]
 # Add CI
 CI_plus <- round(gene_res_sort$beta + (1.96 * gene_res_sort$se), 2)
 CI_minus <- round(gene_res_sort$beta - (1.96 * gene_res_sort$se), 2)
-gene_res_sort$CI <- paste0(CI_plus, "-", CI_minus)
+gene_res_sort$CI <- paste0(CI_minus, ", ", CI_plus)
 
 # Change p-val to scientific
 gene_res_sort$p_wald <- scientific(gene_res_sort$p_wald)
 
+# Just take positive betas
+gene_res_sort <- gene_res_sort[gene_res_sort$beta > 0, ]
+
 # Get p val of 10th snp/gene
-snp_res_10 <- snp_res_sort[10, "log_p"]
-gene_res_10 <- gene_res_sort[10, "log_p"]
+snp_res_5 <- snp_res_sort[5, "log_p"]
+gene_res_5 <- gene_res_sort[5, "log_p"]
 
 gwas_table <- gene_res_sort[1:5, c("rs", "beta", "CI", "p_wald")]
 
-gene_fun_lookup <- data.frame(rs = c("Rv2102", "Rv0914c", "nusG", "Rv2184c", "Rv1896c"), 
-                              Function = c("Uncharacterised protein", 
-                                           "Possible lipid carrier protein or keto acyl-CoA thiolase", 
-                                           "Transcription termination/antitermination protein NusG", 
-                                           "Uncharacterized", 
-                                           "Putative S-adenosyl-L-methionine-dependent methyltransferase"))
+# gene_fun_lookup <- data.frame(rs = c("Rv2102", "Rv0914c", "nusG", "Rv2184c", "Rv1896c"), 
+#                               Function = c("Uncharacterised protein", 
+#                                            "Possible lipid carrier protein or keto acyl-CoA thiolase", 
+#                                            "Transcription termination/antitermination protein NusG", 
+#                                            "Uncharacterized", 
+#                                            "Putative S-adenosyl-L-methionine-dependent methyltransferase"))
+
+gene_fun_lookup <- data.frame(rs = gwas_table$rs, 
+           Function = c("Transcription termination/antitermination protein NusG", 
+                        "Hypothetical glycine rich protein", 
+                        "Cell wall synthesis protein Wag31", 
+                        "Possible osmoprotectant binding lipoprotein ProX", 
+                        "Peptidoglycan biosynthesis pathway"))
 
 gwas_table <- merge(gwas_table, gene_fun_lookup, by = "rs", all.x = T, sort = F)
 
 gwas_table <- gwas_table[, c("rs", "Function", "beta", "CI", "p_wald")]
 
 names(gwas_table) <- c("Gene", "Function", "beta", "95% Conf. Int.", "P-value")
-
 
 
 ```
@@ -2554,26 +2580,138 @@ qgraph::qgraph(1/dist_thresh,
 
 ```
 
+**Figure: Genome-wide association analysis of transmission. The highest five p-value genes with positive betas are labelled.**
+
+```{r manhattan, echo=FALSE, out.width = "2000px", dpi = 300, fig.show="hold", fig.cap = "Genome-wide association analysis of transmission. The highest five p-value genes with positive betas are labelled."}
+
+manhattan_file <- paste0(plots_path, "manhattan.png")
+
+png(filename = manhattan_file,  width = 2000, height = 2000, res = 300)
+plot(gene_res$log_p, pch = 19, cex = 0.2, ylab = "-log10 p-value", xlab = "Location")
+abline(h = -(log10(max(as.numeric(gwas_table[, "P-value"])))), col = "red")
+text(x = seq(gene_res$log_p), 
+     y = gene_res$log_p, 
+     # labels = ifelse(gene_res$log_p >= gene_res_5 && gene_res$beta > 0, gene_res$rs, ""), 
+     labels = ifelse(gene_res$rs %in% gwas_table$Gene, gene_res$rs ,""), 
+     adj = 0, cex=1, srt=-25)
+dev.off()
+
+knitr::include_graphics(manhattan_file)
+
+```
+
 
 **S5 Figure: Phylogenetic location of mutations in nusG gene compared with location of transmission samples.**
 
-```{r nusG-trees, echo=FALSE, out.width = "2000px", fig.height=3, dpi = 300, fig.show="hold", fig.cap = ""}
+```{r mutations-trees, echo=FALSE, out.width = "2000px", fig.height=3, dpi = 300, fig.show="hold", fig.cap = ""}
 
-nusg_mut <- read.delim("../gwas_results/nusG_samples_mutations.txt", header = F)
+# Read in data
+# nusg_mut <- read.delim("../gwas_results/nusG_samples_mutations.txt", header = F)
+mutations <- read.delim("../gwas_results/gwas_samples_mutations.txt", header = T)
 
-names(nusg_mut) <- c("wgs_id", "mutation")
+# Split on gene
+# names(nusg_mut) <- c("wgs_id", "mutation")
+mutations_split <- split(mutations, mutations$gene)
 
-nusg_mut <- merge(metadata["wgs_id"], nusg_mut, by = "wgs_id", all.x = T, sort = F)
 
-nusg_cols <- rainbow(length(unique(nusg_mut$mut)))
+# Get which lists have overlappling mutations/samples
+which_in_list_overlap <- vector()
+for(i in seq(mutations_split)){
+  if(any(duplicated(mutations_split[[i]]$wgs_id))){
+    which_in_list_overlap[i] <- i
+  }
+}
+# Remove NA
+which_in_list_overlap <- which_in_list_overlap[!(is.na(which_in_list_overlap))]
 
-nusg_cols[length(nusg_cols)] <- "#FFFFFF"
 
-names(nusg_cols) <- unique(nusg_mut$mut)
+# Separate into dataframes where there is / is no overlap in samples 
+# (at least one sample has more than one mutation in that gene)
+mutations_split_single <- list()
+mutations_split_multiple <- list()
+for(i in seq(mutations_split)){
+  if(any(duplicated(mutations_split[[i]]$wgs_id))){
+    mutations_split_multiple[[i]] <- mutations_split[[i]]
+  }else{
+    mutations_split_single[[i]] <- mutations_split[[i]]
+  }
+}
 
-row.names(nusg_mut) <- nusg_mut$wgs_id
+# Remove NULL
+mutations_split_single <- mutations_split_single[lengths(mutations_split_single) != 0]
+mutations_split_multiple <- mutations_split_multiple[lengths(mutations_split_multiple) != 0]
 
-nusg_mut <- nusg_mut[!(names(nusg_mut) %in% "wgs_id")]
+# Split multiple on mutation
+mutations_split_multiple <- lapply(mutations_split_multiple, function(x){
+  split(x, x$mutation)
+})
+
+# Merge with rest of samples to get NA - i.e. no colour where no mutation
+# nusg_mut <- merge(metadata["wgs_id"], nusg_mut, by = "wgs_id", all.x = T, sort = F)
+mutations_split_single <- lapply(mutations_split_single, function(x) {
+  merge(metadata["wgs_id"], x, by = "wgs_id", all.x = T, sort = F)
+})
+# Multiple
+for(i in seq(mutations_split_multiple)){
+  for(j in seq(mutations_split_multiple[[i]])){
+    mutations_split_multiple[[i]][[j]] <- merge(metadata["wgs_id"],
+                                                mutations_split_multiple[[i]][[j]], 
+                                                by = "wgs_id", all.x = T, sort = F)
+  }
+}
+
+# Define colours 
+# nusg_cols <- rainbow(length(unique(nusg_mut$mut)))
+mutations_cols <- lapply(mutations_split, function(x){
+  rainbow(length(unique(x$mutation)))
+  })
+
+# Make the NAs white
+# nusg_cols[length(nusg_cols)] <- "#FFFFFF"
+# for(i in seq(mut_cols)){
+#   mut_cols[[i]][length(mut_cols[[i]])] <- "#FFFFFF"
+# }
+for(i in seq(mutations_cols)){
+  mutations_cols[[i]][length(mutations_cols[[i]])+1] <- "#FFFFFF"
+}
+
+# Assign names to the colours
+# names(nusg_cols) <- unique(nusg_mut$mut)
+# for(i in seq(mut_cols)){
+#   names(mut_cols[[i]]) <- unique(mutations_split[[i]]$mutation)
+# }
+for(i in seq(mutations_cols)){
+  names(mutations_cols[[i]]) <- c(unique(mutations_split[[i]]$mutation), NA)
+}
+
+# Assign ids as row names for the ggtrees
+# row.names(nusg_mut) <- nusg_mut$wgs_id
+# for(i in seq(mutations_split)){
+#   row.names(mutations_split[[i]]) <- mutations_split[[i]]$wgs_id
+# }
+for(i in seq(mutations_split_single)){
+  row.names(mutations_split_single[[i]]) <- mutations_split_single[[i]]$wgs_id
+}
+for(i in seq(mutations_split_multiple)){
+  for(j in seq(mutations_split_multiple[[i]])){
+  row.names(mutations_split_multiple[[i]][[j]]) <- mutations_split_multiple[[i]][[j]]$wgs_id
+  }
+  }
+
+
+# Drop the id column
+# nusg_mut <- nusg_mut[!(names(nusg_mut) %in% "wgs_id")]
+for(i in seq(mutations_split_single)){
+  mutations_split_single[[i]] <- mutations_split_single[[i]][!(names(mutations_split_single[[i]]) %in% "wgs_id")]
+}
+for(i in seq(mutations_split_multiple)){
+  for(j in seq(mutations_split_multiple[[i]])){
+    mutations_split_multiple[[i]][[j]] <- mutations_split_multiple[[i]][[j]][!(names(mutations_split_multiple[[i]][[j]]) %in% "wgs_id")]
+  }}
+
+
+
+
 
 ggtree_all_samps <- ggtree(tree_all_samps, size = line_sz, layout="fan", open.angle = 10)
 
@@ -2592,8 +2730,24 @@ trans_tree <- gheatmap(ggtree_all_samps, trans_non_trans_df,
 
 trans_tree <- trans_tree + ggnewscale::new_scale_fill()
 
-png(filename = "../plots/nusG.png", width = 2000, height = 2000, res = 300)
-gheatmap(trans_tree, nusg_mut,
+
+# png(filename = "../plots/nusG.png", width = 2000, height = 2000, res = 300)
+# gheatmap(trans_tree, nusg_mut,
+#          width = width,
+#          offset = 0.003,
+#          color = NULL,
+#          colnames_position = "top",
+#          colnames_angle = angle, 
+#          colnames_offset_y = 1,
+#          hjust = 0,
+#          font.size = 3) +
+#   scale_fill_manual(values = nusg_cols, breaks = names(nusg_cols) ) +
+#   labs(fill = "nusG mutations")+
+#   legend_spec
+# dev.off()
+
+
+gheatmap(trans_tree, mutations_split_single[[1]],
          width = width,
          offset = 0.003,
          color = NULL,
@@ -2602,10 +2756,9 @@ gheatmap(trans_tree, nusg_mut,
          colnames_offset_y = 1,
          hjust = 0,
          font.size = 3) +
-  scale_fill_manual(values = nusg_cols, breaks = names(nusg_cols) ) +
-  labs(fill = "nusG mutations")+
+  scale_fill_manual(values = mutations_cols[[1]], breaks = names(mutations_cols[[1]]) ) +
+  labs(fill = names(mutations_cols[1]))+
   legend_spec
-dev.off()
 
 ```
 
