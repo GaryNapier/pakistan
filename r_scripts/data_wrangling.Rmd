@@ -2613,7 +2613,6 @@ mutations <- read.delim("../gwas_results/gwas_samples_mutations.txt", header = T
 # names(nusg_mut) <- c("wgs_id", "mutation")
 mutations_split <- split(mutations, mutations$gene)
 
-
 # Get which lists have overlappling mutations/samples
 which_in_list_overlap <- vector()
 for(i in seq(mutations_split)){
@@ -2624,40 +2623,25 @@ for(i in seq(mutations_split)){
 # Remove NA
 which_in_list_overlap <- which_in_list_overlap[!(is.na(which_in_list_overlap))]
 
-
-# Separate into dataframes where there is / is no overlap in samples 
-# (at least one sample has more than one mutation in that gene)
-mutations_split_single <- list()
-mutations_split_multiple <- list()
+# Make a pivot of the dataframes where there are samples with more than one mutation, 
+# where each col is a mutation - if the sample has the mutation, value is the mutation and NA if the 
+# sample does not have it. 
 for(i in seq(mutations_split)){
-  if(any(duplicated(mutations_split[[i]]$wgs_id))){
-    mutations_split_multiple[[i]] <- mutations_split[[i]]
-  }else{
-    mutations_split_single[[i]] <- mutations_split[[i]]
+  if(i %in% which_in_list_overlap){
+    mutations_split[[i]] <- reshape2::dcast(mutations_split[[i]], wgs_id ~ mutation, value.var = "mutation")
+  # }else{
+  #   print("SINGLE")
+  #   mutations_split[[i]] 
   }
 }
 
-# Remove NULL
-mutations_split_single <- mutations_split_single[lengths(mutations_split_single) != 0]
-mutations_split_multiple <- mutations_split_multiple[lengths(mutations_split_multiple) != 0]
-
-# Split multiple on mutation
-mutations_split_multiple <- lapply(mutations_split_multiple, function(x){
-  split(x, x$mutation)
-})
-
-# Merge with rest of samples to get NA - i.e. no colour where no mutation
-# nusg_mut <- merge(metadata["wgs_id"], nusg_mut, by = "wgs_id", all.x = T, sort = F)
-mutations_split_single <- lapply(mutations_split_single, function(x) {
-  merge(metadata["wgs_id"], x, by = "wgs_id", all.x = T, sort = F)
-})
-# Multiple
-for(i in seq(mutations_split_multiple)){
-  for(j in seq(mutations_split_multiple[[i]])){
-    mutations_split_multiple[[i]][[j]] <- merge(metadata["wgs_id"],
-                                                mutations_split_multiple[[i]][[j]], 
-                                                by = "wgs_id", all.x = T, sort = F)
-  }
+# Clean up/wrangle
+for(i in seq(mutations_split)){
+  mutations_split[[i]] <- merge(metadata["wgs_id"], mutations_split[[i]], 
+                                by = "wgs_id", all.x = T, sort = F)
+  row.names(mutations_split[[i]]) <- mutations_split[[i]]$wgs_id
+  mutations_split[[i]] <- mutations_split[[i]][!(names(mutations_split[[i]]) %in% c("wgs_id", "gene"))]
+  colnames(mutations_split[[i]]) <- rep(names(mutations_split[i]), ncol(mutations_split[[i]]))
 }
 
 # Define colours 
@@ -2683,34 +2667,6 @@ for(i in seq(mutations_cols)){
 for(i in seq(mutations_cols)){
   names(mutations_cols[[i]]) <- c(unique(mutations_split[[i]]$mutation), NA)
 }
-
-# Assign ids as row names for the ggtrees
-# row.names(nusg_mut) <- nusg_mut$wgs_id
-# for(i in seq(mutations_split)){
-#   row.names(mutations_split[[i]]) <- mutations_split[[i]]$wgs_id
-# }
-for(i in seq(mutations_split_single)){
-  row.names(mutations_split_single[[i]]) <- mutations_split_single[[i]]$wgs_id
-}
-for(i in seq(mutations_split_multiple)){
-  for(j in seq(mutations_split_multiple[[i]])){
-  row.names(mutations_split_multiple[[i]][[j]]) <- mutations_split_multiple[[i]][[j]]$wgs_id
-  }
-  }
-
-
-# Drop the id column
-# nusg_mut <- nusg_mut[!(names(nusg_mut) %in% "wgs_id")]
-for(i in seq(mutations_split_single)){
-  mutations_split_single[[i]] <- mutations_split_single[[i]][!(names(mutations_split_single[[i]]) %in% "wgs_id")]
-}
-for(i in seq(mutations_split_multiple)){
-  for(j in seq(mutations_split_multiple[[i]])){
-    mutations_split_multiple[[i]][[j]] <- mutations_split_multiple[[i]][[j]][!(names(mutations_split_multiple[[i]][[j]]) %in% "wgs_id")]
-  }}
-
-
-
 
 
 ggtree_all_samps <- ggtree(tree_all_samps, size = line_sz, layout="fan", open.angle = 10)
@@ -2747,7 +2703,7 @@ trans_tree <- trans_tree + ggnewscale::new_scale_fill()
 # dev.off()
 
 
-gheatmap(trans_tree, mutations_split_single[[1]],
+gheatmap(trans_tree, mutations_split[[1]],
          width = width,
          offset = 0.003,
          color = NULL,
