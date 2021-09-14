@@ -2139,7 +2139,7 @@ row.names(loc_data) <- unlist(lapply(strsplit(row.names(loc_data), "_"), functio
 row.names(trans_non_trans_df) <- trans_non_trans_df$id
 trans_non_trans_df <- drop_cols(trans_non_trans_df, "id")
 trans_non_trans_df$trans_status <- as.factor(trans_non_trans_df$trans_status)
-names(trans_non_trans_df) <- "Transmission"
+names(trans_non_trans_df) <- "Trans."
 
 # Do tree
 
@@ -2613,6 +2613,26 @@ mutations <- read.delim("../gwas_results/gwas_samples_mutations.txt", header = T
 # names(nusg_mut) <- c("wgs_id", "mutation")
 mutations_split <- split(mutations, mutations$gene)
 
+# ------------------
+# | Define colours |
+# ------------------
+mutations_cols <- lapply(mutations_split, function(x){
+  rainbow(length(unique(x$mutation)))
+})
+
+# Make the NAs white and assign names
+for(i in seq(mutations_cols)){
+  mutations_cols[[i]][length(mutations_cols[[i]])+1] <- "#FFFFFF"
+}
+
+for(i in seq(mutations_cols)){
+  names(mutations_cols[[i]]) <- c(unique(mutations_split[[i]]$mutation), NA)
+}
+
+# ----------------------
+# | Continue wrangling |
+# ----------------------
+
 # Get which lists have overlappling mutations/samples
 which_in_list_overlap <- vector()
 for(i in seq(mutations_split)){
@@ -2629,9 +2649,6 @@ which_in_list_overlap <- which_in_list_overlap[!(is.na(which_in_list_overlap))]
 for(i in seq(mutations_split)){
   if(i %in% which_in_list_overlap){
     mutations_split[[i]] <- reshape2::dcast(mutations_split[[i]], wgs_id ~ mutation, value.var = "mutation")
-  # }else{
-  #   print("SINGLE")
-  #   mutations_split[[i]] 
   }
 }
 
@@ -2641,35 +2658,24 @@ for(i in seq(mutations_split)){
                                 by = "wgs_id", all.x = T, sort = F)
   row.names(mutations_split[[i]]) <- mutations_split[[i]]$wgs_id
   mutations_split[[i]] <- mutations_split[[i]][!(names(mutations_split[[i]]) %in% c("wgs_id", "gene"))]
-  colnames(mutations_split[[i]]) <- rep(names(mutations_split[i]), ncol(mutations_split[[i]]))
-}
-
-# Define colours 
-# nusg_cols <- rainbow(length(unique(nusg_mut$mut)))
-mutations_cols <- lapply(mutations_split, function(x){
-  rainbow(length(unique(x$mutation)))
-  })
-
-# Make the NAs white
-# nusg_cols[length(nusg_cols)] <- "#FFFFFF"
-# for(i in seq(mut_cols)){
-#   mut_cols[[i]][length(mut_cols[[i]])] <- "#FFFFFF"
-# }
-for(i in seq(mutations_cols)){
-  mutations_cols[[i]][length(mutations_cols[[i]])+1] <- "#FFFFFF"
-}
-
-# Assign names to the colours
-# names(nusg_cols) <- unique(nusg_mut$mut)
-# for(i in seq(mut_cols)){
-#   names(mut_cols[[i]]) <- unique(mutations_split[[i]]$mutation)
-# }
-for(i in seq(mutations_cols)){
-  names(mutations_cols[[i]]) <- c(unique(mutations_split[[i]]$mutation), NA)
+  # colnames(mutations_split[[i]]) <- rep(names(mutations_split[i]), ncol(mutations_split[[i]]))
+  if(i %in% which_in_list_overlap){
+    colnames(mutations_split[[i]]) <- paste0(names(mutations_split[i]), 1:ncol(mutations_split[[i]]))
+  }else{
+    colnames(mutations_split[[i]]) <- names(mutations_split[i])
+  }
 }
 
 
-ggtree_all_samps <- ggtree(tree_all_samps, size = line_sz, layout="fan", open.angle = 10)
+# -----
+# PLOT
+# -----
+
+width <- 0.05
+font_sz <- 3
+# ggtree_all_samps <- ggtree(tree_all_samps, size = line_sz, layout="fan", open.angle = 20)
+ggtree_all_samps <- ggtree(tree_all_samps, size = line_sz) +
+coord_cartesian(ylim = y_lim)
 
 trans_tree <- gheatmap(ggtree_all_samps, trans_non_trans_df,
                        width = width,
@@ -2678,7 +2684,7 @@ trans_tree <- gheatmap(ggtree_all_samps, trans_non_trans_df,
                        colnames_position = "top",
                        colnames_angle = angle, colnames_offset_y = 1,
                        hjust = 0,
-                       font.size = 3,
+                       font.size = font_sz,
                        legend_title = "Transmission status") +
   labs(fill = "Transmission status")+
   scale_fill_manual(values=c("white", "black"), labels = c("Non-transmission", "Transmission"))+
@@ -2686,35 +2692,116 @@ trans_tree <- gheatmap(ggtree_all_samps, trans_non_trans_df,
 
 trans_tree <- trans_tree + ggnewscale::new_scale_fill()
 
-
-# png(filename = "../plots/nusG.png", width = 2000, height = 2000, res = 300)
-# gheatmap(trans_tree, nusg_mut,
-#          width = width,
-#          offset = 0.003,
-#          color = NULL,
-#          colnames_position = "top",
-#          colnames_angle = angle, 
-#          colnames_offset_y = 1,
-#          hjust = 0,
-#          font.size = 3) +
-#   scale_fill_manual(values = nusg_cols, breaks = names(nusg_cols) ) +
-#   labs(fill = "nusG mutations")+
-#   legend_spec
-# dev.off()
-
-
-gheatmap(trans_tree, mutations_split[[1]],
+offset_start <- 0.0013
+y_annotate <- n_samps+12
+# for(i in seq(mutations_split)){
+i <- 1
+mutation <- names(mutations_cols[i])
+trans_tree <- gheatmap(trans_tree, mutations_split[[i]],
          width = width,
-         offset = 0.003,
+         offset = offset_start,
          color = NULL,
          colnames_position = "top",
          colnames_angle = angle, 
          colnames_offset_y = 1,
          hjust = 0,
-         font.size = 3) +
-  scale_fill_manual(values = mutations_cols[[1]], breaks = names(mutations_cols[[1]]) ) +
-  labs(fill = names(mutations_cols[1]))+
+         font.size = 3, 
+         colnames = F) +
+  annotate("text", x = 0.027, y = y_annotate, size = font_sz, angle = angle, label = mutation) +
+  scale_fill_manual(values = mutations_cols[[i]], breaks = names(mutations_cols[[i]]) ) +
+  labs(fill = mutation) +
   legend_spec
+
+trans_tree <- trans_tree + ggnewscale::new_scale_fill()
+ # offset <- offset+0.0035
+# }
+
+offset <- offset_start*2
+i <- 2
+mutation <- names(mutations_cols[i])
+trans_tree <- gheatmap(trans_tree, mutations_split[[i]],
+         width = width,
+         offset = offset,
+         color = NULL,
+         colnames_position = "top",
+         colnames_angle = angle, 
+         colnames_offset_y = 1,
+         hjust = 0,
+         font.size = 3, 
+         colnames = F) +
+  annotate("text", x = 0.0285, y = y_annotate, size = font_sz, angle = angle, label = mutation) +
+  scale_fill_manual(values = mutations_cols[[i]], breaks = names(mutations_cols[[i]]) ) +
+  labs(fill = mutation) +
+  legend_spec
+
+trans_tree <- trans_tree + ggnewscale::new_scale_fill()
+
+offset <- offset+offset_start+0.0005
+i <- 3
+mutation <- names(mutations_cols[i])
+trans_tree <- gheatmap(trans_tree, mutations_split[[i]],
+         width = width,
+         offset = offset,
+         color = NULL,
+         colnames_position = "top",
+         colnames_angle = angle, 
+         colnames_offset_y = 1,
+         hjust = 0,
+         font.size = 3, 
+         colnames = F) +
+  annotate("text", x = 0.0295, y = y_annotate, size = font_sz, angle = angle, label = mutation) +
+  scale_fill_manual(values = mutations_cols[[i]], breaks = names(mutations_cols[[i]]) ) +
+  labs(fill = mutation) +
+  legend_spec
+
+trans_tree <- trans_tree + ggnewscale::new_scale_fill()
+
+offset <- offset+offset_start
+i <- 4
+mutation <- names(mutations_cols[i])
+trans_tree <- gheatmap(trans_tree, mutations_split[[i]],
+         width = width,
+         offset = offset,
+         color = NULL,
+         colnames_position = "top",
+         colnames_angle = angle, 
+         colnames_offset_y = 1,
+         hjust = 0,
+         font.size = 3, 
+         colnames = F) +
+  annotate("text", x = 0.0312, y = y_annotate+6, size = font_sz, angle = angle, label = mutation) +
+  scale_fill_manual(values = mutations_cols[[i]], breaks = names(mutations_cols[[i]]) ) +
+  labs(fill = mutation) +
+  legend_spec
+
+trans_tree <- trans_tree + ggnewscale::new_scale_fill()
+
+offset <- offset+offset_start-0.0005
+i <- 5
+mutation <- names(mutations_cols[i])
+trans_tree <- gheatmap(trans_tree, mutations_split[[i]],
+         width = width,
+         offset = offset,
+         color = NULL,
+         colnames_position = "top",
+         colnames_angle = angle, 
+         colnames_offset_y = 1,
+         hjust = 0,
+         font.size = 3, 
+         colnames = F) +
+  annotate("text", x = 0.0323, y = y_annotate, size = font_sz, angle = angle, label = mutation) +
+  scale_fill_manual(values = mutations_cols[[i]], breaks = names(mutations_cols[[i]]) ) +
+  labs(fill = mutation) +
+  legend_spec
+
+trans_tree <- trans_tree + ggnewscale::new_scale_fill()
+
+trans_tree
+ 
+png(filename = "../plots/mutations_tree.png", width = 2000, height = 2000, res = 300)
+trans_tree
+dev.off()
+
 
 ```
 
