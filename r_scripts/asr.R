@@ -59,6 +59,27 @@ for(i in seq(lin_tree_files)){
   trees_list[[i]] <- read.tree(lin_tree_files[[i]])
 }
 
+
+
+# Get sample numbers
+tips_list <- list()
+for(i in seq(trees_list)){
+  tips_list[[i]] <- data.frame(wgs_id = trees_list[[i]]$tip.label)
+  tips_list[[i]] <- merge(global_metadata[, c("wgs_id", "sub_lineage", "country_code")],
+                          tips_list[[i]],
+                          by = "wgs_id",
+                          sort = F)
+  tips_list[[i]]$sub_lineage <- gsub("lineage", "", tips_list[[i]]$sub_lineage)
+  tips_list[[i]]$country_code <- ifelse(tips_list[[i]]$country_code == "pk", "pk", "other")
+  print(unique(tips_list[[i]]$sub_lineage))
+  # names(tips_list[i]) <- unique(tips_list[[i]]$sub_lineage)
+  # print(names(tips_list[i]))
+  print(table(tips_list[[i]]$country_code))
+}
+
+
+
+
 # CLEAN
 
 global_metadata <- merge(global_metadata, country_code_lookup, 
@@ -212,7 +233,7 @@ for(i in seq(mtree_list)){
 # dev.off()
 
 
-legend_pos <- c(100, 1500, 400, 15, 500, 40)
+legend_pos <- c(100, 2000, 400, 137, 550, 40)
 for(i in seq(mtree_list)){
   png(filename = plot_files[i], width = 2000, height = 2000, res = 300)
   plot(mtree_list[[i]], cols, lwd = 1)
