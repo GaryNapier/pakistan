@@ -846,7 +846,8 @@ names(trans_df) <- c("", "", "Trans.", "%", "Non-trans.", "%", "OR", "95% CI", "
 
 ```
 
-```{r dist-sensitivity, echo=F}
+```{r dist-sensitivity-clusters, echo=F}
+
 
 # Loop over the SNP dist threshold vector and do the clustering
 clusters_list <- list()
@@ -894,6 +895,29 @@ dist_sensitivity_table <- data.frame(SNP_dist = threshold_vect,
 med_clust_threshold <- dist_sensitivity_table[dist_sensitivity_table["SNP_dist"] == threshold, "Median"]
 min_clust_threshold <- dist_sensitivity_table[dist_sensitivity_table["SNP_dist"] == threshold, "Min"]
 max_clust_threshold <- dist_sensitivity_table[dist_sensitivity_table["SNP_dist"] == threshold, "Max"]
+
+
+
+
+
+df <- data.frame(clusters)
+
+df$wgs_id <- row.names(df)
+
+df <- merge(df, metadata[, c("wgs_id", "dr_status", "location", "location_other")], by = "wgs_id", sort = F)
+
+tab <- table(df$clusters, df$dr_status)
+
+df <- setNames(data.frame(x = matrix(tab, ncol = ncol(tab))), dimnames(tab)[[2]])
+
+df$cluster <- dimnames(tab)[[1]]
+
+sum(rowSums(drop_cols(df, "cluster") == 0) == ncol(drop_cols(df, "cluster")) - 1)
+
+
+
+
+
 
 ```
 
@@ -2798,7 +2822,7 @@ trans_tree <- trans_tree + ggnewscale::new_scale_fill()
 
 trans_tree
  
-png(filename = "../plots/mutations_tree.png", width = 2000, height = 2000, res = 300)
+png(filename = "../plots/mutations_tree.png", width = 2500, height = 2000, res = 300)
 trans_tree
 dev.off()
 
