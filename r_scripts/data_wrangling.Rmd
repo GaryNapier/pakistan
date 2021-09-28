@@ -40,6 +40,7 @@ library(english)
 library(corrplot)
 library(chisq.posthoc.test)
 library(ecoflux)
+library(MASS)
 knitr::opts_chunk$set(echo = F)
 # options(scipen=1, digits=2)
 options(scipen=999, digits = 3)
@@ -675,62 +676,62 @@ names(in_trans_df) <- c("", "", "N", "pc")
 row.names(in_trans_df) <- NULL
 
 
-# # -----
-# 
-# # Tests and plots - chi sq etc
-# 
-# # Lineage
-# 
-# # Row-bind the samples that are 'in transmission' vs non-in-transmission, by lineage
-# lin_contingency_tab <- rbind(lin, tab2df(table(metadata[!(metadata[,"wgs_id"] %in% names(clusters)), ]$main_lineage)))
-# row.names(lin_contingency_tab) <- c("yes", "no")
-# 
-# # Make df
-# lin_contingency_tab_df <- lin_contingency_tab
-# 
-# # Convert the data as a table
-# lin_contingency_tab <- as.table(as.matrix(lin_contingency_tab))
-# 
-# # Do test
-# trans_lin_chi_sq <- chisq.test(lin_contingency_tab)
-# 
-# # Do post-hoc test
-# trans_lin_chi_sq_ph <- chisq.posthoc.test(lin_contingency_tab)
-# 
-# # DR status
-# 
-# # Row-bind the samples that are 'in transmission' vs non-in-transmission, by DR
-# dr_contingency_tab <- rbind(dr, tab2df(table(metadata[!(metadata[,"wgs_id"] %in% names(clusters)), ]$dr_status)))
-# row.names(dr_contingency_tab) <- c("yes", "no")
-# 
-# # Make df
-# dr_contingency_tab_df <- dr_contingency_tab
-# 
-# # Convert the data as a table
-# dr_contingency_tab <- as.table(as.matrix(dr_contingency_tab))
-# 
-# # Do test
-# trans_dr_chi_sq <- chisq.test(dr_contingency_tab, simulate.p.value = T)
-# # Do post hoc test
-# trans_dr_chi_sq_ph <- chisq.posthoc.test(dr_contingency_tab)
-# 
-# # Location
-# 
-# # Row-bind the samples that are 'in transmission' vs non-in-transmission, by loc
-# loc_contingency_tab <- loc_piviot[, !(names(loc_piviot) %in% "trans_status")]
-# # Swap the rows
-# loc_contingency_tab <- loc_contingency_tab[c(2, 1), ]
-# row.names(loc_contingency_tab) <- c("yes", "no")
-# 
-# # Make df
-# loc_contingency_tab_df <- loc_contingency_tab
-# 
-# # Convert the data as a table
-# loc_contingency_tab <- as.table(as.matrix(loc_contingency_tab))
-# # Do test
-# trans_loc_chi_sq <- chisq.test(loc_contingency_tab, simulate.p.value = T)
-# # Do post-hoc test
-# trans_loc_chi_sq_ph <- chisq.posthoc.test(loc_contingency_tab)
+# -----
+
+# Tests and plots - chi sq etc
+
+# Lineage
+
+# Row-bind the samples that are 'in transmission' vs non-in-transmission, by lineage
+lin_contingency_tab <- rbind(lin, tab2df(table(metadata[!(metadata[,"wgs_id"] %in% names(clusters)), ]$main_lineage)))
+row.names(lin_contingency_tab) <- c("yes", "no")
+
+# Make df
+lin_contingency_tab_df <- lin_contingency_tab
+
+# Convert the data as a table
+lin_contingency_tab <- as.table(as.matrix(lin_contingency_tab))
+
+# Do test
+trans_lin_chi_sq <- chisq.test(lin_contingency_tab)
+
+# Do post-hoc test
+trans_lin_chi_sq_ph <- chisq.posthoc.test(lin_contingency_tab)
+
+# DR status
+
+# Row-bind the samples that are 'in transmission' vs non-in-transmission, by DR
+dr_contingency_tab <- rbind(dr, tab2df(table(metadata[!(metadata[,"wgs_id"] %in% names(clusters)), ]$dr_status)))
+row.names(dr_contingency_tab) <- c("yes", "no")
+
+# Make df
+dr_contingency_tab_df <- dr_contingency_tab
+
+# Convert the data as a table
+dr_contingency_tab <- as.table(as.matrix(dr_contingency_tab))
+
+# Do test
+trans_dr_chi_sq <- chisq.test(dr_contingency_tab, simulate.p.value = T)
+# Do post hoc test
+trans_dr_chi_sq_ph <- chisq.posthoc.test(dr_contingency_tab)
+
+# Location
+
+# Row-bind the samples that are 'in transmission' vs non-in-transmission, by loc
+loc_contingency_tab <- loc_piviot[, !(names(loc_piviot) %in% "trans_status")]
+# Swap the rows
+loc_contingency_tab <- loc_contingency_tab[c(2, 1), ]
+row.names(loc_contingency_tab) <- c("yes", "no")
+
+# Make df
+loc_contingency_tab_df <- loc_contingency_tab
+
+# Convert the data as a table
+loc_contingency_tab <- as.table(as.matrix(loc_contingency_tab))
+# Do test
+trans_loc_chi_sq <- chisq.test(loc_contingency_tab, simulate.p.value = T)
+# Do post-hoc test
+trans_loc_chi_sq_ph <- chisq.posthoc.test(loc_contingency_tab)
 
 
 # Fisher tests and odds ratios
@@ -771,18 +772,29 @@ or <- function(x, column){
   # yes    a  b
   # no     c  d
   
-  not_df <- x[!(names(x) %in% column)]
-  df <- setNames(cbind(x[column], rbind(sum(not_df[1, ]), sum(not_df[2, ]))), c(column, "not"))
+  # not_df <- x[!(names(x) %in% column)]
+  # df <- setNames(cbind(x[column], rbind(sum(not_df[1, ]), sum(not_df[2, ]))), c(column, "not"))
+  # 
+  # test <- fisher.test(df)
+  # 
+  # res_df <- data.frame(odds_ratio = round(test$estimate, 2),
+  #                      CI = paste0(round(test$conf.int[1], 2), ", ", round(test$conf.int[2], 2)),
+  #                      p_val = scientific(test$p.value))
+  # 
+  # row.names(res_df) <- NULL
+  # 
+  # res_df
+  
+  column <- "2"
+  
+  df <- lin_contingency_tab_df[c(1, column)]
   
   test <- fisher.test(df)
   
-  res_df <- data.frame(odds_ratio = round(test$estimate, 2), 
-                       CI = paste0(round(test$conf.int[1], 2), ", ", round(test$conf.int[2], 2)),
-                       p_val = scientific(test$p.value))
+  # Odds = p/(1-p)
   
-  row.names(res_df) <- NULL
+  # x <- rbind(prop.table(lin_contingency_tab_df[1, ]),prop.table(lin_contingency_tab_df[2, ]))
   
-  res_df
 }
 
 # Lin
@@ -814,35 +826,113 @@ trans_loc_chi_sq <- chisq.test(loc_contingency_tab_df, simulate.p.value = F)
 trans_loc_chi_sq_ph <- chisq.posthoc.test(loc_contingency_tab_df)
 
 
-fisher_tests <- 
-rbind(
+# fisher_tests <- 
+# rbind(
+# 
+# # Lin
+# rbind(or(lin_contingency_tab_df, "1"), 
+#       or(lin_contingency_tab_df, "2"), 
+#       or(lin_contingency_tab_df, "3"),
+#       or(lin_contingency_tab_df, "4")),
+# 
+# # DR
+# rbind(
+# or(dr_contingency_tab_df, "Sensitive"),
+# or(dr_contingency_tab_df, "Pre-MDR, MDR, Other"),
+# or(dr_contingency_tab_df, "Pre-XDR, XDR")
+# ),
+# 
+# # Location
+# rbind(
+# or(loc_contingency_tab_df, "Abbottabad"), 
+# or(loc_contingency_tab_df, "Dera Ismail Khan"), 
+# or(loc_contingency_tab_df, "Peshawar"), 
+# or(loc_contingency_tab_df, "Swat"), 
+# or(loc_contingency_tab_df, "Other")
+# )
+# )
+# 
+# trans_df <- cbind(trans_df, fisher_tests)
+# 
+# names(trans_df) <- c("", "", "Trans.", "%", "Non-trans.", "%", "OR", "95% CI", "P-value")
 
-# Lin
-rbind(or(lin_contingency_tab_df, "1"), 
-      or(lin_contingency_tab_df, "2"), 
-      or(lin_contingency_tab_df, "3"),
-      or(lin_contingency_tab_df, "4")),
 
-# DR
-rbind(
-or(dr_contingency_tab_df, "Sensitive"),
-or(dr_contingency_tab_df, "Pre-MDR, MDR, Other"),
-or(dr_contingency_tab_df, "Pre-XDR, XDR")
-),
 
-# Location
-rbind(
-or(loc_contingency_tab_df, "Abbottabad"), 
-or(loc_contingency_tab_df, "Dera Ismail Khan"), 
-or(loc_contingency_tab_df, "Peshawar"), 
-or(loc_contingency_tab_df, "Swat"), 
-or(loc_contingency_tab_df, "Other")
-)
-)
+# ------------
 
-trans_df <- cbind(trans_df, fisher_tests)
+# Models for odds ratios
 
-names(trans_df) <- c("", "", "Trans.", "%", "Non-trans.", "%", "OR", "95% CI", "P-value")
+# Wrangle
+metadata$trans_status_numeric <- ifelse(metadata$trans_status == "in_trans", 1, 0)
+metadata$dr_status_rollup <- ifelse(metadata$dr_status == "Pre-MDR" |
+                                      metadata$dr_status == "MDR" |
+                                      metadata$dr_status == "Other", "Pre-MDR, MDR, Other", 
+       ifelse(metadata$dr_status == "Pre-XDR" | metadata$dr_status == "XDR", "Pre-XDR, XDR", metadata$dr_status))
+metadata$location_other_other <- ifelse(metadata$location_other %in% c("Hyderabad", "Karachi", "Lahore", "Rawalpindi"), 
+                                        "Other", metadata$location_other)
+
+# Sort levels - DR and location
+metadata$dr_status_rollup <- factor(metadata$dr_status_rollup, levels = c("Sensitive", "Pre-MDR, MDR, Other", "Pre-XDR, XDR"))
+metadata$location_other_other <- factor(metadata$location_other_other, 
+                                        levels = c("Dera Ismail Khan", "Abbottabad", "Peshawar", "Swat", "Other", "Missing"))
+
+
+# Take out missing from loc
+df_loc_model <- metadata[!(metadata["location_other_other"] == "Missing"), c("trans_status_numeric", "location_other_other")]
+
+
+# Models
+lin_model <- glm(metadata$trans_status_numeric ~ as.factor(metadata$main_lineage), family = binomial(link = "logit"))
+dr_model <- glm(metadata$trans_status_numeric ~ metadata$dr_status_rollup, family = binomial(link = "logit"))
+loc_model <- glm(df_loc_model$trans_status_numeric ~ df_loc_model$location_other_other, family = binomial(link = "logit"))
+
+# Extract p vals
+lin_p <- summary(lin_model)$coefficients[,4]
+dr_p <- summary(dr_model)$coefficients[,4]
+loc_p <- summary(loc_model)$coefficients[,4]
+
+round_if <- function(x, round_place = 3){
+  x_new <- vector()
+  for(i in seq(x)){
+    num <- as.numeric(x[i])
+    if(is.na(num)){
+      x_new[i] <- x[i]
+    }else if(num < 0.01){
+      x_new[i] <- scientific(num)
+    }else{
+      x_new[i] <- round(num, round_place)
+    }
+  }
+  x_new
+}
+
+
+# Take out intercept
+lin_p <- lin_p[!(names(lin_p) %in% "(Intercept)")]
+dr_p <- dr_p[!(names(dr_p) %in% "(Intercept)")]
+loc_p <- loc_p[!(names(loc_p) %in% "(Intercept)")]
+
+lin_or <- oddsratio::or_glm(data = metadata, model = lin_model)
+dr_or <- oddsratio::or_glm(data = metadata, model = dr_model)
+loc_or <- oddsratio::or_glm(data = metadata, model = loc_model)
+
+models_df <- rbind(
+  
+data.frame(OR = c(1, lin_or$oddsratio), 
+           CI = c("-", paste0(lin_or$`ci_low (2.5)`, ", ", lin_or$`ci_high (97.5)`)), 
+                       P_val = c("-", lin_p)) , 
+
+data.frame(OR = c(1, dr_or$oddsratio), 
+           CI = c("-", paste0(dr_or$`ci_low (2.5)`, ", ", dr_or$`ci_high (97.5)`)), 
+                       P_val = c("-", dr_p)), 
+
+data.frame(OR = c(1, loc_or$oddsratio), 
+           CI = c("-", paste0(loc_or$`ci_low (2.5)`, ", ", loc_or$`ci_high (97.5)`)), 
+                       P_val = c("-", loc_p)))
+
+models_df$P_val <- ifelse(models_df$P_val < 0.01, scientific(models_df$P_val), round_if(models_df$P_val, 3))
+
+models_df$P_val <- round_if(models_df$P_val, 3)
 
 ```
 
@@ -908,11 +998,21 @@ df <- merge(df, metadata[, c("wgs_id", "dr_status", "location", "location_other"
 
 tab <- table(df$clusters, df$dr_status)
 
-df <- setNames(data.frame(x = matrix(tab, ncol = ncol(tab))), dimnames(tab)[[2]])
+x <- setNames(data.frame(x = matrix(tab, ncol = ncol(tab))), dimnames(tab)[[2]])
 
-df$cluster <- dimnames(tab)[[1]]
+x$cluster <- dimnames(tab)[[1]]
 
-sum(rowSums(drop_cols(df, "cluster") == 0) == ncol(drop_cols(df, "cluster")) - 1)
+sum(rowSums(drop_cols(x, "cluster") == 0) == ncol(drop_cols(x, "cluster")) - 1)
+
+
+
+tab <- table(df$clusters, df$location)
+
+x <- setNames(data.frame(x = matrix(tab, ncol = ncol(tab))), dimnames(tab)[[2]])
+
+x$cluster <- dimnames(tab)[[1]]
+
+nrow(x) - sum(rowSums(drop_cols(x, c("Missing", "cluster")) == 0) == ncol(drop_cols(x, c("Missing", "cluster"))) - 1)
 
 
 
